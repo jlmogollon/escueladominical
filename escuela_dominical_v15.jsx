@@ -1009,7 +1009,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   const[activeClase,setActiveClase]=useState(cfg[0]?.key||"CORDERITOS");
   const[modal,setModal]=useState(false);       // add/edit alumno
   const[mgrModal,setMgrModal]=useState(false); // gestionar clases
-  const[form,setForm]=useState({nombre:"",apellido:"",padre:"",madre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});
+  const[form,setForm]=useState({nombre:"",apellido:"",padre:"",madre:"",telPadre:"",telMadre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});
   const[editIdx,setEditIdx]=useState(null);
   const[claseForm,setClaseForm]=useState(null); // editing a class config: {key,nombre,color,isNew}
   const ninos=clases[activeClase]||[];
@@ -1032,10 +1032,10 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   };
 
   // ── Alumnos CRUD ──
-  const openAdd=()=>{setForm({nombre:"",apellido:"",padre:"",madre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});setEditIdx(null);setModal(true);};
+  const openAdd=()=>{setForm({nombre:"",apellido:"",padre:"",madre:"",telPadre:"",telMadre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});setEditIdx(null);setModal(true);};
   const openEdit=(n,i)=>{
     const fam=familias.find(f=>f.alumno===n.nombre&&f.clase===activeClase);
-    setForm({nombre:n.nombre,apellido:"",padre:fam?.padre||"",madre:fam?.madre||"",nacimiento:n.nacimiento||fam?.nacimiento||"",bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||null});
+    setForm({nombre:n.nombre,apellido:"",padre:fam?.padre||"",madre:fam?.madre||"",telPadre:fam?.telPadre||"",telMadre:fam?.telMadre||"",nacimiento:n.nacimiento||fam?.nacimiento||"",bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||null});
     setEditIdx(i);setModal(true);
   };
   const saveAlumno=()=>{
@@ -1064,13 +1064,13 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
       if(tienePadre){
         if(existingFam){
           const newFamilias=familias.map(f=>{
-            if(f.alumno===oldNombre&&f.clase===activeClase)return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
+            if(f.alumno===oldNombre&&f.clase===activeClase)return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
             return f;
           });
           onUpdateFamilias(newFamilias);
         }else{
           const num=Math.max(0,...familias.map(f=>f.num||0))+1;
-          const famRec={id:Date.now(),num,familia:ape||(form.padre||form.madre||"Familia"),padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:"",telMadre:"",alumno:nombreCompleto,edad,cumpleanos,nacimiento:form.nacimiento||"",clase:activeClase,bautizado:!!form.bautizado,sellado:!!form.sellado};
+          const famRec={id:Date.now(),num,familia:ape||(form.padre||form.madre||"Familia"),padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),alumno:nombreCompleto,edad,cumpleanos,nacimiento:form.nacimiento||"",clase:activeClase,bautizado:!!form.bautizado,sellado:!!form.sellado};
           onUpdateFamilias([...familias,famRec]);
         }
       }else if(existingFam){
@@ -1082,7 +1082,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
       const tienePadre=(form.padre||"").trim()||(form.madre||"").trim();
       if(tienePadre){
         const num=Math.max(0,...familias.map(f=>f.num||0))+1;
-        const famRec={id:Date.now(),num,familia:ape||(form.padre||form.madre||"Familia"),padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:"",telMadre:"",alumno:nombreCompleto,edad,cumpleanos,nacimiento:form.nacimiento||"",clase:activeClase,bautizado:!!form.bautizado,sellado:!!form.sellado};
+        const famRec={id:Date.now(),num,familia:ape||(form.padre||form.madre||"Familia"),padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),alumno:nombreCompleto,edad,cumpleanos,nacimiento:form.nacimiento||"",clase:activeClase,bautizado:!!form.bautizado,sellado:!!form.sellado};
         onUpdateFamilias([...familias,famRec]);
       }
     }
@@ -1195,6 +1195,10 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
         <input style={{...S.input,marginBottom:12}} value={form.padre} onChange={e=>setForm(f=>({...f,padre:e.target.value}))}/>
         <label style={S.label}>Madre</label>
         <input style={{...S.input,marginBottom:12}} value={form.madre} onChange={e=>setForm(f=>({...f,madre:e.target.value}))}/>
+        <label style={S.label}>Tel. Padre</label>
+        <input type="tel" style={{...S.input,marginBottom:12}} placeholder="Ej: +34 600 000 000" value={form.telPadre} onChange={e=>setForm(f=>({...f,telPadre:e.target.value}))}/>
+        <label style={S.label}>Tel. Madre</label>
+        <input type="tel" style={{...S.input,marginBottom:12}} placeholder="Ej: +34 600 000 000" value={form.telMadre} onChange={e=>setForm(f=>({...f,telMadre:e.target.value}))}/>
         <label style={S.label}>Fecha de nacimiento</label>
         <input type="date" style={{...S.input,marginBottom:12}} value={form.nacimiento} onChange={e=>setForm(f=>({...f,nacimiento:e.target.value}))}/>
         {form.nacimiento&&(function(){try{const d=new Date(form.nacimiento);const dd=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;const hoy=new Date();const edad=hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0);return <div style={{marginBottom:12,background:"#F5F0FF",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#5B2D8E"}}>🎂 {dd} · {edad} años</div>;}catch(e){return null;}}())}
@@ -1263,7 +1267,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
 }
 
 // ══════════ FAMILIAS PANEL ══════════
-function FamiliasPanel({familias,onUpdate,teacherMode=false}){
+function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teacherMode=false}){
   const[search,setSearch]=useState("");
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
@@ -1284,7 +1288,27 @@ function FamiliasPanel({familias,onUpdate,teacherMode=false}){
         toSave.edad=String(hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0));
       }catch(e){}
     }
-    onUpdate(familias.map(f=>f.id===editId?{...toSave,id:editId}:f));
+    const newFamilias=familias.map(f=>f.id===editId?{...toSave,id:editId}:f);
+    onUpdate(newFamilias);
+    // Sincronizar al alumno en Clases (mismo nombre y clase)
+    const original=familias.find(f=>f.id===editId);
+    if(original&&onUpdateClases){
+      const oldClaseList=clases[original.clase]||[];
+      const idx=oldClaseList.findIndex(n=>n.nombre===original.alumno);
+      const alumnoEnClase=idx>=0?oldClaseList[idx]:null;
+      const datosAlumno={nombre:(toSave.alumno||"").trim()||original.alumno,edad:toSave.edad||null,nacimiento:toSave.nacimiento||null,cumpleanos:toSave.cumpleanos||null,bautizado:!!toSave.bautizado,sellado:!!toSave.sellado};
+      if(toSave.clase===original.clase){
+        if(alumnoEnClase){
+          const newList=oldClaseList.map((n,i)=>i===idx?{...n,...datosAlumno}:n);
+          onUpdateClases({...clases,[original.clase]:newList});
+        }
+      }else{
+        const newListOld=oldClaseList.filter((n,i)=>i!==idx);
+        const newListNew=clases[toSave.clase]||[];
+        const nuevoReg={...(alumnoEnClase||{id:Date.now(),foto:null}),...datosAlumno};
+        onUpdateClases({...clases,[original.clase]:newListOld,[toSave.clase]:[...newListNew,nuevoReg]});
+      }
+    }
     setModal(false);
   };
   const updateMemberFoto=(id,foto)=>onUpdate(familias.map(f=>f.id===id?{...f,foto}:f));
@@ -2073,8 +2097,8 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     const updated={...editNinoTarget,...form};
     const newClases={...clases,[miClase]:(clases[miClase]||[]).map(x=>x.id===editNinoTarget.id?updated:x)};
     onUpdateData("clases",newClases);
-    if(form.nombre!==editNinoTarget.nombre||form.nacimiento){
-      const newFamilias=familias.map(f=>f.alumno===editNinoTarget.nombre?{...f,alumno:form.nombre||f.alumno,cumpleanos:form.cumpleanos||f.cumpleanos,nacimiento:form.nacimiento||f.nacimiento}:f);
+    if(form.nombre!==editNinoTarget.nombre||form.nacimiento||form.edad){
+      const newFamilias=familias.map(f=>f.alumno===editNinoTarget.nombre?{...f,alumno:form.nombre||f.alumno,cumpleanos:form.cumpleanos||f.cumpleanos,nacimiento:form.nacimiento||f.nacimiento,edad:form.edad||f.edad}:f);
       onUpdateData("familias",newFamilias);
     }
     setEditNinoModal(false);
@@ -2893,7 +2917,7 @@ function AdminApp({data,onUpdateData,onLogout}){
               ))}
             </div>
             {masTab==="clases"&&<ClasesPanel clases={data.clases} onUpdate={v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={v=>onUpdateData("familias",v)}/>}
-            {masTab==="familias"&&<FamiliasPanel familias={data.familias} onUpdate={v=>onUpdateData("familias",v)}/>}
+            {masTab==="familias"&&<FamiliasPanel familias={data.familias} onUpdate={v=>onUpdateData("familias",v)} clases={data.clases} onUpdateClases={v=>onUpdateData("clases",v)}/>}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={v=>onUpdateData("eventos",v)}/>}
             {masTab==="videos"&&<VideosPanel videos={data.videos||[]} onUpdate={v=>onUpdateData("videos",v)} cronograma={data.cronograma} maestros={data.maestros}/>}
             {masTab==="evaluaciones"&&<EvaluacionesPanel evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]}/>}
