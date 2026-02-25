@@ -47,8 +47,8 @@ function samePersonName(a,b){
 function confirmDelete(msg="¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.") {
   return window.confirm(msg);
 }
-// Compress image to max 160x160px, quality 0.65, returns base64 data URI
-function compressImage(file, maxDim=160, quality=0.65) {
+// Compress image to max 128x128px, quality 0.5, returns base64 data URI (más pequeño para no superar 1 MB por doc en Firestore)
+function compressImage(file, maxDim=128, quality=0.5) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -354,30 +354,40 @@ async function loadData(key){
 async function saveData(key,val){
   try{
     if(db){
-      await db.collection(FIRESTORE_COLLECTION).doc(key).set({value:JSON.stringify(val)},{merge:true});
-      return;
+      const str=JSON.stringify(val);
+      if(str.length>900000){ console.warn("saveData: payload muy grande ("+key+", "+Math.round(str.length/1024)+" KB). Firestore limita 1 MB por documento. Las fotos en base64 pueden causar fallos."); }
+      await db.collection(FIRESTORE_COLLECTION).doc(key).set({value:str},{merge:true});
+      return true;
     }
     if(typeof window.storage!=="undefined"){
       await window.storage.set(key,JSON.stringify(val));
-      return;
+      return true;
     }
     localStorage.setItem("ed_"+key,JSON.stringify(val));
-  }catch(e){}
+    return true;
+  }catch(e){
+    console.error("saveData falló ["+key+"]:",e&&e.message?e.message:e);
+    return false;
+  }
 }
 
 function subscribeData(onChange){
   if(!db)return ()=>{};
-  return db.collection(FIRESTORE_COLLECTION).onSnapshot(snap=>{
-    snap.docChanges().forEach(change=>{
-      const key=change.doc.id;
-      try{
-        const v=change.doc.data().value;
-        onChange(key,v!=null?JSON.parse(v):null);
-      }catch(e){}
-    });
-  });
+  return db.collection(FIRESTORE_COLLECTION).onSnapshot(
+    snap=>{
+      snap.docChanges().forEach(change=>{
+        const key=change.doc.id;
+        try{
+          const v=change.doc.data().value;
+          onChange(key,v!=null?JSON.parse(v):null);
+        }catch(e){ console.error("subscribeData parse ["+key+"]:",e); }
+      });
+    },
+    err=>{ console.error("subscribeData error:",err); }
+  );
 }
 
+// Para mostrar siempre "Nombre Apellido" en la UI, usar flipName(nombre) al renderizar.
 function getInitials(n){if(!n)return"?";const fn=flipName(n);return fn.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();}
 function evalAvg(ev,videoAvg=null){
   const v=EVAL_KEYS.map(k=>ev[k]).filter(x=>x!=null);
@@ -463,7 +473,7 @@ function AvatarUpload({ photo, onPhoto, size=56, initials="?", color="#5B2D8E" }
   const handleChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const compressed = await compressImage(file, 160, 0.65);
+    const compressed = await compressImage(file, 128, 0.5);
     onPhoto(compressed);
   };
   return (
@@ -2344,7 +2354,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     if(pwForm.new1!==pwForm.new2){setPwError("Las contraseñas no coinciden");return;}
     onUpdatePasswords({...teacherPasswords,[user.name]:pwForm.new1});setPwOk(true);setPwForm({old:"",new1:"",new2:""});setPwError("");
   };
-  const handlePhoto=async(e)=>{const file=e.target.files[0];if(!file)return;const compressed=await compressImage(file,200,0.7);setPhotoSrc(compressed);};
+  const handlePhoto=async(e)=>{const file=e.target.files[0];if(!file)return;const compressed=await compressImage(file,128,0.5);setPhotoSrc(compressed);};
 
   const getNinoGlobalAvg=(alumno)=>{
     const entries=calificaciones.filter(c=>c.alumno===alumno&&c.clase===miClase);if(!entries.length)return null;
