@@ -34,6 +34,16 @@ function flipName(str) {
   }
   return nombre + " " + apellido;
 }
+// Compara dos nombres de alumno (pueden estar en distinto orden: "Nombre Apellido" vs "Apellido Nombre")
+function samePersonName(a,b){
+  if(!a||!b)return false;
+  const x=a.trim(),y=b.trim();
+  if(x===y)return true;
+  const norm=(s)=>s.toLowerCase().replace(/\s+/g," ").split(" ").sort().join(" ");
+  if(norm(x)===norm(y))return true;
+  try{ if(flipName(x)===y||x===flipName(y))return true; }catch(e){}
+  return false;
+}
 function confirmDelete(msg="¿Estás seguro de que deseas eliminar este registro? Esta acción no se puede deshacer.") {
   return window.confirm(msg);
 }
@@ -1034,8 +1044,10 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   // ── Alumnos CRUD ──
   const openAdd=()=>{setForm({nombre:"",apellido:"",padre:"",madre:"",telPadre:"",telMadre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});setEditIdx(null);setModal(true);};
   const openEdit=(n,i)=>{
-    const fam=familias.find(f=>f.alumno===n.nombre&&f.clase===activeClase);
-    setForm({nombre:n.nombre,apellido:"",padre:fam?.padre||"",madre:fam?.madre||"",telPadre:fam?.telPadre||"",telMadre:fam?.telMadre||"",nacimiento:n.nacimiento||fam?.nacimiento||"",bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||null});
+    const fam=familias.find(f=>samePersonName(f.alumno,n.nombre)&&(f.clase||"").trim()===(activeClase||"").trim());
+    const nombreDisplay=n.nombre||"";
+    const padre=fam?.padre??"",madre=fam?.madre??"",telPadre=fam?.telPadre??"",telMadre=fam?.telMadre??"",nacimiento=n.nacimiento||fam?.nacimiento||"";
+    setForm({nombre:nombreDisplay,apellido:"",padre,madre,telPadre,telMadre,nacimiento,bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||null});
     setEditIdx(i);setModal(true);
   };
   const saveAlumno=()=>{
@@ -1060,11 +1072,11 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
       updated[editIdx]=base;
       onUpdate({...clases,[activeClase]:updated});
       const tienePadre=(form.padre||"").trim()||(form.madre||"").trim();
-      const existingFam=familias.find(f=>f.alumno===oldNombre&&f.clase===activeClase);
+      const existingFam=familias.find(f=>samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim());
       if(tienePadre){
         if(existingFam){
           const newFamilias=familias.map(f=>{
-            if(f.alumno===oldNombre&&f.clase===activeClase)return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
+            if(samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim())return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
             return f;
           });
           onUpdateFamilias(newFamilias);
@@ -1074,7 +1086,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
           onUpdateFamilias([...familias,famRec]);
         }
       }else if(existingFam){
-        onUpdateFamilias(familias.filter(f=>!(f.alumno===oldNombre&&f.clase===activeClase)));
+        onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim())));
       }
     }else{
       updated.push(base);
@@ -1092,7 +1104,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
     if(!confirmDelete("¿Eliminar a "+flipName(ninos[i].nombre)+" de la clase?"))return;
     const nombreEliminado=ninos[i].nombre;
     onUpdate({...clases,[activeClase]:ninos.filter((_,j)=>j!==i)});
-    onUpdateFamilias(familias.filter(f=>!(f.alumno===nombreEliminado&&f.clase===activeClase)));
+    onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,nombreEliminado)&&(f.clase||"").trim()===(activeClase||"").trim())));
   };
   const updateFoto=(i,foto)=>onUpdate({...clases,[activeClase]:ninos.map((n,j)=>j===i?{...n,foto}:n)});
 
@@ -1294,7 +1306,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
     const original=familias.find(f=>f.id===editId);
     if(original&&onUpdateClases){
       const oldClaseList=clases[original.clase]||[];
-      const idx=oldClaseList.findIndex(n=>n.nombre===original.alumno);
+      const idx=oldClaseList.findIndex(n=>samePersonName(n.nombre,original.alumno));
       const alumnoEnClase=idx>=0?oldClaseList[idx]:null;
       const datosAlumno={nombre:(toSave.alumno||"").trim()||original.alumno,edad:toSave.edad||null,nacimiento:toSave.nacimiento||null,cumpleanos:toSave.cumpleanos||null,bautizado:!!toSave.bautizado,sellado:!!toSave.sellado};
       if(toSave.clase===original.clase){
