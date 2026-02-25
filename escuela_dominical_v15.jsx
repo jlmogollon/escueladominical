@@ -633,8 +633,12 @@ function LoginScreen({onLogin}){
 
 // ══════════ ADMIN DASHBOARD ══════════
 function AdminDashboard({data}){
-  const{maestros,cronograma,familias,eventos,peticiones,calificaciones}=data;
-  const ninos=Object.values(data.clases).flat();
+  const maestros=Array.isArray(data.maestros)?data.maestros:[];
+  const familias=Array.isArray(data.familias)?data.familias:[];
+  const eventos=Array.isArray(data.eventos)?data.eventos:[];
+  const peticiones=Array.isArray(data.peticiones)?data.peticiones:[];
+  const clases=data.clases&&typeof data.clases==="object"?data.clases:{};
+  const ninos=Object.values(clases).flat();
   const today=new Date();
   const upcomingEvents=eventos.filter(e=>{try{const[d,m,y]=e.fecha.split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-today)/86400000);return diff>=0&&diff<=60;}catch(e){return false;}}).slice(0,5);
   return(
@@ -673,7 +677,7 @@ function AdminDashboard({data}){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             {CLASES_LIST.map(cl=>(
               <div key={cl} style={{background:CLASE_COLORS[cl]+"18",border:`2px solid ${CLASE_COLORS[cl]}44`,borderRadius:14,padding:"12px",textAlign:"center"}}>
-                <div style={{fontSize:26,fontWeight:900,color:CLASE_COLORS[cl]}}>{(data.clases[cl]||[]).length}</div>
+                <div style={{fontSize:26,fontWeight:900,color:CLASE_COLORS[cl]}}>{(clases[cl]||[]).length}</div>
                 <div style={{fontWeight:800,color:CLASE_COLORS[cl],fontSize:11}}>{cl}</div>
                 <div style={{fontSize:10,color:"#7B6B9A",marginTop:2}}>{maestros.filter(m=>m.clase===cl).length} maestros</div>
               </div>
@@ -3198,12 +3202,17 @@ function App(){
     try {
       const d=data||{};
       const alumnos=d.alumnos;
+      const cfg=d.clasesConfig||DEFAULT_CLASES_CONFIG;
+      let clases=d.clases;
+      let familias=d.familias;
       if(alumnos&&Array.isArray(alumnos)&&alumnos.length>0){
-        const cfg=d.clasesConfig||DEFAULT_CLASES_CONFIG;
-        return { ...d, clases: deriveClases(alumnos,cfg), familias: deriveFamilias(alumnos) };
+        clases=deriveClases(alumnos,cfg);
+        familias=deriveFamilias(alumnos);
       }
-      return d;
-    }catch(err){ console.error("dataWithDerived",err); return data||{}; }
+      if(!clases||typeof clases!=="object")clases=INITIAL_CLASES;
+      if(!Array.isArray(familias))familias=INITIAL_FAMILIAS;
+      return { ...d, clases, familias };
+    }catch(err){ console.error("dataWithDerived",err); return { ...(data||{}), clases: data?.clases||INITIAL_CLASES, familias: Array.isArray(data?.familias)?data.familias:INITIAL_FAMILIAS }; }
   },[data]);
   const screen = !user
     ? <LoginScreen onLogin={setUser}/>
