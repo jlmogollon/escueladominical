@@ -12,6 +12,7 @@ const C = {
 const ADMIN_PASSWORD = "0130";
 const DEFAULT_TEACHER_PASSWORD = "1234";
 
+// Convierte "Apellido(s) Nombre(s)" a "Nombre(s) Apellido(s)" para mostrar siempre nombre primero.
 function flipName(str) {
   if (!str) return str;
   const parts = str.trim().split(/\s+/).filter(Boolean);
@@ -20,6 +21,9 @@ function flipName(str) {
   if (parts.length === 4) {
     apellido = parts[0] + " " + parts[1];
     nombre = parts[2] + " " + parts[3];
+  } else if (parts.length === 3) {
+    apellido = parts[0] + " " + parts[1];
+    nombre = parts[2];
   } else {
     const connectors = ["del","de","la","las","los","el","van","von","di","da","dos"];
     const apellidoEnd = connectors.includes(parts[0].toLowerCase()) ? 2 : 1;
@@ -335,10 +339,11 @@ function getDb(){
 }
 const db=getDb();
 
-async function loadData(key){
+async function loadData(key,opts){
   try{
     if(db){
-      const snap=await db.collection(FIRESTORE_COLLECTION).doc(key).get();
+      const ref=db.collection(FIRESTORE_COLLECTION).doc(key);
+      const snap=opts&&opts.source==="server"?await ref.get({source:"server"}):await ref.get();
       const raw=snap.exists?snap.data().value:null;
       return raw!=null?JSON.parse(raw):null;
     }
@@ -348,7 +353,7 @@ async function loadData(key){
     }
     const raw=localStorage.getItem("ed_"+key);
     return raw!=null?JSON.parse(raw):null;
-  }catch(e){return null;}
+  }catch(e){ if(key==="teacherPasswords"||opts?.source==="server") console.error("loadData falló ["+key+"]:",e&&e.message?e.message:e); return null; }
 }
 
 async function saveData(key,val){
@@ -1528,7 +1533,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
 
   const openAdd=()=>{ setForm({nombre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",padre:"",madre:"",telPadre:"",telMadre:"",familia:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
-    setForm({ nombre: a.nombre, clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", familia: a.familia||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
+    setForm({ nombre: flipName(a.nombre), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", familia: a.familia||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     setEditId(a.id);
     setModal(true);
   };
@@ -1578,7 +1583,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
               <AvatarUpload photo={a.foto} onPhoto={()=>{}} size={44} initials={getInitials(a.nombre)} color={color}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700}}>{flipName(a.nombre)}</div>
-                <div style={{fontSize:12,color:"#7B6B9A"}}>{normalizarClase(a.clase)} · {(a.padre||a.madre)?"👨‍👩‍👧":"—"}</div>
+                <div style={{fontSize:12,color:"#7B6B9A"}}>{(a.padre||a.madre)?"👨‍👩‍👧 Familia":"—"}</div>
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
@@ -2347,12 +2352,14 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     setPhoneModal(false);
   };
 
-  const changePw=()=>{
+  const changePw=async()=>{
     const cur=teacherPasswords[user.name]||DEFAULT_TEACHER_PASSWORD;
     if(pwForm.old!==cur){setPwError("Contraseña actual incorrecta");return;}
     if(pwForm.new1.length<4){setPwError("Mínimo 4 caracteres");return;}
     if(pwForm.new1!==pwForm.new2){setPwError("Las contraseñas no coinciden");return;}
-    onUpdatePasswords({...teacherPasswords,[user.name]:pwForm.new1});setPwOk(true);setPwForm({old:"",new1:"",new2:""});setPwError("");
+    const ok=await onUpdatePasswords({...teacherPasswords,[user.name]:pwForm.new1});
+    if(ok){setPwOk(true);setPwForm({old:"",new1:"",new2:""});setPwError("");}
+    else setPwError("No se pudo guardar en la nube. Revisa la conexión o la consola (F12).");
   };
   const handlePhoto=async(e)=>{const file=e.target.files[0];if(!file)return;const compressed=await compressImage(file,128,0.5);setPhotoSrc(compressed);};
 
@@ -3185,7 +3192,7 @@ function App(){
         }
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[] };
         setData(dataToSet);
-        const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
+        const pw=await loadData("teacherPasswords",{source:"server"});if(pw)setTeacherPasswords(pw);
       }catch(e){}
       setLoading(false);
     })();
@@ -3199,7 +3206,7 @@ function App(){
     return unsub;
   },[]);
   const updateData=useCallback(async(key,val)=>{setData(d=>({...d,[key]:val}));await saveData(key,val);},[]);
-  const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);await saveData("teacherPasswords",pws);},[]);
+  const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
 
   // Siempre ejecutar useMemo (mismo orden de hooks en cada render)
   const dataWithDerived=useMemo(()=>{
