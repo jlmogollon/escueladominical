@@ -199,8 +199,12 @@ const INITIAL_ALUMNOS = INITIAL_FAMILIAS.map(f=>({
 function normalizarClase(c){ return (c||"").trim().toUpperCase().replace(/\s+/g,"_")||"CORDERITOS"; }
 // Parsea "Nombre Apellido" en { nombre, apellido }; si solo hay una parte, apellido queda ""
 function parseNombreCompleto(s){const t=(s||"").trim().split(/\s+/).filter(Boolean);if(t.length<2)return{nombre:t[0]||"",apellido:""};return{nombre:t[0],apellido:t.slice(1).join(" ")};}
-// Familia auto: "NombrePadre NombreMadre" o uno solo si falta el otro
-function buildFamiliaAuto(nombrePadre,apellidoPadre,nombreMadre,apellidoMadre){const pad=[(nombrePadre||"").trim(),(apellidoPadre||"").trim()].filter(Boolean).join(" ");const mad=[(nombreMadre||"").trim(),(apellidoMadre||"").trim()].filter(Boolean).join(" ");return [pad,mad].filter(Boolean).join(" ");}
+// Parsea nombre completo (en orden "Nombre(s) Apellido(s)") en 4 campos
+function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};}
+// Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
+function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
+// Familia del alumno = primer y segundo apellido del alumno
+function buildFamiliaAlumno(primerApellido,segundoApellido){return [primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 
 const INITIAL_EVENTOS = [
   {id:1,fecha:"07/02/2026",tipo:"NACIONAL",nombre:"Ayuno Nacional de Maestros"},
@@ -440,7 +444,7 @@ function getBirthdays(maestros,familias){
     let dt,fecha;
     if(mx.nacimiento){const r=parseNacimiento(mx.nacimiento);if(r){dt=r.dt;fecha=r.fecha;}}
     else{dt=parseDDMM(mx.cumpleanos);fecha=mx.cumpleanos;}
-    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:flipName(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro"});}
+    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro"});}
   });
   familias.forEach(f=>{const dt=parseDDMM(f.cumpleanos);if(dt){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(f.alumno),tipo:"ALUMNO",clase:f.clase,fecha:f.cumpleanos,diff,categoria:"alumno"});}});
   return result.sort((a,b)=>a.diff-b.diff);
@@ -640,7 +644,7 @@ function LoginScreen({onLogin}){
             <label style={S.label}>Tu nombre</label>
             <select style={{...S.input,marginBottom:14}} value={teacherName} onChange={e=>{setTeacherName(e.target.value);setError("");}}>
               <option value="">— Selecciona tu nombre —</option>
-              {[...maestros].sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)} ({m.cargo})</option>)}
+              {[...maestros].sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} ({m.cargo})</option>)}
             </select>
             <label style={S.label}>Contraseña</label>
             <input type="password" style={{...S.input,marginBottom:16}} value={teacherPw} onChange={e=>setTeacherPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} placeholder="••••"/>
@@ -723,7 +727,7 @@ function AdminDashboard({data}){
             ?<div style={{color:"#4CAF50",fontWeight:700}}>✅ Todos al día</div>
             :maestros.filter(m=>m.certificado==="NO").map((m,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                <div style={{flex:1,fontWeight:700,fontSize:13}}>{flipName(m.nombre)}</div>
+                <div style={{flex:1,fontWeight:700,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
                 <span style={S.badge(CLASE_COLORS[m.clase]||"#5B2D8E")}>{m.clase}</span>
               </div>
             ))
@@ -742,11 +746,12 @@ function MaestrosPanel({maestros,onUpdate}){
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
   const[editId,setEditId]=useState(null);
-  const filtered=maestros.filter(m=>{const q=search.toLowerCase();if(q&&!flipName(m.nombre).toLowerCase().includes(q))return false;if(filterCargo!=="TODOS"&&m.cargo!==filterCargo)return false;return true;});
-  const openAdd=()=>{setForm({nombre:"",cargo:"MAESTRO",clase:"CORDERITOS",nacimiento:"",cumpleanos:"",certificado:"SI"});setEditId(null);setModal(true);};
-  const openEdit=(m)=>{setForm({...m,nacimiento:m.nacimiento||""});setEditId(m.id);setModal(true);};
+  const filtered=maestros.filter(m=>{const q=search.toLowerCase();if(q&&!shortDisplayName(m.nombre).toLowerCase().includes(q))return false;if(filterCargo!=="TODOS"&&m.cargo!==filterCargo)return false;return true;});
+  const openAdd=()=>{setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",cargo:"MAESTRO",clase:"CORDERITOS",nacimiento:"",cumpleanos:"",certificado:"SI"});setEditId(null);setModal(true);};
+  const openEdit=(m)=>{const p4=parseNombre4(flipName(m.nombre||""));setForm({...m,primerNombre:p4.primerNombre,segundoNombre:p4.segundoNombre,primerApellido:p4.primerApellido,segundoApellido:p4.segundoApellido,nacimiento:m.nacimiento||""});setEditId(m.id);setModal(true);};
   const save=()=>{
-    let toSave={...form};
+    const nombre=buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido);
+    let toSave={...form,nombre};
     if(toSave.nacimiento){
       try{
         const d=new Date(toSave.nacimiento);
@@ -755,7 +760,7 @@ function MaestrosPanel({maestros,onUpdate}){
     }
     onUpdate(editId?maestros.map(m=>m.id===editId?{...toSave,id:editId}:m):[...maestros,{...toSave,id:Date.now()}]);setModal(false);
   };
-  const deleteMaestro=()=>{if(!confirmDelete("¿Eliminar a "+flipName(form.nombre)+"?"))return;onUpdate(maestros.filter(x=>x.id!==editId));setModal(false);};
+  const deleteMaestro=()=>{if(!confirmDelete("¿Eliminar a "+shortDisplayName(form.nombre||buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido))+"?"))return;onUpdate(maestros.filter(x=>x.id!==editId));setModal(false);};
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -772,7 +777,7 @@ function MaestrosPanel({maestros,onUpdate}){
         <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
           <div style={{width:44,height:44,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:800,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{flipName(m.nombre)}</div>
+            <div style={{fontWeight:800,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortDisplayName(m.nombre)}</div>
             <div style={{display:"flex",gap:5,marginTop:4,flexWrap:"wrap"}}>
               <span style={S.badge(m.cargo==="MAESTRO"?"#5B2D8E":"#4BBCE0")}>{m.cargo}</span>
               <span style={S.badge(CLASE_COLORS[m.clase]||"#5B2D8E")}>{m.clase}</span>
@@ -783,7 +788,10 @@ function MaestrosPanel({maestros,onUpdate}){
         </div>
       ))}
       <Modal open={modal} onClose={()=>setModal(false)} title={editId?"Editar Maestro":"Nuevo Maestro"}>
-        <div style={{marginBottom:14}}><label style={S.label}>Nombre completo</label><input type="text" style={S.input} value={form.nombre||""} onChange={e=>setForm(f=>({...f,nombre:e.target.value}))}/></div>
+        <div style={{marginBottom:14}}><label style={S.label}>Primer nombre</label><input type="text" style={S.input} placeholder="Ej: José" value={form.primerNombre||""} onChange={e=>setForm(f=>({...f,primerNombre:e.target.value}))}/></div>
+        <div style={{marginBottom:14}}><label style={S.label}>Segundo nombre</label><input type="text" style={S.input} placeholder="Ej: Luis" value={form.segundoNombre||""} onChange={e=>setForm(f=>({...f,segundoNombre:e.target.value}))}/></div>
+        <div style={{marginBottom:14}}><label style={S.label}>Primer apellido</label><input type="text" style={S.input} placeholder="Ej: Mogollón" value={form.primerApellido||""} onChange={e=>setForm(f=>({...f,primerApellido:e.target.value}))}/></div>
+        <div style={{marginBottom:14}}><label style={S.label}>Segundo apellido</label><input type="text" style={S.input} placeholder="Ej: Muñoz" value={form.segundoApellido||""} onChange={e=>setForm(f=>({...f,segundoApellido:e.target.value}))}/></div>
         <div style={{marginBottom:14}}><label style={S.label}>Fecha de Nacimiento</label><input type="date" style={S.input} value={form.nacimiento||""} onChange={e=>setForm(f=>({...f,nacimiento:e.target.value}))}/></div>
         {form.nacimiento&&(function(){try{const d=new Date(form.nacimiento);const dd=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;const hoy=new Date();const edad=hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0);return <div style={{marginBottom:14,background:"#F5F0FF",borderRadius:12,padding:"10px 14px",fontSize:13,color:"#5B2D8E"}}>🎂 Cumpleaños: {dd} · {edad} años</div>;}catch(e){return null;}}())}
         {[["Cargo","cargo",["MAESTRO","AUXILIAR"]],["Clase","clase",CLASES_LIST],["Certificado","certificado",["SI","NO"]]].map(([l,k,opts])=>(
@@ -934,7 +942,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
           {maestros.map(m=>(
             <div key={m.id} onClick={()=>setUnavailable(u=>u.includes(m.nombre)?u.filter(n=>n!==m.nombre):[...u,m.nombre])}
               style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:unavailable.includes(m.nombre)?"#EF535018":"#F5F0FF",borderRadius:12,border:`2px solid ${unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0"}`,cursor:"pointer"}}>
-              <div style={{flex:1}}><div style={{fontWeight:700}}>{flipName(m.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div></div>
+              <div style={{flex:1}}><div style={{fontWeight:700}}>{shortDisplayName(m.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div></div>
               <div style={{width:28,height:28,borderRadius:"50%",background:unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFFFFF",fontWeight:800}}>{unavailable.includes(m.nombre)?"✕":""}</div>
             </div>
           ))}
@@ -954,7 +962,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                   <div style={{width:36,height:36,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:800,fontSize:13}}>{flipName(m.nombre)}</div>
+                    <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
                     <div style={{fontSize:11,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div>
                   </div>
                   <span style={{...S.badge(barColor),fontSize:12}}>{st.cumplimiento}%</span>
@@ -992,7 +1000,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                       <div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[m.clase]||"#5B2D8E"}}>{getInitials(m.nombre)}</div>
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div style={{fontWeight:800,fontSize:13}}>{flipName(m.nombre)}</div>
+                          <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
                           {mi===0&&<span style={{...S.badge("#4CAF50"),fontSize:9,padding:"2px 7px"}}>⭐ SUGERIDO</span>}
                         </div>
                         <div style={{fontSize:11,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div>
@@ -1056,10 +1064,10 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         <select style={{...S.input,marginBottom:12}} value={form.maestro} onChange={e=>setForm(f=>({...f,maestro:e.target.value}))}>
           <option value="">— Sin asignar —</option>
           {form.grupo==="ADOLESCENTES"
-            ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)).sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)}</option>)
+            ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)).sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)}</option>)
             : <>
-                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)} · {m.clase}</option>)}</optgroup>
-                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
               </>
           }
         </select>
@@ -1069,8 +1077,8 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             <label style={S.label}>🤝 Auxiliar</label>
             <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
               <option value="">— Sin asignar —</option>
-              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{flipName(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
             </select>
           </>
         )}
@@ -1536,20 +1544,19 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
   const cfg=getCfgList(clasesConfig);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
-  const[form,setForm]=useState({nombre:"",clase:"CORDERITOS",nacimiento:"",apellidoPadre:"",apellidoMadre:"",nombrePadre:"",nombreMadre:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null});
+  const[form,setForm]=useState({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null});
   const sorted=[...(alumnos||[])].sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es"));
 
-  const openAdd=()=>{ setForm({nombre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",apellidoPadre:"",apellidoMadre:"",nombrePadre:"",nombreMadre:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
+  const openAdd=()=>{ setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
-    const pPadre=parseNombreCompleto(flipName(a.padre||""));
-    const pMadre=parseNombreCompleto(flipName(a.madre||""));
-    setForm({ nombre: shortDisplayName(a.nombre)||flipName(a.nombre), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", apellidoPadre: pPadre.apellido, apellidoMadre: pMadre.apellido, nombrePadre: pPadre.nombre, nombreMadre: pMadre.nombre, telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
+    const nom=flipName(a.nombre||"");const p4=parseNombre4(nom);
+    setForm({ primerNombre: p4.primerNombre, segundoNombre: p4.segundoNombre, primerApellido: p4.primerApellido, segundoApellido: p4.segundoApellido, nombrePadre: (a.padre||"").trim(), nombreMadre: (a.madre||"").trim(), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     setEditId(a.id);
     setModal(true);
   };
-  const save=()=>{
-    const nombre=(form.nombre||"").trim();
-    if(!nombre)return;
+  const save=async()=>{
+    const nombre=buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido);
+    if(!nombre.trim())return;
     let edad=null,cumpleanos=null;
     if(form.nacimiento){
       try{
@@ -1560,16 +1567,11 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
       }catch(e){}
     }
     const claseKey=normalizarClase(form.clase);
-    const padre=[(form.nombrePadre||"").trim(),(form.apellidoPadre||"").trim()].filter(Boolean).join(" ").trim();
-    const madre=[(form.nombreMadre||"").trim(),(form.apellidoMadre||"").trim()].filter(Boolean).join(" ").trim();
-    const familia=buildFamiliaAuto(form.nombrePadre,form.apellidoPadre,form.nombreMadre,form.apellidoMadre);
-    const record={ id: editId||Date.now(), nombre, clase: claseKey, nacimiento: form.nacimiento||null, padre, madre, telPadre: (form.telPadre||"").trim(), telMadre: (form.telMadre||"").trim(), familia, bautizado: !!form.bautizado, sellado: !!form.sellado, foto: form.foto||null };
-    if(editId){
-      onUpdateAlumnos((alumnos||[]).map(a=>a.id===editId?record:a));
-    }else{
-      onUpdateAlumnos([...(alumnos||[]),record]);
-    }
-    setModal(false);
+    const familia=buildFamiliaAlumno(form.primerApellido,form.segundoApellido);
+    const record={ id: editId||Date.now(), nombre, clase: claseKey, nacimiento: form.nacimiento||null, padre: (form.nombrePadre||"").trim(), madre: (form.nombreMadre||"").trim(), telPadre: (form.telPadre||"").trim(), telMadre: (form.telMadre||"").trim(), familia, bautizado: !!form.bautizado, sellado: !!form.sellado, foto: form.foto||null };
+    const updated=editId?(alumnos||[]).map(a=>a.id===editId?record:a):[...(alumnos||[]),record];
+    const ok=await onUpdateAlumnos(updated);
+    if(ok)setModal(false);else alert("No se pudo guardar (incl. foto). Revisa la conexión o la consola (F12).");
   };
   const deleteAlumno=(a)=>{
     if(!confirmDelete("¿Eliminar a "+shortDisplayName(a.nombre)+"?"))return;
@@ -1608,19 +1610,21 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
 
       <Modal open={modal} onClose={()=>setModal(false)} title={editId?"Editar Alumno":"Agregar Alumno"}>
         <div style={{display:"flex",justifyContent:"center",marginBottom:18}}>
-          <AvatarUpload photo={form.foto} onPhoto={(f)=>setForm(x=>({...x,foto:f}))} size={72} initials={form.nombre?getInitials(form.nombre):"?"} color="#5B2D8E"/>
+          <AvatarUpload photo={form.foto} onPhoto={(f)=>setForm(x=>({...x,foto:f}))} size={72} initials={buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido)?getInitials(buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido)):"?"} color="#5B2D8E"/>
         </div>
-        <label style={S.label}>Nombre del alumno (primer nombre y primer apellido)</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: José Luis Mogollón" value={form.nombre} onChange={e=>setForm(f=>({...f,nombre:e.target.value}))}/>
-        <label style={S.label}>Apellido del padre</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Mogollón" value={form.apellidoPadre} onChange={e=>setForm(f=>({...f,apellidoPadre:e.target.value}))}/>
-        <label style={S.label}>Apellido de la madre</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Muñoz" value={form.apellidoMadre} onChange={e=>setForm(f=>({...f,apellidoMadre:e.target.value}))}/>
+        <label style={S.label}>Primer nombre</label>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: José" value={form.primerNombre} onChange={e=>setForm(f=>({...f,primerNombre:e.target.value}))}/>
+        <label style={S.label}>Segundo nombre</label>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Luis" value={form.segundoNombre} onChange={e=>setForm(f=>({...f,segundoNombre:e.target.value}))}/>
+        <label style={S.label}>Primer apellido</label>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Mogollón" value={form.primerApellido} onChange={e=>setForm(f=>({...f,primerApellido:e.target.value}))}/>
+        <label style={S.label}>Segundo apellido</label>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Muñoz" value={form.segundoApellido} onChange={e=>setForm(f=>({...f,segundoApellido:e.target.value}))}/>
+        <div style={{marginBottom:12,fontSize:12,color:"#7B6B9A"}}>👨‍👩‍👧 Familia (se rellena solo): {buildFamiliaAlumno(form.primerApellido,form.segundoApellido)||"—"}</div>
         <label style={S.label}>Nombre del padre</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: José" value={form.nombrePadre} onChange={e=>setForm(f=>({...f,nombrePadre:e.target.value}))}/>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: José Mogollón" value={form.nombrePadre} onChange={e=>setForm(f=>({...f,nombrePadre:e.target.value}))}/>
         <label style={S.label}>Nombre de la madre</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Cindy" value={form.nombreMadre} onChange={e=>setForm(f=>({...f,nombreMadre:e.target.value}))}/>
-        <div style={{marginBottom:12,fontSize:12,color:"#7B6B9A"}}>👨‍👩‍👧 Familia (se rellena solo): {buildFamiliaAuto(form.nombrePadre,form.apellidoPadre,form.nombreMadre,form.apellidoMadre)||"—"}</div>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Cindy Muñoz" value={form.nombreMadre} onChange={e=>setForm(f=>({...f,nombreMadre:e.target.value}))}/>
         <label style={S.label}>Clase</label>
         <select style={{...S.input,marginBottom:12}} value={normalizarClase(form.clase)} onChange={e=>setForm(f=>({...f,clase:e.target.value}))}>
           {cfg.map(c=><option key={c.key} value={c.key}>{c.nombre}</option>)}
@@ -1811,7 +1815,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
           <div key={i} style={{...S.card,borderLeft:`5px solid ${color}`}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
               <div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E"}}>{getInitials(ev.nombre)}</div>
-              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{flipName(ev.nombre)}</div>
+              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(ev.nombre)}</div>
                 {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
               </div>
               <div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}>
@@ -1830,7 +1834,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
           </div>
         );
       })}
-      <Modal open={editModal} onClose={()=>setEditModal(false)} title={`Editar: ${editForm?flipName(editForm.nombre):""}`}>
+      <Modal open={editModal} onClose={()=>setEditModal(false)} title={`Editar: ${editForm?shortDisplayName(editForm.nombre):""}`}>
         {editForm&&EVAL_KEYS.map((k,j)=>(
           <div key={k} style={{marginBottom:16}}>
             <label style={S.label}>{EVAL_LABELS[j]}</label>
@@ -2090,7 +2094,7 @@ function CumpleanosPanel({maestros,familias}){
   const months=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const mColors=["#4BBCE0","#5B2D8E","#E84F9B","#F5C842","#2A96BC","#E84F9B","#5B2D8E","#4BBCE0","#F5C842","#E84F9B","#7B4DB2","#4BBCE0"];
   const all=[
-    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:flipName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro"})),
+    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:shortDisplayName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro"})),
     ...familias.filter(f=>f.cumpleanos).map(f=>({nombre:shortDisplayName(f.alumno),fecha:f.cumpleanos,tipo:"ALUMNO",clase:f.clase,categoria:"alumno"})),
   ].sort((a,b)=>{const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;});
   const byMonth={};
@@ -2383,7 +2387,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     if(ok){setPwOk(true);setPwForm({old:"",new1:"",new2:""});setPwError("");}
     else setPwError("No se pudo guardar en la nube. Revisa la conexión o la consola (F12).");
   };
-  const handlePhoto=async(e)=>{const file=e.target.files[0];if(!file)return;const compressed=await compressImage(file,128,0.5);setPhotoSrc(compressed);const updated=maestros.map(m=>m.nombre===user.name?{...m,foto:compressed}:m);onUpdateData("maestros",updated);};
+  const handlePhoto=async(e)=>{const file=e.target.files[0];if(!file)return;const compressed=await compressImage(file,128,0.5);setPhotoSrc(compressed);const updated=maestros.map(m=>m.nombre===user.name?{...m,foto:compressed}:m);const ok=await onUpdateData("maestros",updated);if(!ok)alert("No se pudo guardar la foto en la nube. Revisa la conexión o la consola (F12).");};
 
   const getNinoGlobalAvg=(alumno)=>{
     const entries=calificaciones.filter(c=>c.alumno===alumno&&c.clase===miClase);if(!entries.length)return null;
@@ -2858,7 +2862,7 @@ function InformesPanel({data}){
       </div>`:"";
     const html=`
       <div class="card">
-        <div class="card-title">${flipName(m.nombre)}</div>
+        <div class="card-title">${shortDisplayName(m.nombre)}</div>
         <div class="card-sub">${m.cargo} · Clase ${m.clase} · Certificado: ${m.certificado||"—"}</div>
         <div class="grid2">
           <div class="stat"><div class="stat-val">${sesiones.length}</div><div class="stat-lbl">Clases asignadas</div></div>
@@ -2877,7 +2881,7 @@ function InformesPanel({data}){
         <table><thead><tr><th>Alumno</th><th>Asistencia</th><th>Promedio</th></tr></thead><tbody>${ninoRows||"<tr><td colspan='3' style='text-align:center;color:#AAA'>Sin alumnos</td></tr>"}</tbody></table>
       </div>
       ${ev?`<div class="section"><div class="section-title">⭐ Evaluación del Administrador</div><table><thead><tr><th>Criterio</th><th>Calificación</th><th>Puntos</th></tr></thead><tbody>${evalRows}</tbody></table>${(ev.observaciones||"").trim()?`<div style="padding:12px 16px;border-top:1px solid #DDD0F0"><div style="font-size:11px;font-weight:700;color:#5B2D8E;margin-bottom:6px">Observaciones</div><div style="font-size:13px;color:#2D1B4E;white-space:pre-wrap">${String(ev.observaciones||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`:""}</div>`:""}`;
-    generarPDF(`Informe de ${flipName(m.nombre)}`,html);
+    generarPDF(`Informe de ${shortDisplayName(m.nombre)}`,html);
   };
 
   // ── Report 4: Individual Student ──
@@ -2972,7 +2976,7 @@ function InformesPanel({data}){
     const html=`
       <div class="card">
         <div class="card-title" style="color:${claseColorHex(selClase)};font-size:18px">🏫 Clase ${selClase}</div>
-        <div class="card-sub">${claseMaestro?`Maestro: ${flipName(claseMaestro.nombre)}`:"Sin maestro asignado"} ${claseAux.length?`· Auxiliar(es): ${claseAux.map(a=>flipName(a.nombre)).join(", ")}`:""}
+        <div class="card-sub">${claseMaestro?`Maestro: ${shortDisplayName(claseMaestro.nombre)}`:"Sin maestro asignado"} ${claseAux.length?`· Auxiliar(es): ${claseAux.map(a=>shortDisplayName(a.nombre)).join(", ")}`:""}
         </div>
         <div class="grid2">
           <div class="stat"><div class="stat-val">${claseNinos.length}</div><div class="stat-lbl">Alumnos</div></div>
@@ -3017,7 +3021,7 @@ function InformesPanel({data}){
         <label style={S.label}>Seleccionar Maestro/Auxiliar</label>
         <select style={{...S.input,marginBottom:14}} value={selMaestro} onChange={e=>setSelMaestro(e.target.value)}>
           {[...maestros].sort((a,b)=>flipName(a.nombre).localeCompare(flipName(b.nombre),"es")).map(m=>(
-            <option key={m.id} value={m.nombre}>{flipName(m.nombre)} — {m.cargo} ({m.clase})</option>
+            <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
           ))}
         </select>
         <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportMaestro}>
@@ -3202,7 +3206,7 @@ function App(){
       try{
         const loaded={};
         for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos"]){
-          const v=await loadData(k);if(v!==null)loaded[k]=v;
+          const v=await loadData(k,k==="maestros"||k==="alumnos"?{source:"server"}:undefined);if(v!==null)loaded[k]=v;
         }
         const familias=loaded.familias??INITIAL_FAMILIAS;
         let alumnos=loaded.alumnos;
@@ -3227,7 +3231,7 @@ function App(){
     });
     return unsub;
   },[]);
-  const updateData=useCallback(async(key,val)=>{setData(d=>({...d,[key]:val}));await saveData(key,val);},[]);
+  const updateData=useCallback(async(key,val)=>{setData(d=>({...d,[key]:val}));return await saveData(key,val);},[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
 
   // Siempre ejecutar useMemo (mismo orden de hooks en cada render)
