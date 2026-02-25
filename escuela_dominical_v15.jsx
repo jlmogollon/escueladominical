@@ -560,7 +560,7 @@ class ErrorBoundary extends React.Component {
         <div style={{padding:32,textAlign:"center",fontFamily:"system-ui"}}>
           <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
           <div style={{fontSize:20,fontWeight:800,color:"#5B2D8E",marginBottom:8}}>Algo salió mal</div>
-          <div style={{fontSize:13,color:"#7B6B9A",marginBottom:24}}>{this.state.error?.message||"Error desconocido"}</div>
+          <div style={{fontSize:13,color:"#7B6B9A",marginBottom:24}}>{(this.state.error&&this.state.error.message)||"Error desconocido"}</div>
           <button
             onClick={()=>this.setState({hasError:false,error:null})}
             style={{background:"#5B2D8E",color:"#FFF",border:"none",borderRadius:10,padding:"10px 24px",fontSize:14,cursor:"pointer",fontWeight:700}}
@@ -3212,7 +3212,7 @@ function App(){
       if(!clases||typeof clases!=="object")clases=INITIAL_CLASES;
       if(!Array.isArray(familias))familias=INITIAL_FAMILIAS;
       return { ...d, clases, familias };
-    }catch(err){ console.error("dataWithDerived",err); return { ...(data||{}), clases: data?.clases||INITIAL_CLASES, familias: Array.isArray(data?.familias)?data.familias:INITIAL_FAMILIAS }; }
+    }catch(err){ console.error("dataWithDerived",err); var d=data||{}; return { ...d, clases: (d.clases&&typeof d.clases==="object")?d.clases:INITIAL_CLASES, familias: Array.isArray(d.familias)?d.familias:INITIAL_FAMILIAS }; }
   },[data]);
   const screen = !user
     ? <LoginScreen onLogin={setUser}/>
@@ -3230,6 +3230,11 @@ function App(){
 
 const rootElement = document.getElementById("root");
 if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(<App />);
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+  } catch (err) {
+    console.error("Boot error:", err);
+    rootElement.innerHTML = "<div style=\"padding:24px;font-family:system-ui;max-width:500px\"><h2 style=\"color:#5B2D8E\">Error al cargar</h2><pre style=\"background:#f0f0f0;padding:12px;border-radius:8px;overflow:auto;font-size:12px\">" + (err && (err.message || String(err))) + "</pre><p style=\"color:#666;font-size:13px\">Abre la pestaña Console (F12) para m\u00e1s detalles.</p></div>";
+  }
 }
