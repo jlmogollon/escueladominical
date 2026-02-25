@@ -1044,10 +1044,12 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   // ── Alumnos CRUD ──
   const openAdd=()=>{setForm({nombre:"",apellido:"",padre:"",madre:"",telPadre:"",telMadre:"",nacimiento:"",bautizado:false,sellado:false,foto:null});setEditIdx(null);setModal(true);};
   const openEdit=(n,i)=>{
-    const fam=familias.find(f=>samePersonName(f.alumno,n.nombre)&&(f.clase||"").trim()===(activeClase||"").trim());
+    const claseNorm=(c)=>(c||"").trim().toUpperCase();
+    let fam=familias.find(f=>samePersonName(f.alumno,n.nombre)&&claseNorm(f.clase)===claseNorm(activeClase));
+    if(!fam) fam=familias.find(f=>samePersonName(f.alumno,n.nombre));
     const nombreDisplay=n.nombre||"";
-    const padre=fam?.padre??"",madre=fam?.madre??"",telPadre=fam?.telPadre??"",telMadre=fam?.telMadre??"",nacimiento=n.nacimiento||fam?.nacimiento||"";
-    setForm({nombre:nombreDisplay,apellido:"",padre,madre,telPadre,telMadre,nacimiento,bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||null});
+    const padre=fam?.padre??"",madre=fam?.madre??"",telPadre=fam?.telPadre??"",telMadre=fam?.telMadre??"",nacimiento=(n.nacimiento||fam?.nacimiento)||"";
+    setForm({nombre:nombreDisplay,apellido:"",padre,madre,telPadre,telMadre,nacimiento,bautizado:!!(n.bautizado||fam?.bautizado),sellado:!!(n.sellado||fam?.sellado),foto:n.foto||fam?.foto||null});
     setEditIdx(i);setModal(true);
   };
   const saveAlumno=()=>{
@@ -1072,11 +1074,12 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
       updated[editIdx]=base;
       onUpdate({...clases,[activeClase]:updated});
       const tienePadre=(form.padre||"").trim()||(form.madre||"").trim();
-      const existingFam=familias.find(f=>samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim());
+      const claseNorm=(c)=>(c||"").trim().toUpperCase();
+      const existingFam=familias.find(f=>samePersonName(f.alumno,oldNombre)&&claseNorm(f.clase)===claseNorm(activeClase));
       if(tienePadre){
         if(existingFam){
           const newFamilias=familias.map(f=>{
-            if(samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim())return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
+            if(samePersonName(f.alumno,oldNombre)&&claseNorm(f.clase)===claseNorm(activeClase))return{...f,alumno:nombreCompleto,padre:(form.padre||"").trim(),madre:(form.madre||"").trim(),telPadre:(form.telPadre||"").trim(),telMadre:(form.telMadre||"").trim(),edad,cumpleanos,nacimiento:form.nacimiento||f.nacimiento,bautizado:!!form.bautizado,sellado:!!form.sellado};
             return f;
           });
           onUpdateFamilias(newFamilias);
@@ -1086,7 +1089,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
           onUpdateFamilias([...familias,famRec]);
         }
       }else if(existingFam){
-        onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,oldNombre)&&(f.clase||"").trim()===(activeClase||"").trim())));
+        onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,oldNombre)&&claseNorm(f.clase)===claseNorm(activeClase))));
       }
     }else{
       updated.push(base);
@@ -1104,7 +1107,8 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
     if(!confirmDelete("¿Eliminar a "+flipName(ninos[i].nombre)+" de la clase?"))return;
     const nombreEliminado=ninos[i].nombre;
     onUpdate({...clases,[activeClase]:ninos.filter((_,j)=>j!==i)});
-    onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,nombreEliminado)&&(f.clase||"").trim()===(activeClase||"").trim())));
+    const claseNorm=(c)=>(c||"").trim().toUpperCase();
+    onUpdateFamilias(familias.filter(f=>!(samePersonName(f.alumno,nombreEliminado)&&claseNorm(f.clase)===claseNorm(activeClase))));
   };
   const updateFoto=(i,foto)=>onUpdate({...clases,[activeClase]:ninos.map((n,j)=>j===i?{...n,foto}:n)});
 
@@ -1389,7 +1393,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         </div>
         {(teacherMode
           ?[["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"]]
-          :[["Familia","familia"],["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"],["Alumno","alumno"],["Edad","edad"],["Fecha de Nacimiento","nacimiento"]]
+          :[["Familia","familia"],["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"],["Alumno","alumno"],["Fecha de Nacimiento","nacimiento"]]
         ).map(([l,k])=>(
           <div key={k} style={{marginBottom:12}}><label style={S.label}>{l}</label><input style={S.input} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} type={k==="nacimiento"?"date":(k.startsWith("tel")?"tel":"text")}/></div>
         ))}
