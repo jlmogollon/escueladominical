@@ -374,8 +374,8 @@ function LogoLogin(){
     <div style={{display:"flex",justifyContent:"center",marginBottom:16}}>
       <div style={{position:"relative"}}>
         <div style={{position:"absolute",inset:-5,borderRadius:24,background:"linear-gradient(135deg,#4BBCE0,#5B2D8E,#E84F9B)",opacity:0.45,filter:"blur(10px)"}}/>
-        <div style={{position:"relative",background:"#FFFFFF",borderRadius:20,padding:"10px 20px",boxShadow:"0 8px 32px rgba(91,45,142,0.2)",WebkitMaskImage:"radial-gradient(ellipse 92% 88% at 50% 50%,black 65%,transparent 100%)",maskImage:"radial-gradient(ellipse 92% 88% at 50% 50%,black 65%,transparent 100%)"}}>
-          <img src={LOGO_SRC} alt="Logo" style={{width:240,height:"auto",display:"block"}}/>
+        <div style={{position:"relative",background:"#FFFFFF",borderRadius:20,padding:"10px 20px",boxShadow:"0 8px 32px rgba(91,45,142,0.2)",WebkitMaskImage:"radial-gradient(ellipse 92% 88% at 50% 50%,black 65%,transparent 100%)",maskImage:"radial-gradient(ellipse 92% 88% at 50% 50%,black 65%,transparent 100%)",maxWidth:"100%"}}>
+          <img src={LOGO_SRC} alt="Logo" style={{width:240,maxWidth:"100%",height:"auto",display:"block"}}/>
         </div>
       </div>
     </div>
@@ -406,13 +406,13 @@ function AvatarUpload({ photo, onPhoto, size=56, initials="?", color="#5B2D8E" }
 function Modal({open,onClose,title,children}){
   if(!open)return null;
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(30,10,60,0.65)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)"}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-      <div style={{background:"#FFFFFF",borderRadius:"24px 24px 0 0",padding:"24px 20px 36px",width:"100%",maxWidth:520,maxHeight:"92vh",overflowY:"auto",boxShadow:"0 -8px 40px rgba(0,0,0,0.25)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-          <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:17,margin:0}}>{title}</h3>
-          <button onClick={onClose} style={{background:"#F5F0FF",border:"none",borderRadius:"50%",width:36,height:36,fontSize:20,cursor:"pointer"}}>×</button>
+    <div data-modal-overlay style={{position:"fixed",inset:0,background:"rgba(30,10,60,0.65)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:1000,backdropFilter:"blur(4px)",overflow:"hidden",overscrollBehavior:"contain"}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div data-modal-content style={{background:"#FFFFFF",borderRadius:"24px 24px 0 0",padding:"1rem 1rem 1.5rem",width:"100%",maxWidth:520,maxHeight:"92vh",overflowY:"auto",overflowX:"hidden",boxShadow:"0 -8px 40px rgba(0,0,0,0.25)",minWidth:0,WebkitOverflowScrolling:"touch"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1rem",minWidth:0}}>
+          <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:"1.0625rem",margin:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{title}</h3>
+          <button onClick={onClose} style={{background:"#F5F0FF",border:"none",borderRadius:"50%",width:32,height:32,fontSize:18,cursor:"pointer",flexShrink:0}}>×</button>
         </div>
-        {children}
+        <div style={{overflowX:"hidden",minWidth:0,maxWidth:"100%"}}>{children}</div>
       </div>
     </div>
   );
@@ -455,7 +455,7 @@ function BirthdayBanner({maestros,familias}){
         </div>
       ))}
       {next&&(
-        <div style={{background:"linear-gradient(135deg,#5B2D8E,#7B4DB2)",borderRadius:16,padding:"12px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 16px rgba(91,45,142,0.2)"}}>
+        <div style={{background:"linear-gradient(135deg,#5B2D8E,#7B4DB2)",borderRadius:16,padding:"0.75rem 1rem",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 16px rgba(91,45,142,0.2)"}}>
           <span style={{fontSize:26}}>🎉</span>
           <div style={{flex:1}}><div style={{color:"#F5C842",fontWeight:800,fontSize:12}}>Próximo cumpleaños</div><div style={{color:"#FFFFFF",fontWeight:700,fontSize:14}}>{next.nombre}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{next.tipo}{next.clase&&next.categoria==="alumno"?" · "+next.clase:""} · {next.fecha}</div></div>
           <span style={{background:"rgba(255,255,255,0.2)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>En {next.diff}d</span>
@@ -513,10 +513,10 @@ function LoginScreen({onLogin}){
     onLogin({role:"teacher",name:teacherName});
   };
   return(
-    <div style={{minHeight:"100dvh",background:"linear-gradient(160deg,#3D1B6B 0%,#5B2D8E 55%,#2A96BC 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px 16px",boxSizing:"border-box",position:"relative",overflow:"hidden"}}>
+    <div style={{minHeight:"100dvh",background:"linear-gradient(160deg,#3D1B6B 0%,#5B2D8E 55%,#2A96BC 100%)",display:"flex",alignItems:"center",justifyContent:"center",padding:"1.5rem 1rem",boxSizing:"border-box",position:"relative",overflow:"hidden"}}>
       <div style={{position:"absolute",top:-80,right:-80,width:280,height:280,background:"#E84F9B44",borderRadius:"50%",filter:"blur(40px)"}}/>
       <div style={{position:"absolute",bottom:-60,left:-60,width:240,height:240,background:"#4BBCE044",borderRadius:"50%",filter:"blur(40px)"}}/>
-      <div style={{background:"rgba(255,255,255,0.97)",borderRadius:28,padding:"32px 24px",width:"100%",maxWidth:400,boxShadow:"0 24px 80px rgba(0,0,0,0.35)",position:"relative",zIndex:1}}>
+      <div style={{background:"rgba(255,255,255,0.97)",borderRadius:28,padding:"1.5rem 1.25rem",width:"100%",maxWidth:400,boxShadow:"0 24px 80px rgba(0,0,0,0.35)",position:"relative",zIndex:1}}>
         <LogoLogin/>
         <div style={{textAlign:"center",marginBottom:24,fontSize:11,color:"#7B6B9A",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Villanueva del Pardillo</div>
         {mode==="select"&&(
@@ -565,7 +565,7 @@ function AdminDashboard({data}){
   return(
     <div style={{paddingBottom:10}}>
       <BirthdayBanner maestros={maestros} familias={familias}/>
-      <div style={{padding:"0 16px 100px"}}>
+      <div style={{padding:"0 1rem 6.25rem"}}>
         <h2 style={S.title}>Panel General</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
           <StatCard icon="👨‍🏫" value={maestros.filter(m=>m.cargo==="MAESTRO").length} label="Maestros" color="#5B2D8E"/>
@@ -655,7 +655,7 @@ function MaestrosPanel({maestros,onUpdate}){
   };
   const deleteMaestro=()=>{if(!confirmDelete("¿Eliminar a "+flipName(form.nombre)+"?"))return;onUpdate(maestros.filter(x=>x.id!==editId));setModal(false);};
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>Maestros</h2>
         <button style={{...S.btn("#5B2D8E"),padding:"10px 16px",fontSize:14}} onClick={openAdd}>+ Agregar</button>
@@ -781,7 +781,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
     });
   };
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>Cronograma</h2>
         <button style={{...S.btn("#5B2D8E"),padding:"10px 14px",fontSize:13}} onClick={openAdd}>+ Agregar</button>
@@ -1124,7 +1124,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   };
 
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>Clases</h2>
@@ -1290,7 +1290,7 @@ function FamiliasPanel({familias,onUpdate,teacherMode=false}){
   const updateMemberFoto=(id,foto)=>onUpdate(familias.map(f=>f.id===id?{...f,foto}:f));
   const updateFamilyFoto=(key,foto)=>onUpdate(familias.map(f=>(f.familia||f.alumno)===key?{...f,fotoFamilia:foto}:f));
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>{teacherMode?"👨‍👩‍👧 Familias de mi Clase":"Familias"}</h2>
         {!teacherMode&&<div style={{fontSize:12,color:"#7B6B9A"}}>Los alumnos se agregan en la pestaña Clases</div>}
@@ -1416,7 +1416,7 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
   });
   const totalNinos=(clases[activeClase]||[]).length;
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Calificaciones</h2>
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:10}}>
         {CLASES_LIST.map(cl=>(
@@ -1550,7 +1550,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[]}){
   const openEdit=(ev,i)=>{setEditForm({...ev});setEditIdx(i);setEditModal(true);};
   const save=()=>{onUpdate(evaluaciones.map((e,i)=>i===editIdx?editForm:e));setEditModal(false);};
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Evaluaciones Maestros</h2>
       {evaluaciones.map((ev,i)=>{
         const vAvg=videoAvgForMaestro(ev.nombre,videos);
@@ -1629,7 +1629,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
   const maestrosClase=[...new Set(sesionesFiltradas.map(s=>s.maestro).filter(Boolean))];
 
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>🎬 Videos de Clase</h2>
       <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",border:"1.5px solid #4BBCE055",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,color:"#2D1B4E"}}>
         <div style={{fontWeight:800,marginBottom:4}}>📋 ¿Cómo funciona?</div>
@@ -1753,7 +1753,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
                 </div>
 
                 {/* Preview del score calculado */}
-                <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",borderRadius:12,padding:"12px 16px",marginBottom:16,textAlign:"center"}}>
+                <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",borderRadius:12,padding:"0.75rem 1rem",marginBottom:16,textAlign:"center"}}>
                   <div style={{fontSize:12,color:"#7B6B9A",marginBottom:4}}>Score calculado para este video</div>
                   <div style={{fontSize:28,fontWeight:900,color:"#5B2D8E"}}>{videoScore(editVideo).toFixed(1)}<span style={{fontSize:14,color:"#7B6B9A"}}>/5</span></div>
                   <div style={{fontSize:11,color:"#7B6B9A",marginTop:4}}>Este score afecta el 20% del promedio de evaluación</div>
@@ -1788,7 +1788,7 @@ function EventosPanel({eventos,onUpdate,readOnly=false}){
     return d<new Date(new Date().toDateString()); // before today (midnight)
   };
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>Eventos</h2>
         {!readOnly&&<button style={{...S.btn("#5B2D8E"),padding:"10px 16px",fontSize:14}} onClick={openAdd}>+ Agregar</button>}
@@ -1838,7 +1838,7 @@ function CumpleanosPanel({maestros,familias}){
   const byMonth={};
   all.forEach(b=>{const m=parseInt(b.fecha.split("/")[1])-1;if(!byMonth[m])byMonth[m]=[];byMonth[m].push(b);});
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Cumpleaños</h2>
       <BirthdayBanner maestros={maestros} familias={familias}/>
       {months.map((month,mi)=>{const list=byMonth[mi]||[];if(!list.length)return null;
@@ -1948,7 +1948,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
     return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):null;
   };
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Calificaciones — {miClase}</h2>
       {misSesiones.length===0&&<div style={{color:"#7B6B9A",textAlign:"center",padding:40}}>Sin sesiones asignadas.</div>}
       {misSesiones.map(ses=>(
@@ -2132,7 +2132,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
 
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
-      <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
+      <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
         <LogoImg height={38}/>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{textAlign:"right"}}>
@@ -2145,7 +2145,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
 
       <div style={{paddingBottom:10}}>
         {activeTab==="inicio"&&(
-          <div style={{padding:"16px 16px 0"}}>
+          <div style={{padding:"1rem 1rem 0"}}>
             <h2 style={S.title}>Hola, {flipName(user.name).split(" ")[0]} 👋</h2>
             <BirthdayBanner maestros={maestros} familias={familias}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
@@ -2188,7 +2188,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
           </div>
         )}
         {activeTab==="cronograma"&&(
-          <div style={{padding:"16px 16px 0"}}>
+          <div style={{padding:"1rem 1rem 0"}}>
             <h2 style={S.title}>Mi Cronograma</h2>
             {misClases.map((c,i)=>(
               <div key={i} style={{...S.card,borderLeft:`5px solid ${CLASE_COLORS[c.grupo]||"#5B2D8E"}`}}>
@@ -2205,7 +2205,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
         )}
         {activeTab==="calificaciones"&&<TeacherCalif user={user} data={data} onUpdateCalif={v=>onUpdateData("calificaciones",v)} onUpdateMerienda={v=>onUpdateData("meriendas",v)}/>}
         {activeTab==="clase"&&(
-          <div style={{padding:"16px 16px 0"}}>
+          <div style={{padding:"1rem 1rem 0"}}>
             <h2 style={S.title}>Mi Clase: {miClase}</h2>
             {misNinos.map((n,i)=>{
               const avg=getNinoGlobalAvg(n.nombre);
@@ -2330,7 +2330,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
           <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={saveEditNino}>💾 Guardar Cambios</button>
         </Modal>
         {activeTab==="mas"&&(
-          <div style={{padding:"16px 16px 0"}}>
+          <div style={{padding:"1rem 1rem 0"}}>
             <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:4}}>
               {[["evaluacion","⭐ Evaluac."],["eventos","📆 Eventos"],["cumpleanos","🎂 Cumple."],["oracion","🙏 Oración"],["perfil","👤 Perfil"]].map(([id,label])=>(
                 <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20}} onClick={()=>setMasTab(id)}>{label}</button>
@@ -2728,7 +2728,7 @@ function InformesPanel({data}){
   };
 
   return(
-    <div style={{padding:"16px 16px 100px"}}>
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>📄 Generar Informes PDF</h2>
       <div style={{background:"#F0FBFF",borderRadius:14,padding:"14px",marginBottom:18,fontSize:13,color:"#2A96BC",fontWeight:600}}>
         Los informes se abrirán en una nueva pestaña listos para imprimir o guardar como PDF.
@@ -2873,7 +2873,7 @@ function AdminApp({data,onUpdateData,onLogout}){
   const tabs=[{id:"dashboard",label:"Inicio",icon:"📊"},{id:"cronograma",label:"Horario",icon:"📅"},{id:"calificaciones",label:"Calif.",icon:"📝"},{id:"maestros",label:"Maestros",icon:"👩‍🏫"},{id:"mas",label:"Más",icon:"☰"}];
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
-      <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
+      <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
         <LogoImg height={38}/>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{background:"#F5C84233",color:"#F5C842",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:800}}>👑 ADMIN</span>
@@ -2886,7 +2886,7 @@ function AdminApp({data,onUpdateData,onLogout}){
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
         {activeTab==="mas"&&(
-          <div style={{padding:"16px 16px 0"}}>
+          <div style={{padding:"1rem 1rem 0"}}>
             <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:4}}>
               {[["clases","🧒 Clases"],["familias","👨‍👩‍👧 Familias"],["eventos","📆 Eventos"],["videos","🎬 Videos"],["evaluaciones","⭐ Evaluac."],["cumpleanos","🎂 Cumple."],["peticiones","🙏 Oración"],["informes","📄 Informes"]].map(([id,label])=>(
                 <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20,whiteSpace:"nowrap"}} onClick={()=>setMasTab(id)}>{label}</button>
@@ -2963,7 +2963,7 @@ function App(){
       : <TeacherApp user={user} data={data} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>;
   return (
     <ErrorBoundary>
-      <div style={{maxWidth:"100vw",overflowX:"hidden",minHeight:"100dvh",touchAction:"pan-y"}}>
+      <div style={{width:"100%",maxWidth:"100vw",overflowX:"hidden",minHeight:"100dvh",touchAction:"pan-y pinch-zoom",position:"relative"}}>
         {screen}
       </div>
     </ErrorBoundary>
