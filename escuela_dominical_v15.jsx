@@ -349,13 +349,13 @@ function getBirthdays(maestros,familias){
 }
 
 const S={
-  card:{background:"#FFFFFF",borderRadius:16,boxShadow:"0 2px 16px rgba(91,45,142,0.09)",padding:"16px",marginBottom:14},
-  btn:(bg="#5B2D8E",color="#FFFFFF",full=false)=>({background:bg,color,border:"none",borderRadius:12,padding:"11px 18px",fontWeight:700,cursor:"pointer",fontSize:14,width:full?"100%":undefined,display:"block",textAlign:"center",fontFamily:"inherit",lineHeight:1.2,WebkitTapHighlightColor:"transparent"}),
-  input:{border:"2px solid #DDD0F0",borderRadius:12,padding:"12px 16px",fontSize:15,outline:"none",width:"100%",boxSizing:"border-box",fontFamily:"inherit",color:"#2D1B4E",background:"#FFFFFF"},
-  badge:(color)=>({background:color+"22",color,borderRadius:20,padding:"3px 12px",fontSize:12,fontWeight:700,display:"inline-block",whiteSpace:"nowrap"}),
-  tag:(color)=>({background:color,color:color==="#F5C842"?"#3D1B6B":"#FFFFFF",borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,display:"inline-block"}),
-  label:{fontSize:13,fontWeight:700,color:"#7B6B9A",display:"block",marginBottom:6},
-  title:{fontSize:20,fontWeight:900,color:"#5B2D8E",margin:"0 0 16px",letterSpacing:-0.5},
+  card:{background:"#FFFFFF",borderRadius:16,boxShadow:"0 2px 16px rgba(91,45,142,0.09)",padding:"1rem",marginBottom:14},
+  btn:(bg="#5B2D8E",color="#FFFFFF",full=false)=>({background:bg,color,border:"none",borderRadius:12,padding:"0.7rem 1.1rem",fontWeight:700,cursor:"pointer",fontSize:"0.875rem",width:full?"100%":undefined,display:"block",textAlign:"center",fontFamily:"inherit",lineHeight:1.2,WebkitTapHighlightColor:"transparent"}),
+  input:{border:"2px solid #DDD0F0",borderRadius:12,padding:"0.75rem 1rem",fontSize:"1rem",outline:"none",width:"100%",boxSizing:"border-box",fontFamily:"inherit",color:"#2D1B4E",background:"#FFFFFF"},
+  badge:(color)=>({background:color+"22",color,borderRadius:20,padding:"3px 12px",fontSize:"0.75rem",fontWeight:700,display:"inline-block",whiteSpace:"nowrap"}),
+  tag:(color)=>({background:color,color:color==="#F5C842"?"#3D1B6B":"#FFFFFF",borderRadius:8,padding:"3px 10px",fontSize:"0.6875rem",fontWeight:700,display:"inline-block"}),
+  label:{fontSize:"0.8125rem",fontWeight:700,color:"#7B6B9A",display:"block",marginBottom:6},
+  title:{fontSize:"1.25rem",fontWeight:900,color:"#5B2D8E",margin:"0 0 1rem",letterSpacing:-0.5},
 };
 
 // ── Logo with elegant gradient border & edge fade ──
@@ -1353,10 +1353,11 @@ function FamiliasPanel({familias,onUpdate,teacherMode=false}){
         </div>
         {(teacherMode
           ?[["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"]]
-          :[["Familia","familia"],["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"],["Alumno","alumno"],["Edad","edad"],["Cumpleaños (DD/MM)","cumpleanos"],["Fecha de Nacimiento","nacimiento"]]
+          :[["Familia","familia"],["Padre","padre"],["Tel. Padre","telPadre"],["Madre","madre"],["Tel. Madre","telMadre"],["Alumno","alumno"],["Edad","edad"],["Fecha de Nacimiento","nacimiento"]]
         ).map(([l,k])=>(
           <div key={k} style={{marginBottom:12}}><label style={S.label}>{l}</label><input style={S.input} value={form[k]||""} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} type={k==="nacimiento"?"date":(k.startsWith("tel")?"tel":"text")}/></div>
         ))}
+        {!teacherMode&&form.nacimiento&&(function(){try{const d=new Date(form.nacimiento);const dd=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;const hoy=new Date();const edad=hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0);return <div style={{marginBottom:12,background:"#F5F0FF",borderRadius:10,padding:"8px 12px",fontSize:"0.8125rem",color:"#5B2D8E"}}>🎂 Cumpleaños: {dd} · {edad} años (calculado automáticamente)</div>;}catch(e){return null;}}())}
         {!teacherMode&&(
           <>
             <label style={S.label}>Clase</label>
@@ -2960,7 +2961,13 @@ function App(){
     : user==="admin"
       ? <AdminApp data={data} onUpdateData={updateData} onLogout={()=>setUser(null)}/>
       : <TeacherApp user={user} data={data} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>;
-  return <ErrorBoundary>{screen}</ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      <div style={{maxWidth:"100vw",overflowX:"hidden",minHeight:"100dvh",touchAction:"pan-y"}}>
+        {screen}
+      </div>
+    </ErrorBoundary>
+  );
 }
 
 const rootElement = document.getElementById("root");
