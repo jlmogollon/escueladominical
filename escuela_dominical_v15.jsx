@@ -3190,14 +3190,8 @@ function App(){
   },[]);
   const updateData=useCallback(async(key,val)=>{setData(d=>({...d,[key]:val}));await saveData(key,val);},[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);await saveData("teacherPasswords",pws);},[]);
-  if(loading){
-    return(
-      <div style={{minHeight:"100dvh",background:"linear-gradient(160deg,#3D1B6B,#5B2D8E)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20}}>
-        <LogoLogin/>
-        <div style={{color:"#FFFFFF",fontSize:16,fontWeight:700}}>Cargando...</div>
-      </div>
-    );
-  }
+
+  // Siempre ejecutar useMemo (mismo orden de hooks en cada render)
   const dataWithDerived=useMemo(()=>{
     try {
       const d=data||{};
@@ -3214,11 +3208,21 @@ function App(){
       return { ...d, clases, familias };
     }catch(err){ console.error("dataWithDerived",err); var d=data||{}; return { ...d, clases: (d.clases&&typeof d.clases==="object")?d.clases:INITIAL_CLASES, familias: Array.isArray(d.familias)?d.familias:INITIAL_FAMILIAS }; }
   },[data]);
+
   const screen = !user
     ? <LoginScreen onLogin={setUser}/>
     : user==="admin"
       ? <AdminApp data={dataWithDerived} onUpdateData={updateData} onLogout={()=>setUser(null)}/>
       : <TeacherApp user={user} data={dataWithDerived} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>;
+
+  if(loading){
+    return(
+      <div style={{minHeight:"100dvh",background:"linear-gradient(160deg,#3D1B6B,#5B2D8E)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:20}}>
+        <LogoLogin/>
+        <div style={{color:"#FFFFFF",fontSize:16,fontWeight:700}}>Cargando...</div>
+      </div>
+    );
+  }
   return (
     <ErrorBoundary>
       <div style={{width:"100%",maxWidth:"100vw",overflowX:"hidden",minHeight:"100dvh",touchAction:"pan-y pinch-zoom",position:"relative"}}>
