@@ -67,7 +67,7 @@
     </style>
   </head>
   <body>
-    <div id="root"><div style="padding:2rem;text-align:center;color:#5B2D8E;font-family:sans-serif">Cargando Escuela Dominical…</div></div>
+    <div id="root"></div>
 
     <!-- React y ReactDOM desde CDN (UMD) -->
     <script
@@ -88,21 +88,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.min.js"></script>
 
-    <!-- La app se carga después de que la página (y Firebase) estén listos. Ruta del script relativa a la URL actual (GitHub Pages, Go Live, etc.). -->
-    <script>
-      window.addEventListener("load", function() {
-        var path = window.location.pathname || "/";
-        var base = path.endsWith("/") ? path : (path.indexOf("/", 1) === -1 ? path + "/" : path.slice(0, path.lastIndexOf("/") + 1));
-        var scriptUrl = base + "escuela_dominical_v15.jsx";
-        var s = document.createElement("script");
-        s.src = scriptUrl;
-        s.type = "text/babel";
-        s.setAttribute("data-presets", "env,react");
-        s.onerror = function() {
-          document.getElementById("root").innerHTML = "<div style=\"padding:2rem;text-align:center;color:#c00;font-family:sans-serif\">No se pudo cargar la app. Comprueba que <strong>escuela_dominical_v15.jsx</strong> esté en la misma ruta que index.html (p. ej. en GitHub: misma carpeta). Abre la consola (F12) para más detalles.</div>";
-        };
-        document.body.appendChild(s);
-      });
-    </script>
+    <!-- App (debe ir después de React, Babel y Firebase) -->
+    <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx"></script>
   </body>
 </html>
