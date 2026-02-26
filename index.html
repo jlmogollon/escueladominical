@@ -5,59 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover, user-scalable=yes" />
     <title>Escuela Dominical</title>
     <style>
-      html {
-        -webkit-text-size-adjust: 100%;
-        font-size: 16px;
-        width: 100%;
-        overflow-x: hidden;
+      html { -webkit-text-size-adjust:100%; font-size:16px; width:100%; overflow-x:hidden; }
+      @media (max-width:768px){ html{ font-size:14px; } }
+      @media (max-width:480px){ html{ font-size:12px; } }
+      @media (max-width:360px){ html{ font-size:11px; } }
+      html,body {
+        margin:0; padding:0; overflow-x:hidden; max-width:100vw; width:100%;
+        min-height:100vh; position:relative;
+        overscroll-behavior-y:auto; overscroll-behavior-x:none;
+        -webkit-overflow-scrolling:touch; touch-action:pan-y pinch-zoom;
+        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Roboto","Oxygen","Ubuntu",
+          "Cantarell","Fira Sans","Droid Sans","Helvetica Neue",sans-serif;
+        -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+        background:#f3f0ff;
       }
-      @media (max-width: 768px) { html { font-size: 14px; } }
-      @media (max-width: 480px) { html { font-size: 12px; } }
-      @media (max-width: 360px) { html { font-size: 11px; } }
-      html, body {
-        margin: 0; padding: 0;
-        overflow-x: hidden;
-        max-width: 100vw; width: 100%;
-        min-height: 100vh;
-        position: relative;
-        overscroll-behavior-y: auto;
-        overscroll-behavior-x: none;
-        -webkit-overflow-scrolling: touch;
-        touch-action: pan-y pinch-zoom;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
-          "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans",
-          "Helvetica Neue", sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        background: #f3f0ff;
-      }
-      #root {
-        min-height: 100vh; max-width: 100vw; width: 100%;
-        overflow-x: hidden; box-sizing: border-box;
-      }
-      #root * { box-sizing: border-box; }
-      @media (max-width: 768px) {
-        input, select, textarea { font-size: 16px !important; }
-      }
-      [data-modal-overlay] { overflow: hidden; overscroll-behavior: contain; }
-      [data-modal-content] { overflow-x: hidden !important; max-width: 100vw !important; }
+      #root { min-height:100vh; max-width:100vw; width:100%; overflow-x:hidden; box-sizing:border-box; }
+      #root * { box-sizing:border-box; }
+      @media (max-width:768px){ input,select,textarea{ font-size:16px !important; } }
+      [data-modal-overlay]{ overflow:hidden; overscroll-behavior:contain; }
+      [data-modal-content]{ overflow-x:hidden !important; max-width:100vw !important; }
     </style>
   </head>
   <body>
     <div id="root"></div>
 
-    <!-- 1. React (PRIMERO) -->
+    <!-- PASO 1: React (síncrono) -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 
-    <!-- 2. Firebase SDK (ANTES de Babel para que window.firebase exista) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.min.js"></script>
+    <!-- PASO 2: Firebase SDK (síncrono, termina antes de que Babel corra) -->
+    <script src="https://unpkg.com/firebase@10.7.1/firebase-app-compat.js"></script>
+    <script src="https://unpkg.com/firebase@10.7.1/firebase-firestore-compat.js"></script>
 
-    <!-- 3. Babel -->
+    <!-- PASO 3: Inicializar Firebase AHORA (síncrono) y guardar promesa en window -->
+    <script>
+      (function(){
+        var FIREBASE_CONFIG = {
+          apiKey:"AIzaSyDmnkl-h4HoHov3Nb4FV80uEnfC9GpqRxU",
+          authDomain:"escueladominicalipuevp.firebaseapp.com",
+          projectId:"escueladominicalipuevp",
+          storageBucket:"escueladominicalipuevp.firebasestorage.app",
+          messagingSenderId:"336792465529",
+          appId:"1:336792465529:web:694cd9a6ce7453cd6a64a8"
+        };
+        try {
+          if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+          var db = firebase.firestore();
+          // Guardar promesa ya resuelta para que el JSX la use directamente
+          window.__firebaseReady = Promise.resolve(db);
+          console.log("[index.html] Firebase inicializado OK ✓");
+        } catch(e) {
+          console.error("[index.html] Error inicializando Firebase:", e.message);
+          // El JSX tiene su propio fallback con polling
+          window.__firebaseReady = null;
+        }
+      })();
+    </script>
+
+    <!-- PASO 4: Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 
-    <!-- 4. App — ?v=3 fuerza descarga del archivo nuevo (cache-busting) -->
-    <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx?v=3"></script>
+    <!-- PASO 5: App JSX — Firebase ya está listo cuando Babel lo ejecute -->
+    <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx?v=4"></script>
   </body>
 </html>
