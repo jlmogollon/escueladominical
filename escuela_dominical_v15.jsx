@@ -347,6 +347,7 @@ function getDb(){
   }catch(e){return null;}
 }
 const db=getDb();
+if(!db)console.warn("[Escuela Dominical] Firebase no está conectado. Abre la app por http:// o https:// (p. ej. con un servidor local), no como archivo (file://). Los datos no se guardarán hasta que Firebase esté disponible.");
 
 // Solo nube: siempre lee desde el servidor para sincronización en tiempo real. No usa localStorage.
 async function loadData(key){
@@ -360,9 +361,10 @@ async function loadData(key){
 }
 
 // Solo nube: guarda en Firestore. No guarda en localStorage para que todo se sincronice en tiempo real.
+let _saveDataWarned=false;
 async function saveData(key,val){
   try{
-    if(!db){ console.warn("saveData: sin conexión a Firebase. No se guarda en local."); return false; }
+    if(!db){ if(!_saveDataWarned){ _saveDataWarned=true; console.warn("saveData: Firebase no conectado. Abre la app por http(s) para que se guarden los datos."); } return false; }
     const str=JSON.stringify(val);
     if(str.length>900000){ console.warn("saveData: payload muy grande ("+key+", "+Math.round(str.length/1024)+" KB). Firestore limita 1 MB por documento. Las fotos en base64 pueden causar fallos."); }
     await db.collection(FIRESTORE_COLLECTION).doc(key).set({value:str},{merge:true});
