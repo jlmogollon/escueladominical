@@ -200,8 +200,8 @@ function normalizarClase(c){ return (c||"").trim().toUpperCase().replace(/\s+/g,
 // Parsea "Nombre Apellido" en { nombre, apellido }; si solo hay una parte, apellido queda ""
 function parseNombreCompleto(s){const t=(s||"").trim().split(/\s+/).filter(Boolean);if(t.length<2)return{nombre:t[0]||"",apellido:""};return{nombre:t[0],apellido:t.slice(1).join(" ")};}
 // Estructura: primer nombre, [segundo nombre], primer apellido, [segundo apellido]. Segundo nombre y segundo apellido pueden estar vacíos.
-// Parsea nombre en orden "P1 [P2] A1 [A2]" en 4 campos (2 partes: P1 A1; 3: P1 P2 A1; 4: P1 P2 A1 A2).
-function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);if(p.length>=4)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};if(p.length===3)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:""};if(p.length===2)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:""};return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:"",segundoApellido:""};}
+// Parsea nombre en orden "P1 [P2] A1 [A2]" en 4 campos. 2 partes: P1 A1. 3 partes: P1 A1 A2 (sin segundo nombre). 4: P1 P2 A1 A2.
+function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);if(p.length>=4)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};if(p.length===3)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:p[2]||""};if(p.length===2)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:""};return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:"",segundoApellido:""};}
 // Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
 function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 // Familia del alumno = primer y segundo apellido del alumno
@@ -348,36 +348,24 @@ function getDb(){
 }
 const db=getDb();
 
-async function loadData(key,opts){
+// Solo nube: siempre lee desde el servidor para sincronización en tiempo real. No usa localStorage.
+async function loadData(key){
   try{
-    if(db){
-      const ref=db.collection(FIRESTORE_COLLECTION).doc(key);
-      const snap=opts&&opts.source==="server"?await ref.get({source:"server"}):await ref.get();
-      const raw=snap.exists?snap.data().value:null;
-      return raw!=null?JSON.parse(raw):null;
-    }
-    if(typeof window.storage!=="undefined"){
-      const r=await window.storage.get(key);
-      return r?JSON.parse(r.value):null;
-    }
-    const raw=localStorage.getItem("ed_"+key);
+    if(!db)return null;
+    const ref=db.collection(FIRESTORE_COLLECTION).doc(key);
+    const snap=await ref.get({source:"server"});
+    const raw=snap.exists?snap.data().value:null;
     return raw!=null?JSON.parse(raw):null;
-  }catch(e){ if(key==="teacherPasswords"||opts?.source==="server") console.error("loadData falló ["+key+"]:",e&&e.message?e.message:e); return null; }
+  }catch(e){ console.error("loadData falló ["+key+"]:",e&&e.message?e.message:e); return null; }
 }
 
+// Solo nube: guarda en Firestore. No guarda en localStorage para que todo se sincronice en tiempo real.
 async function saveData(key,val){
   try{
-    if(db){
-      const str=JSON.stringify(val);
-      if(str.length>900000){ console.warn("saveData: payload muy grande ("+key+", "+Math.round(str.length/1024)+" KB). Firestore limita 1 MB por documento. Las fotos en base64 pueden causar fallos."); }
-      await db.collection(FIRESTORE_COLLECTION).doc(key).set({value:str},{merge:true});
-      return true;
-    }
-    if(typeof window.storage!=="undefined"){
-      await window.storage.set(key,JSON.stringify(val));
-      return true;
-    }
-    localStorage.setItem("ed_"+key,JSON.stringify(val));
+    if(!db){ console.warn("saveData: sin conexión a Firebase. No se guarda en local."); return false; }
+    const str=JSON.stringify(val);
+    if(str.length>900000){ console.warn("saveData: payload muy grande ("+key+", "+Math.round(str.length/1024)+" KB). Firestore limita 1 MB por documento. Las fotos en base64 pueden causar fallos."); }
+    await db.collection(FIRESTORE_COLLECTION).doc(key).set({value:str},{merge:true});
     return true;
   }catch(e){
     console.error("saveData falló ["+key+"]:",e&&e.message?e.message:e);
@@ -3209,7 +3197,7 @@ function App(){
       try{
         const loaded={};
         for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos"]){
-          const v=await loadData(k,k==="maestros"||k==="alumnos"?{source:"server"}:undefined);if(v!==null)loaded[k]=v;
+          const v=await loadData(k);if(v!==null)loaded[k]=v;
         }
         const familias=loaded.familias??INITIAL_FAMILIAS;
         let alumnos=loaded.alumnos;
@@ -3221,7 +3209,7 @@ function App(){
         }
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[] };
         setData(dataToSet);
-        const pw=await loadData("teacherPasswords",{source:"server"});if(pw)setTeacherPasswords(pw);
+        const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
       }catch(e){}
       setLoading(false);
     })();
