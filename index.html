@@ -11,21 +11,13 @@
         width: 100%;
         overflow-x: hidden;
       }
-      @media (max-width: 768px) {
-        html { font-size: 14px; }
-      }
-      @media (max-width: 480px) {
-        html { font-size: 12px; }
-      }
-      @media (max-width: 360px) {
-        html { font-size: 11px; }
-      }
+      @media (max-width: 768px) { html { font-size: 14px; } }
+      @media (max-width: 480px) { html { font-size: 12px; } }
+      @media (max-width: 360px) { html { font-size: 11px; } }
       html, body {
-        margin: 0;
-        padding: 0;
+        margin: 0; padding: 0;
         overflow-x: hidden;
-        max-width: 100vw;
-        width: 100%;
+        max-width: 100vw; width: 100%;
         min-height: 100vh;
         position: relative;
         overscroll-behavior-y: auto;
@@ -40,72 +32,95 @@
         background: #f3f0ff;
       }
       #root {
-        min-height: 100vh;
-        max-width: 100vw;
-        width: 100%;
-        overflow-x: hidden;
-        box-sizing: border-box;
+        min-height: 100vh; max-width: 100vw; width: 100%;
+        overflow-x: hidden; box-sizing: border-box;
       }
-      #root * {
-        box-sizing: border-box;
-      }
+      #root * { box-sizing: border-box; }
       @media (max-width: 768px) {
-        input, select, textarea {
-          font-size: 16px !important;
-        }
+        input, select, textarea { font-size: 16px !important; }
       }
-      [data-modal-overlay] {
-        overflow: hidden;
-        overscroll-behavior: contain;
-      }
-      [data-modal-content] {
-        overflow-x: hidden !important;
-        max-width: 100vw !important;
+      [data-modal-overlay] { overflow: hidden; overscroll-behavior: contain; }
+      [data-modal-content] { overflow-x: hidden !important; max-width: 100vw !important; }
+
+      #loading-firebase {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: #f3f0ff;
+        font-family: sans-serif; font-size: 1.1rem; color: #6c3fc5;
+        z-index: 9999;
       }
     </style>
   </head>
   <body>
+    <div id="loading-firebase">Conectando...</div>
     <div id="root"></div>
 
-    <!-- 1. React y ReactDOM (síncronos, deben ir primero) -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-
-    <!-- 2. Firebase SDK (síncronos, antes que Babel para que estén listos) -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.min.js"></script>
-
-    <!-- 3. Babel (después de React y Firebase) -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
-
-    <!-- 4. Inicializar Firebase ANTES de cargar el JSX -->
     <script>
-      // Pre-inicializar Firebase para que esté listo cuando el JSX lo use
-      (function() {
-        var FIREBASE_CONFIG = {
-          apiKey: "AIzaSyDmnkl-h4HoHov3Nb4FV80uEnfC9GpqRxU",
-          authDomain: "escueladominicalipuevp.firebaseapp.com",
-          projectId: "escueladominicalipuevp",
-          storageBucket: "escueladominicalipuevp.firebasestorage.app",
-          messagingSenderId: "336792465529",
-          appId: "1:336792465529:web:694cd9a6ce7453cd6a64a8"
-        };
-        try {
-          if (typeof firebase !== "undefined") {
-            if (!firebase.apps || !firebase.apps.length) {
-              firebase.initializeApp(FIREBASE_CONFIG);
-              console.log("[Firebase] Inicializado correctamente desde index.html.");
-            }
-          } else {
-            console.warn("[Firebase] SDK no cargado aún en la pre-inicialización.");
-          }
-        } catch(e) {
-          console.error("[Firebase] Error en pre-inicialización:", e.message || e);
-        }
-      })();
-    </script>
+      // Carga secuencial: React → Firebase → inicializar → Babel → JSX
+      function loadScript(src) {
+        return new Promise(function(resolve, reject) {
+          var s = document.createElement('script');
+          s.src = src;
+          s.onload = resolve;
+          s.onerror = function() { reject(new Error('Error cargando: ' + src)); };
+          document.head.appendChild(s);
+        });
+      }
 
-    <!-- 5. App (después de todo lo anterior) -->
-    <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx"></script>
+      var FIREBASE_CONFIG = {
+        apiKey: "AIzaSyDmnkl-h4HoHov3Nb4FV80uEnfC9GpqRxU",
+        authDomain: "escueladominicalipuevp.firebaseapp.com",
+        projectId: "escueladominicalipuevp",
+        storageBucket: "escueladominicalipuevp.firebasestorage.app",
+        messagingSenderId: "336792465529",
+        appId: "1:336792465529:web:694cd9a6ce7453cd6a64a8"
+      };
+
+      loadScript('https://unpkg.com/react@18/umd/react.development.js')
+        .then(function() { return loadScript('https://unpkg.com/react-dom@18/umd/react-dom.development.js'); })
+        .then(function() { return loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.min.js'); })
+        .then(function() { return loadScript('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.min.js'); })
+        .then(function() {
+          // Firebase ya cargado — inicializar ahora de forma segura
+          if (!window.firebase) throw new Error('firebase global no encontrado tras carga del SDK');
+          if (!firebase.apps || !firebase.apps.length) {
+            firebase.initializeApp(FIREBASE_CONFIG);
+          }
+          console.log('[Boot] Firebase inicializado. Apps:', firebase.apps.length);
+          return loadScript('https://unpkg.com/@babel/standalone/babel.min.js');
+        })
+        .then(function() {
+          // Ocultar pantalla de carga
+          var loader = document.getElementById('loading-firebase');
+          if (loader) loader.style.display = 'none';
+
+          // Inyectar el script JSX con type=text/babel DESPUÉS de que Babel esté listo
+          var s = document.createElement('script');
+          s.type = 'text/babel';
+          s.setAttribute('data-presets', 'env,react');
+          s.src = 'escuela_dominical_v15.jsx';
+          document.body.appendChild(s);
+
+          // Babel transformará automáticamente los scripts type="text/babel" añadidos dinámicamente
+          // en cuanto el script se cargue; en algunos navegadores hay que llamar manualmente:
+          s.onload = function() {
+            if (window.Babel && typeof Babel.transformScriptTags === 'function') {
+              Babel.transformScriptTags();
+            }
+          };
+          console.log('[Boot] JSX inyectado OK');
+        })
+        .catch(function(err) {
+          console.error('[Boot] ERROR:', err.message || err);
+          var loader = document.getElementById('loading-firebase');
+          if (loader) {
+            loader.innerHTML =
+              '<div style="text-align:center;padding:2rem;">' +
+              '⚠️ Error al iniciar la aplicación.<br>' +
+              '<small style="color:#999">' + (err.message || err) + '</small>' +
+              '</div>';
+          }
+        });
+    </script>
   </body>
 </html>
