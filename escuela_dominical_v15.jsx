@@ -349,6 +349,19 @@ function getDb(){
 // Obtener db en cada uso por si Firebase se carga después (p. ej. con type="text/babel").
 function getDbNow(){return getDb();}
 
+// Diagnóstico de Firebase (solo una vez al cargar; ver consola F12).
+function firebaseDiagnostico(){
+  const tieneFirebase=typeof firebase!=="undefined";
+  const d=getDb();
+  console.log("[Firebase] firebase definido:",tieneFirebase,"| getDb():",d?"OK":"null");
+  if(!tieneFirebase){console.warn("[Firebase] No se cargó el SDK. Comprueba que index.html cargue los scripts de Firebase y que abras la app por http(s), no file://.");return;}
+  if(!d){console.warn("[Firebase] getDb() es null. Revisa FIREBASE_CONFIG y que la app se abra por http(s).");return;}
+  // Probar escritura mínima para detectar reglas o red
+  const ref=d.collection(FIRESTORE_COLLECTION).doc("_test_connection");
+  ref.set({value:JSON.stringify({t:Date.now()})},{merge:true}).then(()=>{console.log("[Firebase] Prueba de escritura OK. Firestore está bien configurado.");}).catch(err=>{console.error("[Firebase] Error al escribir:",err.code||"",err.message,"— Si es permission-denied, despliega las reglas: firebase deploy --only firestore:rules");});
+}
+if(typeof window!=="undefined"){if(window.addEventListener)window.addEventListener("load",()=>setTimeout(firebaseDiagnostico,800));else setTimeout(firebaseDiagnostico,1500);}
+
 // Solo nube: siempre lee desde el servidor para sincronización en tiempo real. No usa localStorage.
 async function loadData(key){
   try{
