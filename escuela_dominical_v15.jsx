@@ -340,11 +340,22 @@ const FIREBASE_CONFIG={
 const FIRESTORE_COLLECTION="ed_data";
 
 function getDb(){
-  if(typeof firebase==="undefined"||!FIREBASE_CONFIG)return null;
   try{
-    if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
-    return firebase.firestore();
-  }catch(e){return null;}
+    const fb=(typeof firebase!=="undefined"
+      ? firebase
+      : (typeof window!=="undefined" ? window.firebase : null));
+    if(!fb||!FIREBASE_CONFIG){
+      console.warn("[Firebase] SDK no disponible o FIREBASE_CONFIG vacío.");
+      return null;
+    }
+    if(!fb.apps||!fb.apps.length)fb.initializeApp(FIREBASE_CONFIG);
+    const db=fb.firestore?fb.firestore():null;
+    if(!db)console.warn("[Firebase] firestore() no está disponible en el SDK cargado.");
+    return db;
+  }catch(e){
+    console.error("[Firebase] Error al inicializar Firestore:",e&&e.message?e.message:e);
+    return null;
+  }
 }
 // Obtener db en cada uso por si Firebase se carga después (p. ej. con type="text/babel").
 function getDbNow(){return getDb();}
@@ -3230,7 +3241,9 @@ function App(){
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[] };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
-      }catch(e){}
+      }catch(e){
+        console.error("Error al cargar datos iniciales desde Firestore:",e&&e.message?e.message:e);
+      }
       setLoading(false);
     })();
   },[]);
