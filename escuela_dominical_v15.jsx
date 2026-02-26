@@ -328,7 +328,7 @@ const CLASE_COLORS_FN=(key,cfg)=>getCfgColor(key,cfg);
 const EVAL_KEYS = ["dominioBiblico","habilidadEnsenar","claridadComunicarse","recursosVisuales","manejoGrupo","empatia","creatividad","preparacion","compromiso","aplicacionPractica","cumplimientoClases"];
 const EVAL_LABELS = ["Dominio Bíblico","Habilidad Enseñar","Claridad","Recursos Visuales","Manejo Grupo","Empatía","Creatividad","Preparación","Compromiso","Aplicación Práctica","✅ Cumplimiento de Clases"];
 
-// ── Firebase Firestore. Datos y sincronización en tiempo real. ──
+// ── Firebase Firestore ──
 const FIREBASE_CONFIG={
   apiKey:"AIzaSyDmnkl-h4HoHov3Nb4FV80uEnfC9GpqRxU",
   authDomain:"escueladominicalipuevp.firebaseapp.com",
@@ -339,96 +339,58 @@ const FIREBASE_CONFIG={
 };
 const FIRESTORE_COLLECTION="ed_data";
 
-// Instancia global de Firestore (se inicializa una sola vez)
-let _db=null;
+// Instancia singleton de Firestore
+let _dbInstance=null;
 
 function getDb(){
-  // Si ya tenemos la instancia, devolverla directamente
-  if(_db)return _db;
+  if(_dbInstance)return _dbInstance;
   try{
     const fb=window.firebase||null;
-    if(!fb){
-      // Firebase aún no está en window — puede ocurrir si el JSX corrió antes del SDK.
-      // No mostramos warning repetitivo; getDbNow reintentará.
-      return null;
-    }
-    if(!fb.apps||!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG);
+    if(!fb)return null;  // SDK no cargado aún — waitForDb reintentará
+    if(!fb.apps||!fb.apps.length)fb.initializeApp(FIREBASE_CONFIG);
     const db=fb.firestore?fb.firestore():null;
-    if(db){
-      _db=db;
-      console.log("[Firebase] Firestore conectado OK.");
-    }
+    if(db){_dbInstance=db;console.log("[Firebase] Firestore conectado OK ✓");}
     return db;
   }catch(e){
-    console.error("[Firebase] Error al inicializar Firestore:",e&&e.message?e.message:e);
+    console.error("[Firebase] Error Firestore:",e&&e.message?e.message:e);
     return null;
   }
 }
 
-// getDbNow: reintenta obtener db hasta 20 veces con retardo, útil porque
-// Babel puede ejecutar el JSX antes de que Firebase termine de cargar.
-let _getDbNowWarned=false;
-function getDbNow(){
-  const db=getDb();
-  if(db)return db;
-  if(!_getDbNowWarned){
-    _getDbNowWarned=true;
-    console.warn("[Firebase] SDK aún no listo. Reintentando cada 500ms (máx 10s)...");
-    let intentos=0;
-    const id=setInterval(()=>{
-      intentos++;
-      const d=getDb();
-      if(d){
-        console.log("[Firebase] Conectado tras",intentos,"reintentos.");
-        clearInterval(id);
-        // Forzar re-carga de datos ahora que Firebase está listo
-        if(typeof window.__firebaseReadyCallbacks==="object"){
-          window.__firebaseReadyCallbacks.forEach(fn=>{try{fn();}catch(e){}});
-          window.__firebaseReadyCallbacks=[];
-        }
-      }else if(intentos>=20){
-        console.error("[Firebase] No se pudo conectar tras 10s. Revisa la consola y la configuración.");
-        clearInterval(id);
-      }
-    },500);
-  }
-  return null;
-}
-
-// Registro de callbacks para cuando Firebase esté listo
-if(typeof window.__firebaseReadyCallbacks==="undefined") window.__firebaseReadyCallbacks=[];
-
-// Diagnóstico (una vez al cargar)
-function firebaseDiagnostico(){
-  const d=getDb();
-  console.log("[Firebase] Diagnóstico — firebase en window:",!!window.firebase,"| getDb():",d?"OK":"null (reintentando...)");
-  if(d){
-    const ref=d.collection(FIRESTORE_COLLECTION).doc("_test_connection");
-    ref.set({value:JSON.stringify({t:Date.now()})},{merge:true})
-      .then(()=>console.log("[Firebase] Prueba de escritura OK ✓"))
-      .catch(err=>console.error("[Firebase] Error al escribir:",err.code||"",err.message,
-        err.code==="permission-denied"?"— Despliega las reglas: firebase deploy --only firestore:rules":""));
-  }
-}
-if(typeof window!=="undefined"){
-  window.addEventListener("load",()=>setTimeout(firebaseDiagnostico,1200));
-}
-
-// Espera hasta que Firebase esté listo (máx 10s)
-function waitForDb(timeoutMs=10000){
-  return new Promise((resolve)=>{
+// Espera hasta que Firebase esté listo (máx 15s, reintento cada 300ms)
+function waitForDb(ms=15000){
+  return new Promise(resolve=>{
     const d=getDb();
     if(d){resolve(d);return;}
-    const start=Date.now();
-    const id=setInterval(()=>{
+    const t0=Date.now();
+    const iv=setInterval(()=>{
       const d2=getDb();
-      if(d2){clearInterval(id);resolve(d2);}
-      else if(Date.now()-start>timeoutMs){clearInterval(id);resolve(null);}
+      if(d2){clearInterval(iv);resolve(d2);}
+      else if(Date.now()-t0>ms){
+        clearInterval(iv);
+        console.error("[Firebase] Timeout: no se pudo conectar en",ms/1000,"s.");
+        resolve(null);
+      }
     },300);
   });
 }
 
-// Solo nube: siempre lee desde el servidor para sincronización en tiempo real. No usa localStorage.
+function getDbNow(){return getDb();}
+
+// Diagnóstico
+function firebaseDiagnostico(){
+  waitForDb(5000).then(d=>{
+    console.log("[Firebase] Diagnóstico — firebase:",!!window.firebase,"| db:",d?"OK":"null");
+    if(!d){console.warn("[Firebase] No hay conexión. Verifica que los scripts de Firebase se carguen.");return;}
+    d.collection(FIRESTORE_COLLECTION).doc("_test_connection")
+      .set({value:JSON.stringify({t:Date.now()})},{merge:true})
+      .then(()=>console.log("[Firebase] Escritura de prueba OK ✓"))
+      .catch(err=>console.error("[Firebase] Error escritura:",err.code,err.message));
+  });
+}
+if(typeof window!=="undefined")window.addEventListener("load",()=>setTimeout(firebaseDiagnostico,1000));
+
+// Solo nube: siempre lee desde el servidor para sincronización en tiempo real.
 async function loadData(key){
   try{
     const database=await waitForDb();
