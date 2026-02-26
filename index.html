@@ -49,13 +49,11 @@
       #root * {
         box-sizing: border-box;
       }
-      /* Evitar zoom automático al enfocar contraseña/inputs en móvil (iOS hace zoom si font-size < 16px) */
       @media (max-width: 768px) {
         input, select, textarea {
           font-size: 16px !important;
         }
       }
-      /* Evitar que modales y contenido se desplacen horizontalmente */
       [data-modal-overlay] {
         overflow: hidden;
         overscroll-behavior: contain;
@@ -69,26 +67,45 @@
   <body>
     <div id="root"></div>
 
-    <!-- React y ReactDOM desde CDN (UMD) -->
-    <script
-      crossorigin
-      src="https://unpkg.com/react@18/umd/react.development.js"
-    ></script>
-    <script
-      crossorigin
-      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
-    ></script>
-    <!-- Babel para transpilar JSX y JS moderno en el navegador -->
-    <script
-      crossorigin
-      src="https://unpkg.com/@babel/standalone/babel.min.js"
-    ></script>
+    <!-- 1. React y ReactDOM (síncronos, deben ir primero) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 
-    <!-- Firebase Firestore: datos y sincronización en tiempo real -->
+    <!-- 2. Firebase SDK (síncronos, antes que Babel para que estén listos) -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.min.js"></script>
 
-    <!-- App (debe ir después de React, Babel y Firebase) -->
+    <!-- 3. Babel (después de React y Firebase) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+
+    <!-- 4. Inicializar Firebase ANTES de cargar el JSX -->
+    <script>
+      // Pre-inicializar Firebase para que esté listo cuando el JSX lo use
+      (function() {
+        var FIREBASE_CONFIG = {
+          apiKey: "AIzaSyDmnkl-h4HoHov3Nb4FV80uEnfC9GpqRxU",
+          authDomain: "escueladominicalipuevp.firebaseapp.com",
+          projectId: "escueladominicalipuevp",
+          storageBucket: "escueladominicalipuevp.firebasestorage.app",
+          messagingSenderId: "336792465529",
+          appId: "1:336792465529:web:694cd9a6ce7453cd6a64a8"
+        };
+        try {
+          if (typeof firebase !== "undefined") {
+            if (!firebase.apps || !firebase.apps.length) {
+              firebase.initializeApp(FIREBASE_CONFIG);
+              console.log("[Firebase] Inicializado correctamente desde index.html.");
+            }
+          } else {
+            console.warn("[Firebase] SDK no cargado aún en la pre-inicialización.");
+          }
+        } catch(e) {
+          console.error("[Firebase] Error en pre-inicialización:", e.message || e);
+        }
+      })();
+    </script>
+
+    <!-- 5. App (después de todo lo anterior) -->
     <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx"></script>
   </body>
 </html>
