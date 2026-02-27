@@ -2479,7 +2479,16 @@ function CumpleanosPanel({maestros,familias}){
   const all=[
     ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:shortDisplayName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro",clase:m.clase,foto:m.foto||null,iniciales:getInitials(m.nombre),diff:diasHastaCumple(m.cumpleanos)})),
     ...familias.filter(f=>f.cumpleanos).map(f=>({nombre:shortDisplayName(f.alumno),fecha:f.cumpleanos,tipo:"ALUMNO",clase:f.clase,categoria:"alumno",foto:f.foto||null,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)})),
-  ].sort((a,b)=>{const oa=ordenCategoria(a),ob=ordenCategoria(b);if(oa!==ob)return oa-ob;const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;});
+  ].sort((a,b)=>{
+    const da=a.diff!=null?a.diff:9999;
+    const db=b.diff!=null?b.diff:9999;
+    if(da!==db)return da-db;
+    const oa=ordenCategoria(a),ob=ordenCategoria(b);
+    if(oa!==ob)return oa-ob;
+    const[ad,am]=a.fecha.split("/").map(Number);
+    const[bd,bm]=b.fecha.split("/").map(Number);
+    return am-bm||ad-bd;
+  });
   const byMonth={};
   all.forEach(b=>{const m=parseInt(b.fecha.split("/")[1])-1;if(!byMonth[m])byMonth[m]=[];byMonth[m].push(b);});
   const thumb=(b,color)=>(b.foto?<img src={b.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color,flexShrink:0}}>{b.iniciales||"?"}</div>);
@@ -2519,6 +2528,76 @@ function MeriendaBadges({ses, meriendas, openSesModal}) {
         {totalSes>0 && <span style={{...S.badge("#4CAF50"),fontSize:11}}>💰 Total: €{totalSes.toFixed(2)}</span>}
       </div>
       <button style={{...S.btn("#2A96BC"),padding:"5px 12px",fontSize:12,flexShrink:0}} onClick={()=>openSesModal(ses)}>📋 {m?"Ver sesión":"Datos sesión"}</button>
+    </div>
+  );
+}
+
+function TeacherFinanzasPanel({user,data}){
+  const meriendas=data.meriendas||[];
+  const cronograma=data.cronograma||[];
+  const maestros=data.maestros||[];
+  const miMaestro=maestros.find(m=>m.nombre===user.name)||{};
+  const miClase=miMaestro.clase;
+  const registros=meriendas.filter(m=>m.clase===miClase&&m.maestro===user.name);
+  const totalClase=registros.reduce((s,m)=>
+    s+(parseFloat(m.meriendaCosto)||0)+(parseFloat(m.trabajoManualCosto)||0)
+  ,0);
+  const filas=registros
+    .map(m=>{
+      const ses=cronograma.find(c=>c.id===m.sesionId)||{};
+      const fecha=ses.fecha?formatFecha(ses.fecha):"—";
+      const leccion=ses.leccion||"—";
+      const merCost=parseFloat(m.meriendaCosto)||0;
+      const tmCost=parseFloat(m.trabajoManualCosto)||0;
+      const total=merCost+tmCost;
+      return{m,fecha,leccion,merCost,tmCost,total};
+    })
+    .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  return(
+    <div>
+      <h2 style={S.title}>💰 Mis gastos de clase</h2>
+      <div style={{...S.card,marginBottom:14}}>
+        <div style={{fontSize:13,color:"#7B6B9A",marginBottom:8}}>
+          Solo ves los <strong>gastos registrados como maestro</strong> en tu clase {miClase}.
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+          <div>
+            <div style={{fontSize:11,color:"#7B6B9A"}}>Total gastado en el período</div>
+            <div style={{fontSize:22,fontWeight:900,color:"#2E7D32"}}>€{totalClase.toFixed(2)}</div>
+          </div>
+          <div>
+            <div style={{fontSize:11,color:"#7B6B9A"}}>Registros</div>
+            <div style={{fontSize:18,fontWeight:800,color:"#5B2D8E"}}>{filas.length}</div>
+          </div>
+        </div>
+      </div>
+      {filas.length===0&&(
+        <div style={{...S.card,fontSize:13,color:"#7B6B9A",fontStyle:"italic"}}>
+          No hay gastos registrados todavía para tu clase.
+        </div>
+      )}
+      {filas.length>0&&(
+        <div style={S.card}>
+          <div style={{fontWeight:800,fontSize:14,marginBottom:8,color:"#5B2D8E"}}>Detalle por sesión</div>
+          {filas.map((row,i)=>(
+            <div key={row.m.sesionId||i} style={{padding:"8px 0",borderBottom:i<filas.length-1?"1px solid #EEE8FF":"none",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,color:"#7B6B9A"}}>{row.fecha} · {miClase}</div>
+                <div style={{fontWeight:700,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{row.leccion}</div>
+                <div style={{fontSize:11,color:"#7B6B9A",marginTop:2}}>
+                  {row.m.merienda&&`🍎 ${row.m.merienda}${row.meriCost>0?` · €${row.meriCost.toFixed(2)}`:""}`}
+                  {(row.m.merienda&&row.tmCost>0)?" · ":""}
+                  {row.m.trabajoManual&&`✂️ ${row.m.trabajoManual}${row.tmCost>0?` · €${row.tmCost.toFixed(2)}`:""}`}
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>Total</div>
+                <div style={{fontWeight:800,fontSize:15,color:"#2E7D32"}}>€{row.total.toFixed(2)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -3034,7 +3113,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
               {[
                 ["eventos","📆 Eventos"],
                 ["cumpleanos","🎂 Cumple."],
-                ...((()=>{const n=(user.name||"").toLowerCase();return n.includes("marcela")&&n.includes("lavaire")?[["finanzas","💰 Finanzas"]]:[];})()),
+                ["finanzas","💰 Finanzas"],
                 ["evaluacion","⭐ Evaluac."],
                 ["perfil","👤 Perfil"],
               ].map(([id,label])=>(
@@ -3061,13 +3140,49 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                         </div>
                       </div>
                     ))}
+                    {(()=>{
+                      const videos=data.videos||[];
+                      const sesiones=(data.cronograma||[])
+                        .filter(s=>s.maestro===user.name&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE")
+                        .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+                      const rows=sesiones.map(s=>{
+                        const v=videos.find(x=>x.sesionId===s.id&&x.maestro===s.maestro);
+                        const score=v?videoScore(v):null;
+                        return{ses:s,vid:v,score};
+                      }).filter(r=>r.vid&&r.vid.hizo);
+                      if(!rows.length)return null;
+                      return(
+                        <div style={{marginTop:16}}>
+                          <div style={{fontWeight:800,fontSize:13,color:"#4BBCE0",marginBottom:6}}>🎬 Historial de videos</div>
+                          <div style={{fontSize:11,color:"#7B6B9A",marginBottom:8}}>Solo se muestran las clases que requieren video (Corderitos, Vencedores, Conquistadores).</div>
+                          <div style={{borderRadius:12,overflow:"hidden",border:"1px solid #DDD0F0"}}>
+                            {rows.map((r,i)=>(
+                              <div key={r.ses.id||i} style={{display:"flex",alignItems:"center",padding:"8px 10px",background:i%2===0?"#F5F0FF":"#FFFFFF"}}>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{fontWeight:700,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.ses.leccion||"Sesión"}</div>
+                                  <div style={{fontSize:11,color:"#7B6B9A"}}>{formatFecha(r.ses.fecha)} · {r.ses.grupo}</div>
+                                </div>
+                                <div style={{textAlign:"right",fontSize:11}}>
+                                  <div>{r.vid?.hizo?"✅ Enviado":"❌ Sin video"}</div>
+                                  {r.score!=null&&(
+                                    <div style={{fontWeight:800,fontSize:14,color:scoreColor(r.score.toFixed(1))}}>
+                                      {r.score.toFixed(1)}/5
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ):<div style={{color:"#7B6B9A"}}>No hay evaluación disponible.</div>}
               </div>
             )}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={()=>{}} readOnly/>}
-            {masTab==="finanzas"&&(user.name||"").toLowerCase().includes("marcela")&&(user.name||"").toLowerCase().includes("lavaire")&&(
-              <FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>
+            {masTab==="finanzas"&&(
+              <TeacherFinanzasPanel user={user} data={data}/>
             )}
             {masTab==="cumpleanos"&&(
               <div>
@@ -3079,10 +3194,17 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                     let f=m.cumpleanos;if(!f&&m.nacimiento){try{const d=new Date(m.nacimiento);f=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;}catch(e){}}return f?{nombre:shortDisplayName(m.nombre),fecha:f,tipo:m.cargo,categoria:"maestro",foto:m.foto,iniciales:getInitials(m.nombre),diff:diasHastaCumple(f)}:null;
                   }).filter(Boolean);
                   const cumpleAlumnos=familias.filter(f=>f.clase===miClase&&f.cumpleanos).map(f=>({nombre:f.alumno||"",fecha:f.cumpleanos,tipo:"ALUMNO",categoria:"alumno",edad:f.edad,foto:f.foto,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)}));
-                  const sortByDate=(a,b)=>{const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;};
-                  const maestrosOnly=cumpleMaestros.filter(m=>m.tipo==="MAESTRO").sort(sortByDate);
-                  const auxiliaresOnly=cumpleMaestros.filter(m=>m.tipo==="AUXILIAR").sort(sortByDate);
-                  const todos=[...cumpleAlumnos.sort(sortByDate),...maestrosOnly,...auxiliaresOnly];
+                  const sortByDiff=(a,b)=>{
+                    const da=a.diff!=null?a.diff:9999;
+                    const db=b.diff!=null?b.diff:9999;
+                    if(da!==db)return da-db;
+                    const[ad,am]=a.fecha.split("/").map(Number);
+                    const[bd,bm]=b.fecha.split("/").map(Number);
+                    return am-bm||ad-bd;
+                  };
+                  const maestrosOnly=cumpleMaestros.filter(m=>m.tipo==="MAESTRO").sort(sortByDiff);
+                  const auxiliaresOnly=cumpleMaestros.filter(m=>m.tipo==="AUXILIAR").sort(sortByDiff);
+                  const todos=[...cumpleAlumnos.sort(sortByDiff),...maestrosOnly,...auxiliaresOnly];
                   const thumb=(b,color)=>(b.foto?<img src={b.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color,flexShrink:0}}>{b.iniciales||"?"}</div>);
                   return todos.length===0?(<div style={{color:"#7B6B9A",textAlign:"center",padding:24,fontStyle:"italic"}}>No hay cumpleaños registrados en tu clase.</div>):(
                     todos.map((b,i)=>(
@@ -3234,6 +3356,97 @@ function InformesPanel({data}){
   const evalMaestro=(nombre)=>evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=nombre.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
   const gastoTotal=(m)=>((parseFloat(m?.meriendaCosto)||0)+(parseFloat(m?.trabajoManualCosto)||0));
 
+  const finanzasMiniSection=()=>{
+    const gastosComite=(finanzas.gastos||[]).reduce((s,g)=>s+(parseFloat(g.monto)||0),0);
+    const gastosClases=(meriendas||[]).reduce((s,m)=>s+gastoTotal(m),0);
+    const gastosActividades=(finanzas.actividades||[]).reduce((s,a)=>s+(parseFloat(a.gastos)||0),0);
+    const ingresosActividades=(finanzas.actividades||[]).reduce((s,a)=>{
+      const ef=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
+      const tpv=parseFloat(a.ingresoTPV||0)||0;
+      return s+ef+tpv;
+    },0);
+    const donativosTotal=(finanzas.donativos||[]).reduce((s,d)=>{
+      const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+      const tpv=parseFloat(d.tpv||0)||0;
+      return s+ef+tpv;
+    },0);
+    const totalGastos=gastosComite+gastosClases+gastosActividades;
+    const totalIngresos=ingresosActividades+donativosTotal;
+    const neto=totalIngresos-totalGastos;
+    const filasGastos=(finanzas.gastos||[]).map(g=>{
+      const resp=g.responsable?shortDisplayName(g.responsable):"—";
+      return `<tr>
+        <td>${g.fecha||"—"}</td>
+        <td><strong>${g.concepto||"—"}</strong></td>
+        <td>${resp}</td>
+        <td style="font-weight:700;color:#C62828">€${(parseFloat(g.monto)||0).toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    const filasActiv=(finanzas.actividades||[]).map(a=>{
+      const resp=a.responsable?shortDisplayName(a.responsable):"—";
+      const ef=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
+      const tpv=parseFloat(a.ingresoTPV||0)||0;
+      const ing=ef+tpv;
+      const gas=parseFloat(a.gastos)||0;
+      const net=ing-gas;
+      return `<tr>
+        <td>${a.fecha||"—"}</td>
+        <td><strong>${a.nombre||"—"}</strong></td>
+        <td>${resp}</td>
+        <td style="color:#2E7D32">€${ing.toFixed(2)}</td>
+        <td style="color:#C62828">€${gas.toFixed(2)}</td>
+        <td style="font-weight:700;color:${net>=0?"#2E7D32":"#C62828"}">€${net.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    const filasDon=(finanzas.donativos||[]).map(d=>{
+      const resp=d.responsable?shortDisplayName(d.responsable):"—";
+      const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+      const tpv=parseFloat(d.tpv||0)||0;
+      const tot=ef+tpv;
+      return `<tr>
+        <td>${d.fecha||"—"}</td>
+        <td><strong>${d.concepto||"—"}</strong></td>
+        <td>${d.tipo||"DONATIVO"}</td>
+        <td>${resp}</td>
+        <td style="color:#2E7D32">€${ef.toFixed(2)}</td>
+        <td style="color:#2E7D32">€${tpv.toFixed(2)}</td>
+        <td style="font-weight:700;color:#2E7D32">€${tot.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    if(totalGastos===0&&totalIngresos===0&&!filasGastos&&!filasActiv&&!filasDon)return"";
+    return `
+      <div class="section">
+        <div class="section-title">💰 Resumen de Finanzas (Comité + Clases)</div>
+        <div style="padding:10px 16px 4px;font-size:12px;color:#2D1B4E;display:flex;flex-wrap:wrap;gap:16px">
+          <div><div style="color:#7B6B9A;font-size:11px">Total gastos</div><div style="font-weight:900;color:#C62828;font-size:18px">€${totalGastos.toFixed(2)}</div></div>
+          <div><div style="color:#7B6B9A;font-size:11px">Total ingresos</div><div style="font-weight:900;color:#2E7D32;font-size:18px">€${totalIngresos.toFixed(2)}</div></div>
+          <div><div style="color:#7B6B9A;font-size:11px">Resultado neto</div><div style="font-weight:900;color:${neto>=0?"#2E7D32":"#C62828"};font-size:18px">€${neto.toFixed(2)}</div></div>
+        </div>
+        <div style="padding:4px 16px 0;font-size:11px;color:#7B6B9A">Incluye gastos de clases (meriendas / trabajos manuales), gastos generales del comité, actividades y donativos.</div>
+        <div style="margin-top:10px">
+          <h4 style="margin:8px 0 4px;font-size:12px;color:#5B2D8E">🏛️ Gastos generales del comité</h4>
+          <table>
+            <thead><tr><th>Fecha</th><th>Concepto</th><th>Responsable</th><th>Monto</th></tr></thead>
+            <tbody>${filasGastos||"<tr><td colspan='4' style='text-align:center;color:#AAA'>Sin gastos registrados</td></tr>"}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px">
+          <h4 style="margin:8px 0 4px;font-size:12px;color:#2A96BC">🎉 Actividades del comité</h4>
+          <table>
+            <thead><tr><th>Fecha</th><th>Actividad</th><th>Responsable</th><th>Ingresos</th><th>Gastos</th><th>Neto</th></tr></thead>
+            <tbody>${filasActiv||"<tr><td colspan='6' style='text-align:center;color:#AAA'>Sin actividades registradas</td></tr>"}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px">
+          <h4 style="margin:8px 0 4px;font-size:12px;color:#2E7D32">🙏 Donativos / Votos</h4>
+          <table>
+            <thead><tr><th>Fecha</th><th>Detalle</th><th>Tipo</th><th>Responsable</th><th>Efec.</th><th>TPV</th><th>Total</th></tr></thead>
+            <tbody>${filasDon||"<tr><td colspan='7' style='text-align:center;color:#AAA'>Sin donativos registrados</td></tr>"}</tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
   // ── Helper para mini gráficos de barras ──
   const barRow=(label,value,max,color)=>`<div style="display:flex;align-items:center;gap:8;margin-bottom:4;font-size:11px">
     <div style="width:110px;color:#7B6B9A">${label}</div>
@@ -3282,7 +3495,7 @@ function InformesPanel({data}){
           <thead><tr><th>Alumno</th><th>Clase</th><th>Edad</th><th>Cumpleaños</th><th>Familia</th><th>Bautizado</th><th>Sellado</th><th>Asistencia</th><th>Promedio</th><th>Observac.</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-      </div>`;
+      </div>`+finanzasMiniSection();
     generarPDF("Informe de Alumnos",html);
   };
 
@@ -3371,7 +3584,7 @@ function InformesPanel({data}){
         <div class="section-title">👦 Alumnos de ${m.clase}</div>
         <table><thead><tr><th>Alumno</th><th>Asistencia</th><th>Promedio</th></tr></thead><tbody>${ninoRows||"<tr><td colspan='3' style='text-align:center;color:#AAA'>Sin alumnos</td></tr>"}</tbody></table>
       </div>
-      ${ev?`<div class="section"><div class="section-title">⭐ Evaluación del Administrador</div><table><thead><tr><th>Criterio</th><th>Calificación</th><th>Puntos</th></tr></thead><tbody>${evalRows}</tbody></table>${(ev.observaciones||"").trim()?`<div style="padding:12px 16px;border-top:1px solid #DDD0F0"><div style="font-size:11px;font-weight:700;color:#5B2D8E;margin-bottom:6px">Observaciones</div><div style="font-size:13px;color:#2D1B4E;white-space:pre-wrap">${String(ev.observaciones||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`:""}</div>`:""}`;
+      ${ev?`<div class="section"><div class="section-title">⭐ Evaluación del Administrador</div><table><thead><tr><th>Criterio</th><th>Calificación</th><th>Puntos</th></tr></thead><tbody>${evalRows}</tbody></table>${(ev.observaciones||"").trim()?`<div style="padding:12px 16px;border-top:1px solid #DDD0F0"><div style="font-size:11px;font-weight:700;color:#5B2D8E;margin-bottom:6px">Observaciones</div><div style="font-size:13px;color:#2D1B4E;white-space:pre-wrap">${String(ev.observaciones||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`:""}</div>`:""}`+finanzasMiniSection();
     generarPDF(`Informe de ${shortDisplayName(m.nombre)}`,html);
   };
 
@@ -3420,7 +3633,7 @@ function InformesPanel({data}){
       "<div class=\"stat\"><div class=\"stat-val\">"+entries.length+"</div><div class=\"stat-lbl\">Sesiones asistidas</div></div>"+
       "<div class=\"stat\"><div class=\"stat-val\">"+asistPct+"%</div><div class=\"stat-lbl\">Asistencia</div></div>"+
       "<div class=\"stat\"><div class=\"stat-val\" style=\"color:"+scoreC+"\">"+( avg||"—")+"</div><div class=\"stat-lbl\">Promedio general</div></div>"+
-      "</div></div>"+historial;
+      "</div></div>"+historial+finanzasMiniSection();
     generarPDF("Informe: "+shortDisplayName(n.nombre),html);
   };
 
@@ -3493,7 +3706,7 @@ function InformesPanel({data}){
         <div class="section-title">👦 Alumnos</div>
         <table><thead><tr><th>Alumno</th><th>Edad</th><th>Cumpleaños</th><th>Bautizado</th><th>Sellado</th><th>Asistencia</th><th>Promedio</th><th>Observac.</th></tr></thead>
         <tbody>${ninoRows2||"<tr><td colspan='8' style='text-align:center;color:#AAA'>Sin alumnos</td></tr>"}</tbody></table>
-      </div>`;
+      </div>`+finanzasMiniSection();
     generarPDF(`Informe Clase ${selClase}`,html);
   };
 
@@ -3808,10 +4021,11 @@ function PeticionesPanel({peticiones,user,onUpdate,isAdmin=false}){
 
 // ══════════ FINANZAS PANEL (ADMIN) ══════════
 function FinanzasPanel({finanzas,maestros,onUpdate}){
-  const[gastoForm,setGastoForm]=useState({fecha:"",concepto:"",monto:"",responsable:""});
-  const[actForm,setActForm]=useState({fecha:"",nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""});
-  const[donForm,setDonForm]=useState({fecha:"",concepto:"",efectivo:"",tpv:"",donante:""});
-  const[votoForm,setVotoForm]=useState({fecha:"",concepto:"",efectivo:"",tpv:"",responsable:""});
+  const todayStr=new Date().toISOString().slice(0,10);
+  const[gastoForm,setGastoForm]=useState({fecha:todayStr,concepto:"",monto:"",responsable:""});
+  const[actForm,setActForm]=useState({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""});
+  const[donForm,setDonForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:""});
+  const[votoForm,setVotoForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:""});
 
   const gastos=Array.isArray(finanzas?.gastos)?finanzas.gastos:[];
   const actividades=Array.isArray(finanzas?.actividades)?finanzas.actividades:[];
@@ -3824,7 +4038,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
     const m=parseFloat(gastoForm.monto.replace(",","."));
     const nuevo={id:Date.now()+"-g",fecha:gastoForm.fecha||new Date().toISOString().slice(0,10),concepto:gastoForm.concepto.trim(),monto:isNaN(m)?0:m,responsable:gastoForm.responsable||""};
     onUpdate({...finanzas,gastos:[...gastos,nuevo]});
-    setGastoForm({fecha:"",concepto:"",monto:"",responsable:gastoForm.responsable});
+    setGastoForm({fecha:todayStr,concepto:"",monto:"",responsable:gastoForm.responsable});
   };
   const deleteGasto=id=>onUpdate({...finanzas,gastos:gastos.filter(g=>g.id!==id)});
 
@@ -3843,7 +4057,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable:actForm.responsable||"",
     };
     onUpdate({...finanzas,actividades:[...actividades,nueva]});
-    setActForm({fecha:"",nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
+    setActForm({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
   };
   const deleteActividad=id=>onUpdate({...finanzas,actividades:actividades.filter(a=>a.id!==id)});
 
@@ -3861,7 +4075,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable:donForm.donante||"",
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setDonForm({fecha:"",concepto:"",efectivo:"",tpv:"",donante:donForm.donante});
+    setDonForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:donForm.donante});
   };
   const saveVoto=()=>{
     if(!votoForm.efectivo && !votoForm.tpv)return;
@@ -3877,7 +4091,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable:votoForm.responsable||"",
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setVotoForm({fecha:"",concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable});
+    setVotoForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable});
   };
   const deleteDonativo=id=>onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
 
