@@ -262,6 +262,7 @@ const CRITERIOS = [
 
 const CLASES_LIST = ["CORDERITOS","VENCEDORES","CONQUISTADORES","ADOLESCENTES"];
 const CLASE_COLORS = {CORDERITOS:"#4BBCE0",VENCEDORES:"#F5C842",CONQUISTADORES:"#5B2D8E",ADOLESCENTES:"#E84F9B"};
+const DEFAULT_FINANZAS = { gastos:[], actividades:[], donativos:[] };
 
 // Maestros autorizados exclusivamente para la clase ADOLESCENTES (sin auxiliar)
 const ADOLESCENTES_MAESTROS = [
@@ -438,14 +439,41 @@ function subscribeData(onChange){
   return ()=>unsub();
 }
 
-// Muestra solo primer nombre + primer apellido. Asume guardado en orden "P1 [P2] A1 [A2]".
-function shortDisplayName(str){if(!str)return str;const p=(str+"").trim().split(/\s+/).filter(Boolean);if(p.length>=3)return p[0]+" "+p[2];if(p.length===2)return p[0]+" "+p[1];return p[0]||str;}
-// Iniciales: primera letra del primer nombre y primera del primer apellido (orden P1 [P2] A1 [A2]).
-function getInitials(n){if(!n)return"?";const p=(n+"").trim().split(/\s+/).filter(Boolean);if(p.length>=3)return (p[0][0]+p[2][0]).toUpperCase();if(p.length>=2)return (p[0][0]+p[1][0]).toUpperCase();if(p.length===1)return p[0][0].toUpperCase();return "?";}
-// Clave para ordenar por apellido(s) luego nombre(s) (orden guardado: P1 [P2] A1 [A2]).
-function sortKeyName(str){if(!str)return str;const p=(str+"").trim().split(/\s+/).filter(Boolean);if(p.length>=3)return p[2]+" "+(p[3]||"")+" "+p[0]+" "+(p[1]||"");if(p.length===2)return p[1]+" "+p[0];return str;}
-// De un nombre completo (P1 [P2] A1 [A2]) devuelve solo apellidos (A1 [A2]) para mostrar como nombre de familia.
-function fullNameToApellidos(str){if(!str)return "";const p=(str+"").trim().split(/\s+/).filter(Boolean);if(p.length>=3)return p[2]+(p[3]?" "+p[3]:"");if(p.length===2)return p[1];return p[0]||"";}
+// Muestra solo primer nombre + primer apellido. Soporta nombres con o sin segundo nombre.
+function shortDisplayName(str){
+  if(!str)return str;
+  const p4=parseNombre4(str);
+  const nombre=p4.primerNombre||"";
+  const ape=p4.primerApellido||"";
+  const out=[nombre,ape].filter(Boolean).join(" ").trim();
+  return out||str;
+}
+// Iniciales: primera letra del primer nombre y primera del primer apellido.
+function getInitials(n){
+  if(!n)return"?";
+  const p4=parseNombre4(n);
+  const pn=(p4.primerNombre||"").trim();
+  const pa=(p4.primerApellido||"").trim();
+  if(pn&&pa)return(pn[0]+pa[0]).toUpperCase();
+  if(pn)return pn[0].toUpperCase();
+  if(pa)return pa[0].toUpperCase();
+  return"?";
+}
+// Clave para ordenar por apellidos (A1 [A2]) y luego nombres (P1 [P2]).
+function sortKeyName(str){
+  if(!str)return str;
+  const p4=parseNombre4(str);
+  const apellidos=[p4.primerApellido||"",p4.segundoApellido||""].filter(Boolean).join(" ").trim();
+  const nombres=[p4.primerNombre||"",p4.segundoNombre||""].filter(Boolean).join(" ").trim();
+  const out=[apellidos,nombres].filter(Boolean).join(" ").trim();
+  return out||str;
+}
+// De un nombre completo devuelve solo apellidos (A1 [A2]) para mostrar como nombre de familia.
+function fullNameToApellidos(str){
+  if(!str)return"";
+  const p4=parseNombre4(str);
+  return [p4.primerApellido||"",p4.segundoApellido||""].filter(Boolean).join(" ").trim();
+}
 function evalAvg(ev,videoAvg=null){
   const v=EVAL_KEYS.map(k=>ev[k]).filter(x=>x!=null);
   if(!v.length)return "—";
@@ -477,6 +505,22 @@ const VIDEO_CLASES=["CORDERITOS","VENCEDORES","CONQUISTADORES"];
 function scoreColor(v){const n=parseFloat(v);if(isNaN(n))return"#9E9E9E";return n>=4?"#4CAF50":n>=3?"#F5A623":"#EF5350";}
 function formatFecha(str){if(!str)return"";try{const[y,m,d]=str.split("-");return`${d} ${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][parseInt(m)-1]}`;}catch(e){return str;}}
 
+function diasHastaCumple(fechaDDMM){
+  if(!fechaDDMM)return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const parts=fechaDDMM.split("/");if(parts.length<2)return null;
+  const[d,m]=parts.map(Number);if(!d||!m)return null;
+  let dt=new Date(today.getFullYear(),m-1,d);if(dt<today)dt=new Date(today.getFullYear()+1,m-1,d);
+  return Math.round((dt-today)/86400000);
+}
+function labelDiasFaltan(diff){
+  if(diff==null||diff===undefined)return "";
+  if(diff===0)return "Hoy";
+  if(diff===1)return "Mañana";
+  if(diff===2)return "En 2 días";
+  return "En "+diff+" días";
+}
+
 function getBirthdays(maestros,familias){
   const today=new Date();today.setHours(0,0,0,0);
   const parseDDMM=(str)=>{if(!str)return null;const parts=str.split("/");if(parts.length<2)return null;const[d,m]=parts.map(Number);if(!d||!m)return null;let dt=new Date(today.getFullYear(),m-1,d);if(dt<today)dt=new Date(today.getFullYear()+1,m-1,d);return dt;};
@@ -486,9 +530,9 @@ function getBirthdays(maestros,familias){
     let dt,fecha;
     if(mx.nacimiento){const r=parseNacimiento(mx.nacimiento);if(r){dt=r.dt;fecha=r.fecha;}}
     else{dt=parseDDMM(mx.cumpleanos);fecha=mx.cumpleanos;}
-    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro"});}
+    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro",foto:mx.foto||null,iniciales:getInitials(mx.nombre)});}
   });
-  familias.forEach(f=>{const dt=parseDDMM(f.cumpleanos);if(dt){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(f.alumno),tipo:"ALUMNO",clase:f.clase,fecha:f.cumpleanos,diff,categoria:"alumno"});}});
+  familias.forEach(f=>{const dt=parseDDMM(f.cumpleanos);if(dt){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(f.alumno),tipo:"ALUMNO",clase:f.clase,fecha:f.cumpleanos,diff,categoria:"alumno",foto:f.foto||null,iniciales:getInitials(f.alumno)});}});
   return result.sort((a,b)=>a.diff-b.diff);
 }
 
@@ -590,19 +634,23 @@ function BirthdayBanner({maestros,familias}){
   const todayBirths=all.filter(b=>b.diff===0);
   const next=all.find(b=>b.diff>0);
   if(!todayBirths.length&&!next)return null;
+  const thumb=(b,size=44)=>(b.foto?<img src={b.foto} alt="" style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,0.5)",flexShrink:0}}/>:<div style={{width:size,height:size,borderRadius:"50%",background:"rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:size*0.4,color:"#FFFFFF",flexShrink:0}}>{(b.iniciales||"?").slice(0,2)}</div>);
   return(
     <div style={{margin:"0 16px 14px"}}>
       {todayBirths.map((b,i)=>(
         <div key={i} style={{background:"linear-gradient(135deg,#E84F9B,#F27DB8)",borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 4px 16px rgba(232,79,155,0.3)"}}>
+          {thumb(b,48)}
           <span style={{fontSize:32}}>🎂</span>
-          <div><div style={{color:"#FFFFFF",fontWeight:900,fontSize:16}}>¡Cumpleaños hoy!</div><div style={{color:"rgba(255,255,255,0.9)",fontWeight:700,fontSize:14}}>{b.nombre}</div><div style={{color:"rgba(255,255,255,0.75)",fontSize:12}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""}</div></div>
+          <div style={{flex:1}}><div style={{color:"#FFFFFF",fontWeight:900,fontSize:16}}>¡Cumpleaños hoy!</div><div style={{color:"rgba(255,255,255,0.9)",fontWeight:700,fontSize:14}}>{b.nombre}</div><div style={{color:"rgba(255,255,255,0.75)",fontSize:12}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""}</div></div>
+          <span style={{background:"rgba(255,255,255,0.25)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>Hoy</span>
         </div>
       ))}
       {next&&(
         <div style={{background:"linear-gradient(135deg,#5B2D8E,#7B4DB2)",borderRadius:16,padding:"0.75rem 1rem",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 16px rgba(91,45,142,0.2)"}}>
+          {thumb(next,40)}
           <span style={{fontSize:26}}>🎉</span>
           <div style={{flex:1}}><div style={{color:"#F5C842",fontWeight:800,fontSize:12}}>Próximo cumpleaños</div><div style={{color:"#FFFFFF",fontWeight:700,fontSize:14}}>{next.nombre}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{next.tipo}{next.clase&&next.categoria==="alumno"?" · "+next.clase:""} · {next.fecha}</div></div>
-          <span style={{background:"rgba(255,255,255,0.2)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>En {next.diff}d</span>
+          <span style={{background:"rgba(255,255,255,0.2)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>{labelDiasFaltan(next.diff)}</span>
         </div>
       )}
     </div>
@@ -650,7 +698,12 @@ function LoginScreen({onLogin}){
   const [error,setError]=useState("");
   const [maestros,setMaestros]=useState(INITIAL_MAESTROS);
   const [passwords,setPasswords]=useState({});
-  useEffect(()=>{loadData("maestros").then(d=>{if(d)setMaestros(d);});loadData("teacherPasswords").then(d=>{if(d)setPasswords(d);});},[]);
+  const [adminProfile,setAdminProfile]=useState(null);
+  useEffect(()=>{
+    loadData("maestros").then(d=>{if(d)setMaestros(d);});
+    loadData("teacherPasswords").then(d=>{if(d)setPasswords(d);});
+    loadData("adminProfile").then(d=>{if(d)setAdminProfile(d);});
+  },[]);
   const handleTeacher=()=>{
     if(!teacherName){setError("Selecciona tu nombre");return;}
     if(teacherPw!==(passwords[teacherName]||DEFAULT_TEACHER_PASSWORD)){setError("Contraseña incorrecta");return;}
@@ -674,9 +727,32 @@ function LoginScreen({onLogin}){
           <div>
             <h3 style={{textAlign:"center",color:"#5B2D8E",fontWeight:800,marginBottom:20,fontSize:18}}>Acceso Administrador</h3>
             <label style={S.label}>Contraseña</label>
-            <input type="password" style={{...S.input,marginBottom:16}} value={adminPw} onChange={e=>setAdminPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&(adminPw===ADMIN_PASSWORD?onLogin("admin"):setError("Contraseña incorrecta"))} placeholder="••••" autoFocus/>
+            <input
+              type="password"
+              style={{...S.input,marginBottom:16}}
+              value={adminPw}
+              onChange={e=>setAdminPw(e.target.value)}
+              onKeyDown={e=>{
+                if(e.key==="Enter"){
+                  const cfgPw=adminProfile?.adminPassword||ADMIN_PASSWORD;
+                  if(adminPw===cfgPw||adminPw===ADMIN_PASSWORD)onLogin("admin");
+                  else setError("Contraseña incorrecta");
+                }
+              }}
+              placeholder="••••"
+              autoFocus
+            />
             {error&&<div style={{color:"#EF5350",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:700}}>{error}</div>}
-            <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:"14px",marginBottom:10}} onClick={()=>{if(adminPw===ADMIN_PASSWORD)onLogin("admin");else setError("Contraseña incorrecta");}}>Entrar</button>
+            <button
+              style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:"14px",marginBottom:10}}
+              onClick={()=>{
+                const cfgPw=adminProfile?.adminPassword||ADMIN_PASSWORD;
+                if(adminPw===cfgPw||adminPw===ADMIN_PASSWORD)onLogin("admin");
+                else setError("Contraseña incorrecta");
+              }}
+            >
+              Entrar
+            </button>
             <button style={{...S.btn("transparent","#7B6B9A",true),padding:"10px"}} onClick={()=>{setMode("select");setError("");}}>← Volver</button>
           </div>
         )}
@@ -701,7 +777,7 @@ function LoginScreen({onLogin}){
 }
 
 // ══════════ ADMIN DASHBOARD ══════════
-function AdminDashboard({data}){
+function AdminDashboard({data,onUpdateData}){
   const maestros=Array.isArray(data.maestros)?data.maestros:[];
   const familias=Array.isArray(data.familias)?data.familias:[];
   const eventos=Array.isArray(data.eventos)?data.eventos:[];
@@ -710,6 +786,24 @@ function AdminDashboard({data}){
   const ninos=Object.values(clases).flat();
   const today=new Date();
   const upcomingEvents=eventos.filter(e=>{try{const[d,m,y]=e.fecha.split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-today)/86400000);return diff>=0&&diff<=60;}catch(e){return false;}}).slice(0,5);
+  const[sortedPeticiones,setSortedPeticiones]=useState([]);
+  const[peticionForm,setPeticionForm]=useState({texto:"",anonimo:false});
+  const[peticionModal,setPeticionModal]=useState(false);
+  const[peticionEditId,setPeticionEditId]=useState(null);
+  const[peticionEditForm,setPeticionEditForm]=useState({texto:"",anonimo:false});
+  useEffect(()=>{setSortedPeticiones((peticiones||[]).slice().sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)));},[peticiones]);
+  const savePeticionNueva=()=>{
+    if(!peticionForm.texto.trim())return;
+    onUpdateData("peticiones",[...(peticiones||[]),{id:Date.now(),texto:peticionForm.texto.trim(),autor:"admin",anonimo:!!peticionForm.anonimo,fecha:new Date().toISOString()}]);
+    setPeticionForm({texto:"",anonimo:false});
+  };
+  const openEditPeticion=(p)=>{setPeticionEditId(p.id);setPeticionEditForm({texto:p.texto,anonimo:p.anonimo});setPeticionModal(true);};
+  const savePeticionEdit=()=>{
+    if(!peticionEditForm.texto.trim())return;
+    if(peticionEditId)onUpdateData("peticiones",(peticiones||[]).map(p=>p.id===peticionEditId?{...p,texto:peticionEditForm.texto,anonimo:peticionEditForm.anonimo}:p));
+    setPeticionModal(false);
+  };
+  const deletePeticion=()=>{if(peticionEditId&&confirm("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",(peticiones||[]).filter(p=>p.id!==peticionEditId));setPeticionModal(false);}};
   return(
     <div style={{paddingBottom:10}}>
       <BirthdayBanner maestros={maestros} familias={familias}/>
@@ -775,8 +869,41 @@ function AdminDashboard({data}){
             ))
           }
         </div>
-        <PeticionesDashboard peticiones={peticiones} user="admin" onUpdate={()=>{}}/>
+        <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
+          <div style={{fontWeight:800,color:"#E84F9B",fontSize:15,marginBottom:12}}>🙏 Peticiones de Oración</div>
+          {sortedPeticiones.length===0&&<div style={{color:"#7B6B9A",textAlign:"center",padding:20,fontStyle:"italic",fontSize:13}}>Sin peticiones. Escribe la primera abajo.</div>}
+          {sortedPeticiones.map(p=>(
+            <div key={p.id} style={{padding:"10px 0",borderBottom:"1px solid #DDD0F0"}}>
+              <div style={{fontSize:13,color:"#2D1B4E",lineHeight:1.5}}>{p.texto}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6,marginTop:6}}>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>
+                  {p.anonimo?"🔒 Anónimo":shortDisplayName(p.autor)} · {p.fecha?new Date(p.fecha).toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric"}):""}
+                </div>
+                <button style={{...S.btn("#4BBCE0"),padding:"5px 10px",fontSize:12}} onClick={()=>openEditPeticion(p)}>✏️</button>
+              </div>
+            </div>
+          ))}
+          <div style={{marginTop:16,paddingTop:16,borderTop:"2px solid #E84F9B33"}}>
+            <div style={{fontSize:12,color:"#7B6B9A",marginBottom:8}}>Añadir petición de oración (visible para todos los maestros)</div>
+            <textarea style={{...S.input,height:80,resize:"vertical",marginBottom:10}} value={peticionForm.texto} onChange={e=>setPeticionForm(f=>({...f,texto:e.target.value}))} placeholder="Escribe tu petición de oración..."/>
+            <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:12}}>
+              <input type="checkbox" checked={!!peticionForm.anonimo} onChange={e=>setPeticionForm(f=>({...f,anonimo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+              <span style={{fontSize:13,color:"#5B2D8E",fontWeight:600}}>🔒 Petición anónima</span>
+            </label>
+            <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:12,fontSize:14}} onClick={savePeticionNueva}>🙏 Guardar Petición</button>
+          </div>
+        </div>
       </div>
+      <Modal open={peticionModal} onClose={()=>setPeticionModal(false)} title="Editar Petición">
+        <label style={S.label}>Petición</label>
+        <textarea style={{...S.input,height:100,resize:"vertical",marginBottom:12}} value={peticionEditForm.texto} onChange={e=>setPeticionEditForm(f=>({...f,texto:e.target.value}))}/>
+        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:16}}>
+          <input type="checkbox" checked={!!peticionEditForm.anonimo} onChange={e=>setPeticionEditForm(f=>({...f,anonimo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+          <span style={{fontSize:13,fontWeight:600}}>🔒 Anónima</span>
+        </label>
+        <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:12}} onClick={savePeticionEdit}>💾 Guardar</button>
+        <button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={deletePeticion}>🗑 Eliminar</button>
+      </Modal>
     </div>
   );
 }
@@ -810,14 +937,23 @@ function MaestrosPanel({maestros,onUpdate}){
         <button style={{...S.btn("#5B2D8E"),padding:"10px 16px",fontSize:14}} onClick={openAdd}>+ Agregar</button>
       </div>
       <input style={{...S.input,marginBottom:10}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      <div style={{display:"flex",gap:8,marginBottom:14}}>
+      <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",gap:8}}>
         {["TODOS","MAESTRO","AUXILIAR"].map(c=>(
           <button key={c} style={{...S.btn(filterCargo===c?"#5B2D8E":"#F5F0FF",filterCargo===c?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:12,borderRadius:20}} onClick={()=>setFilterCargo(c)}>{c}</button>
         ))}
       </div>
+        <div style={{fontSize:11,color:"#7B6B9A"}}>Toca la foto para actualizarla</div>
+      </div>
       {filtered.map(m=>(
         <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
-          <div style={{width:44,height:44,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>
+          <AvatarUpload
+            photo={m.foto||null}
+            onPhoto={f=>onUpdate(maestros.map(x=>x.id===m.id?{...x,foto:f}:x))}
+            size={44}
+            initials={getInitials(m.nombre)}
+            color={CLASE_COLORS[m.clase]||"#5B2D8E"}
+          />
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontWeight:800,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortDisplayName(m.nombre)}</div>
             <div style={{display:"flex",gap:5,marginTop:4,flexWrap:"wrap"}}>
@@ -961,19 +1097,33 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                     <div style={{fontWeight:800,fontSize:15,marginTop:6}}>{e.leccion}</div>
                     {e.tema&&<div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>{e.tema}</div>}
                   </div>
-                  <button style={{...S.btn("#EF5350"),padding:"6px 10px",fontSize:13}} onClick={()=>setEditEntryId(e.id)}>✏️</button>
+                  <button
+                    style={{
+                      ...S.btn("#F5F0FF","#5B2D8E"),
+                      padding:"6px 10px",
+                      fontSize:16,
+                      borderRadius:999,
+                      boxShadow:`0 0 0 1px ${(CLASE_COLORS[e.grupo]||"#5B2D8E")+"33"}`,
+                    }}
+                    onClick={()=>setEditEntryId(e.id)}
+                  >
+                    ✏️
+                  </button>
                 </div>
-                {[["maestro","MAESTRO","🎓","#5B2D8E"],["auxiliar","AUXILIAR","🤝","#E84F9B"]].filter(([role])=>!(e.grupo==="ADOLESCENTES"&&role==="auxiliar")).map(([role,label,icon,color])=>(
+                {[["maestro","MAESTRO","🎓","#5B2D8E"],["auxiliar","AUXILIAR","🤝","#E84F9B"]].filter(([role])=>!(e.grupo==="ADOLESCENTES"&&role==="auxiliar")).map(([role,label,icon,color])=>{
+                  const nombreRole=e[role];const mRole=nombreRole?maestros.find(x=>x.nombre===nombreRole):null;
+                  return(
                   <div key={role} style={{marginTop:8,background:"rgba(255,255,255,0.85)",borderRadius:10,padding:"10px 12px"}}>
                     <div style={{fontSize:11,fontWeight:800,color:"#7B6B9A",marginBottom:4,letterSpacing:1}}>{label}</div>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <div style={{flex:1,fontWeight:700,fontSize:13,color:e[role]&&unavailable.includes(e[role])?"#EF5350":"#2D1B4E"}}>
-                        {e[role]?(unavailable.includes(e[role])?"⚠️ ":icon+" ")+shortDisplayName(e[role]):<span style={{color:"#7B6B9A",fontStyle:"italic"}}>Sin asignar</span>}
+                      {nombreRole&&(mRole?.foto?<img src={mRole.foto} alt="" style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:32,height:32,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color,flexShrink:0}}>{getInitials(nombreRole)}</div>)}
+                      <div style={{flex:1,fontWeight:700,fontSize:13,color:nombreRole&&unavailable.includes(nombreRole)?"#EF5350":"#2D1B4E"}}>
+                        {nombreRole?(unavailable.includes(nombreRole)?"⚠️ ":icon+" ")+shortDisplayName(nombreRole):<span style={{color:"#7B6B9A",fontStyle:"italic"}}>Sin asignar</span>}
                       </div>
                       <button style={{...S.btn(color),padding:"6px 12px",fontSize:12}} onClick={()=>{setSubModal({entryId:e.id,role,grupo:e.grupo});setActiveDate(d);}}>✏️</button>
                     </div>
                   </div>
-                ))}
+                  );})}
               </div>
             ))}
           </div>
@@ -984,6 +1134,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
           {maestros.map(m=>(
             <div key={m.id} onClick={()=>setUnavailable(u=>u.includes(m.nombre)?u.filter(n=>n!==m.nombre):[...u,m.nombre])}
               style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:unavailable.includes(m.nombre)?"#EF535018":"#F5F0FF",borderRadius:12,border:`2px solid ${unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0"}`,cursor:"pointer"}}>
+              {m.foto?<img src={m.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
               <div style={{flex:1}}><div style={{fontWeight:700}}>{shortDisplayName(m.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div></div>
               <div style={{width:28,height:28,borderRadius:"50%",background:unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFFFFF",fontWeight:800}}>{unavailable.includes(m.nombre)?"✕":""}</div>
             </div>
@@ -1002,7 +1153,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             return(
               <div key={m.id} style={{...S.card,padding:"12px 14px",marginBottom:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                  <div style={{width:36,height:36,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>
+                  {m.foto?<img src={m.foto} alt="" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",border:"2px solid "+(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",flexShrink:0}}/>:<div style={{width:36,height:36,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
                   <div style={{flex:1}}>
                     <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
                     <div style={{fontSize:11,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div>
@@ -1039,7 +1190,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                     (()=>{const st=getMaestroStats(m.nombre);const warn=st.cumplimiento<70||st.total>8;return(
                     <div key={m.id} onClick={()=>{onUpdate(cronograma.map(c=>c.id===subModal.entryId?{...c,[subModal.role]:m.nombre}:c));setSubModal(null);}}
                       style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"15",borderRadius:12,marginBottom:8,border:`2px solid ${mi===0?"#4CAF5066":warn?"#F5C842":(CLASE_COLORS[m.clase]||"#5B2D8E")+"44"}`,cursor:"pointer"}}>
-                      <div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[m.clase]||"#5B2D8E"}}>{getInitials(m.nombre)}</div>
+                      {m.foto?<img src={m.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:"2px solid "+(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
                           <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
@@ -1816,7 +1967,10 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                       {sesCalifs.map((e,i)=>{
                         let t=0,cnt=0;ckeys.forEach(k=>{const v=parseFloat(e[k]);if(!isNaN(v)){t+=v;cnt++;}});
                         const a=cnt?(t/cnt).toFixed(1):null;
-                        return <div key={i} style={{background:a?scoreColor(a)+"20":"#F5F0FF",borderRadius:8,padding:"4px 10px",fontSize:12,border:`1.5px solid ${a?scoreColor(a)+"44":"#DDD0F0"}`}}>
+                        const nino=(clases[activeClase]||[]).find(n=>n.nombre===e.alumno);
+                        const colorClase=CLASE_COLORS[activeClase]||"#5B2D8E";
+                        return <div key={i} style={{background:a?scoreColor(a)+"20":"#F5F0FF",borderRadius:8,padding:"4px 10px",fontSize:12,border:`1.5px solid ${a?scoreColor(a)+"44":"#DDD0F0"}`,display:"inline-flex",alignItems:"center",gap:6}}>
+                          {nino?.foto?<img src={nino.foto} alt="" style={{width:22,height:22,borderRadius:"50%",objectFit:"cover",border:`1.5px solid ${colorClase}44`}}/>:<div style={{width:22,height:22,borderRadius:"50%",background:colorClase+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:colorClase}}>{getInitials(e.alumno)}</div>}
                           <span style={{fontWeight:700}}>{shortDisplayName(e.alumno)}</span>{a&&<span style={{color:scoreColor(a),fontWeight:800}}> {a}</span>}
                         </div>;
                       })}
@@ -1824,9 +1978,13 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                     {sesCalifs.some(e=>e.observacion)&&(
                       <div style={{marginTop:10,background:"#F5C84210",border:"1.5px solid #F5C84244",borderRadius:10,padding:"10px 12px"}}>
                         <div style={{fontSize:11,fontWeight:800,color:"#7B5A00",marginBottom:6}}>💬 OBSERVACIONES</div>
-                        {sesCalifs.filter(e=>e.observacion).map((e,i)=>(
-                          <div key={i} style={{fontSize:12,color:"#2D1B4E",marginBottom:4,lineHeight:1.5}}><strong>{shortDisplayName(e.alumno)}:</strong> {e.observacion}</div>
-                        ))}
+                        {sesCalifs.filter(e=>e.observacion).map((e,i)=>{
+                          const nino=(clases[activeClase]||[]).find(n=>n.nombre===e.alumno);const colorClase=CLASE_COLORS[activeClase]||"#5B2D8E";
+                          return <div key={i} style={{fontSize:12,color:"#2D1B4E",marginBottom:4,lineHeight:1.5,display:"flex",alignItems:"center",gap:6}}>
+                            {nino?.foto?<img src={nino.foto} alt="" style={{width:20,height:20,borderRadius:"50%",objectFit:"cover",border:`1.5px solid ${colorClase}44`,flexShrink:0}}/>:<div style={{width:20,height:20,borderRadius:"50%",background:colorClase+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:colorClase,flexShrink:0}}>{getInitials(e.alumno)}</div>}
+                            <span><strong>{shortDisplayName(e.alumno)}:</strong> {e.observacion}</span>
+                          </div>;
+                        })}
                       </div>
                     )}
                   </div>
@@ -1853,10 +2011,11 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
       {evaluaciones.map((ev,i)=>{
         const vAvg=videoAvgForMaestro(ev.nombre,videos,maestros);
         const avg=evalAvg(ev,vAvg);const avgN=parseFloat(avg);const color=avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
+        const mFoto=maestros.find(m=>m.nombre===ev.nombre);
         return(
           <div key={i} style={{...S.card,borderLeft:`5px solid ${color}`}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-              <div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E"}}>{getInitials(ev.nombre)}</div>
+              {mFoto?.foto?<img src={mFoto.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E",flexShrink:0}}>{getInitials(ev.nombre)}</div>}
               <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(ev.nombre)}</div>
                 {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
               </div>
@@ -1895,6 +2054,182 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
           </div>
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14,marginTop:8}} onClick={save}>💾 Guardar</button>
+      </Modal>
+    </div>
+  );
+}
+
+// ══════════ EVALUACIONES + VIDEOS UNIFICADO (admin) ══════════
+// Una sola pestaña: maestros ordenados por sesiones, icono si hay videos por calificar
+function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos,cronograma,maestros}){
+  const[editModal,setEditModal]=useState(false);
+  const[editForm,setEditForm]=useState(null);
+  const[editIdx,setEditIdx]=useState(null);
+  const[videoModalMaestro,setVideoModalMaestro]=useState(null);
+  const[editVideo,setEditVideo]=useState(null);
+
+  const sesiones=cronograma
+    .filter(c=>c.maestro&&c.leccion&&c.leccion!=="NO HAY CLASE")
+    .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+  const orderedMaestros=[];
+  sesiones.forEach(s=>{if(s.maestro&&!orderedMaestros.includes(s.maestro))orderedMaestros.push(s.maestro);});
+  evaluaciones.forEach(e=>{if(e.nombre&&!orderedMaestros.includes(e.nombre))orderedMaestros.push(e.nombre);});
+
+  const getVideo=(sesionId,maestro)=>videos.find(v=>v.sesionId===sesionId&&v.maestro===maestro)||null;
+  const sesionesConVideoPorMaestro=(nombre)=>sesiones.filter(s=>VIDEO_CLASES.includes(s.grupo)&&s.maestro===nombre);
+  const pendientesVideos=(nombre)=>sesionesConVideoPorMaestro(nombre).filter(s=>!getVideo(s.id,s.maestro));
+
+  const openEdit=(ev,i)=>{setEditForm({...ev});setEditIdx(i);setEditModal(true);};
+  const save=()=>{onUpdate(evaluaciones.map((e,i)=>i===editIdx?editForm:e));setEditModal(false);};
+
+  const openVideosModal=(nombre)=>{setVideoModalMaestro(nombre);setEditVideo(null);};
+  const openEditVideo=(ses)=>{
+    const v=getVideo(ses.id,ses.maestro)||{sesionId:ses.id,maestro:ses.maestro,grupo:ses.grupo,fecha:ses.fecha,hizo:false,calidad:3,aTiempo:false};
+    setEditVideo({...v,leccion:ses.leccion,fecha:ses.fecha});
+  };
+  const saveVideo=()=>{
+    if(!editVideo)return;
+    const {leccion:_,fecha:_f,...toSave}=editVideo;
+    const exists=videos.findIndex(v=>v.sesionId===toSave.sesionId&&v.maestro===toSave.maestro);
+    if(exists>=0)onUpdateVideos(videos.map((v,i)=>i===exists?toSave:v));
+    else onUpdateVideos([...videos,toSave]);
+    setEditVideo(null);
+  };
+
+  return(
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
+      <h2 style={S.title}>Evaluaciones Maestros</h2>
+      <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",border:"1.5px solid #4BBCE055",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,color:"#2D1B4E"}}>
+        <div style={{fontWeight:800,marginBottom:4}}>📋 Orden por sesiones · 🎬 Videos por calificar</div>
+        <div style={{color:"#5B2D8E",fontSize:12}}>Los maestros aparecen en el orden de las sesiones del cronograma. El icono <strong>🎬</strong> indica que hay videos de clase pendientes de calificar (Corderitos, Vencedores, Conquistadores).</div>
+      </div>
+      {orderedMaestros.map(nombre=>{
+        const ev=evaluaciones.find(e=>e.nombre===nombre);
+        const evIdx=ev!=null?evaluaciones.indexOf(ev):-1;
+        const vAvg=videoAvgForMaestro(nombre,videos,maestros);
+        const avg=ev?evalAvg(ev,vAvg):(vAvg!=null?String(vAvg.toFixed(1)):null);
+        const avgN=parseFloat(avg);const color=avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
+        const mFoto=maestros.find(m=>m.nombre===nombre);
+        const pendientes=pendientesVideos(nombre);
+        const tienePendientes=pendientes.length>0;
+        return(
+          <div key={nombre} style={{...S.card,borderLeft:`5px solid ${ev?color:"#DDD0F0"}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
+              {mFoto?.foto?<img src={mFoto.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E",flexShrink:0}}>{getInitials(nombre)}</div>}
+              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(nombre)}</div>
+                {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
+              </div>
+              {tienePendientes&&(
+                <button title={`${pendientes.length} video(s) por calificar`} style={{...S.btn("#E84F9B"),padding:"8px 12px",fontSize:14,position:"relative"}} onClick={()=>openVideosModal(nombre)}>
+                  🎬 {pendientes.length>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:18,height:18,borderRadius:9,background:"#FFFFFF",color:"#E84F9B",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #E84F9B"}}>{pendientes.length}</span>}
+                </button>
+              )}
+              {evIdx>=0&&<button style={{...S.btn("#4BBCE0"),padding:"8px 12px",fontSize:13}} onClick={()=>openEdit(ev,evIdx)}>✏️</button>}
+              {ev&&<div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}><div style={{fontSize:22,fontWeight:900,color}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5.0</div></div>}
+            </div>
+            {ev&&(
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {EVAL_KEYS.map((k,j)=>(
+                  <div key={k} style={{background:k==="cumplimientoClases"?"linear-gradient(135deg,#5B2D8E15,#5B2D8E25)":"#F5F0FF",borderRadius:10,padding:"8px 10px",border:k==="cumplimientoClases"?"1.5px solid #5B2D8E44":"none"}}>
+                    <div style={{fontSize:10,color:k==="cumplimientoClases"?"#5B2D8E":"#7B6B9A",marginBottom:4,fontWeight:k==="cumplimientoClases"?800:400}}>{EVAL_LABELS[j]}</div>
+                    <div style={{display:"flex",gap:1}}>{[1,2,3,4,5].map(s=><span key={s} style={{color:s<=(ev[k]||0)?"#F5C842":"#e0e0e0",fontSize:16}}>★</span>)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <Modal open={editModal} onClose={()=>setEditModal(false)} title={editForm?`Editar: ${shortDisplayName(editForm.nombre)}`:""}>
+        {editForm&&EVAL_KEYS.map((k,j)=>(
+          <div key={k} style={{marginBottom:16}}>
+            <label style={S.label}>{EVAL_LABELS[j]}</label>
+            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+              {[1,2,3,4,5].map(s=>(
+                <button key={s} onClick={()=>setEditForm(f=>({...f,[k]:s}))}
+                  style={{width:44,height:44,borderRadius:12,border:`2px solid ${editForm[k]===s?"#F5C842":"#DDD0F0"}`,background:editForm[k]===s?"#5B2D8E":"#F5F0FF",color:editForm[k]===s?"#F5C842":"#7B6B9A",fontWeight:900,cursor:"pointer",fontSize:22,fontFamily:"inherit"}}>★</button>
+              ))}
+            </div>
+          </div>
+        ))}
+        {editForm&&(
+          <div style={{marginBottom:16}}>
+            <label style={S.label}>Observaciones</label>
+            <textarea style={{...S.input,minHeight:80,resize:"vertical"}} placeholder="Comentarios sobre el maestro para el informe" value={editForm.observaciones||""} onChange={e=>setEditForm(f=>({...f,observaciones:e.target.value}))}/>
+          </div>
+        )}
+        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14,marginTop:8}} onClick={save}>💾 Guardar</button>
+      </Modal>
+
+      <Modal open={!!videoModalMaestro} onClose={()=>{setVideoModalMaestro(null);setEditVideo(null);}} title={videoModalMaestro?`🎬 Videos · ${shortDisplayName(videoModalMaestro)}`:""}>
+        {videoModalMaestro&&!editVideo&&(
+          <div>
+            {sesionesConVideoPorMaestro(videoModalMaestro).length===0?(
+              <div style={{textAlign:"center",padding:24,color:"#7B6B9A"}}>No hay sesiones con video para este maestro.</div>
+            ):(
+              sesionesConVideoPorMaestro(videoModalMaestro).map(ses=>{
+                const v=getVideo(ses.id,ses.maestro);
+                const score=v?videoScore(v):null;
+                const scoreColor=score==null?"#7B6B9A":score>=4?"#4CAF50":score>=2.5?"#F5A623":"#EF5350";
+                return(
+                  <div key={ses.id} style={{...S.card,borderLeft:`5px solid ${v?scoreColor:"#DDD0F0"}`,marginBottom:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:800,fontSize:13}}>{ses.leccion}</div>
+                        <div style={{fontSize:11,color:"#7B6B9A"}}>📅 {ses.fecha} · {ses.grupo}</div>
+                      </div>
+                      {v?(
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                          <span style={{...S.badge(v.hizo?"#4CAF50":"#EF5350"),fontSize:11}}>{v.hizo?"✅ Enviado":"❌ No enviado"}</span>
+                          {v.hizo&&<span style={{...S.badge(scoreColor),fontSize:11}}>🎯 {score!=null?score.toFixed(1):"-"}/5</span>}
+                          <button style={{...S.btn("#4BBCE0"),padding:"6px 12px",fontSize:12}} onClick={()=>openEditVideo(ses)}>✏️</button>
+                        </div>
+                      ):(
+                        <button style={{...S.btn("#E84F9B"),padding:"8px 14px",fontSize:13}} onClick={()=>openEditVideo(ses)}>📋 Calificar</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+        {editVideo&&(
+          <div>
+            <div style={{background:"#F5F0FF",borderRadius:12,padding:"12px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+              {(()=>{const mo=maestros.find(x=>x.nombre===editVideo.maestro);return mo?.foto?<img src={mo.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:16,color:"#5B2D8E",flexShrink:0}}>{getInitials(editVideo.maestro)}</div>;})()}
+              <div><div style={{fontWeight:800,color:"#5B2D8E"}}>{editVideo.leccion}</div><div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>📅 {editVideo.fecha}</div></div>
+            </div>
+            <label style={S.label}>¿El maestro envió el video?</label>
+            <div style={{display:"flex",gap:10,marginBottom:16}}>
+              {[[true,"✅ Sí","#4CAF50"],[false,"❌ No","#EF5350"]].map(([val,lbl,col])=>(
+                <button key={String(val)} onClick={()=>setEditVideo(v=>({...v,hizo:val}))}
+                  style={{flex:1,padding:"12px 8px",borderRadius:12,border:`2px solid ${editVideo.hizo===val?col:"#DDD0F0"}`,background:editVideo.hizo===val?col+"22":"#F5F0FF",color:editVideo.hizo===val?col:"#7B6B9A",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>{lbl}</button>
+              ))}
+            </div>
+            {editVideo.hizo&&(
+              <>
+                <label style={S.label}>⭐ Calidad (1–5)</label>
+                <div style={{display:"flex",gap:8,justifyContent:"center",marginBottom:16}}>
+                  {[1,2,3,4,5].map(s=>(
+                    <button key={s} onClick={()=>setEditVideo(v=>({...v,calidad:s}))}
+                      style={{width:46,height:46,borderRadius:12,border:`2px solid ${editVideo.calidad===s?"#F5C842":"#DDD0F0"}`,background:editVideo.calidad===s?"#5B2D8E":"#F5F0FF",color:editVideo.calidad===s?"#F5C842":"#7B6B9A",fontWeight:900,cursor:"pointer",fontSize:22,fontFamily:"inherit"}}>★</button>
+                  ))}
+                </div>
+                <label style={S.label}>⏰ ¿A tiempo?</label>
+                <div style={{display:"flex",gap:10,marginBottom:20}}>
+                  {[[true,"⏰ Sí","#4CAF50"],[false,"⏱ Tarde","#FF7043"]].map(([val,lbl,col])=>(
+                    <button key={String(val)} onClick={()=>setEditVideo(v=>({...v,aTiempo:val}))}
+                      style={{flex:1,padding:"12px 8px",borderRadius:12,border:`2px solid ${editVideo.aTiempo===val?col:"#DDD0F0"}`,background:editVideo.aTiempo===val?col+"22":"#F5F0FF",color:editVideo.aTiempo===val?col:"#7B6B9A",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>{lbl}</button>
+                  ))}
+                </div>
+                <div style={{background:"#4BBCE015",borderRadius:12,padding:"0.75rem 1rem",marginBottom:16,textAlign:"center"}}><div style={{fontSize:12,color:"#7B6B9A"}}>Score</div><div style={{fontSize:24,fontWeight:900,color:"#5B2D8E"}}>{videoScore(editVideo).toFixed(1)}/5</div></div>
+              </>
+            )}
+            <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14,marginRight:8}} onClick={saveVideo}>💾 Guardar</button>
+            <button style={{...S.btn("#F5F0FF","#5B2D8E"),padding:14}} onClick={()=>setEditVideo(null)}>← Volver a lista</button>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -1959,9 +2294,10 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
             const vs=videos.filter(v=>v.maestro===m&&v.grupo===selClase);
             const hechos=vs.filter(v=>v.hizo).length;
             const avg=videoAvgForMaestro(m,videos.filter(v=>v.grupo===selClase),maestros);
+            const mo=maestros.find(x=>x.nombre===m);
             return(
               <div key={m} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #EEE8FF"}}>
-                <div style={{width:36,height:36,borderRadius:"50%",background:CLASE_COLORS[selClase]+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[selClase],fontSize:12,flexShrink:0}}>{getInitials(m)}</div>
+                {mo?.foto?<img src={mo.foto} alt="" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",border:"2px solid "+CLASE_COLORS[selClase]+"44",flexShrink:0}}/>:<div style={{width:36,height:36,borderRadius:"50%",background:CLASE_COLORS[selClase]+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[selClase],fontSize:12,flexShrink:0}}>{getInitials(m)}</div>}
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:13}}>{shortDisplayName(m)}</div>
                   <div style={{fontSize:11,color:"#7B6B9A"}}>{hechos} de {vs.length} videos enviados</div>
@@ -1991,6 +2327,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
         return(
           <div key={ses.id} style={{...S.card,borderLeft:`5px solid ${v?scoreColor:"#DDD0F0"}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              {(()=>{const mo=maestros.find(x=>x.nombre===ses.maestro);return mo?.foto?<img src={mo.foto} alt="" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:36,height:36,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:"#5B2D8E",flexShrink:0}}>{getInitials(ses.maestro)}</div>;})()}
               <div style={{flex:1}}>
                 <div style={{fontWeight:800,fontSize:14}}>{ses.leccion}</div>
                 {ses.tema&&<div style={{fontSize:12,color:"#7B6B9A"}}>{ses.tema}</div>}
@@ -2018,9 +2355,12 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
       <Modal open={editModal} onClose={()=>setEditModal(false)} title="🎬 Calificar Video">
         {editVideo&&(
           <div>
-            <div style={{background:"#F5F0FF",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
-              <div style={{fontWeight:800,color:"#5B2D8E"}}>{editVideo.leccion}</div>
-              <div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>📅 {editVideo.fecha} · 🎓 {shortDisplayName(editVideo.maestro)}</div>
+            <div style={{background:"#F5F0FF",borderRadius:12,padding:"12px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
+              {(()=>{const mo=maestros.find(x=>x.nombre===editVideo.maestro);return mo?.foto?<img src={mo.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:16,color:"#5B2D8E",flexShrink:0}}>{getInitials(editVideo.maestro)}</div>;})()}
+              <div>
+                <div style={{fontWeight:800,color:"#5B2D8E"}}>{editVideo.leccion}</div>
+                <div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>📅 {editVideo.fecha} · 🎓 {shortDisplayName(editVideo.maestro)}</div>
+              </div>
             </div>
 
             {/* ¿Hizo el video? */}
@@ -2135,12 +2475,14 @@ function EventosPanel({eventos,onUpdate,readOnly=false}){
 function CumpleanosPanel({maestros,familias}){
   const months=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const mColors=["#4BBCE0","#5B2D8E","#E84F9B","#F5C842","#2A96BC","#E84F9B","#5B2D8E","#4BBCE0","#F5C842","#E84F9B","#7B4DB2","#4BBCE0"];
+  const ordenCategoria=(b)=>(b.categoria==="alumno"?0:b.tipo==="MAESTRO"?1:2);
   const all=[
-    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:shortDisplayName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro"})),
-    ...familias.filter(f=>f.cumpleanos).map(f=>({nombre:shortDisplayName(f.alumno),fecha:f.cumpleanos,tipo:"ALUMNO",clase:f.clase,categoria:"alumno"})),
-  ].sort((a,b)=>{const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;});
+    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:shortDisplayName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro",clase:m.clase,foto:m.foto||null,iniciales:getInitials(m.nombre),diff:diasHastaCumple(m.cumpleanos)})),
+    ...familias.filter(f=>f.cumpleanos).map(f=>({nombre:shortDisplayName(f.alumno),fecha:f.cumpleanos,tipo:"ALUMNO",clase:f.clase,categoria:"alumno",foto:f.foto||null,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)})),
+  ].sort((a,b)=>{const oa=ordenCategoria(a),ob=ordenCategoria(b);if(oa!==ob)return oa-ob;const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;});
   const byMonth={};
   all.forEach(b=>{const m=parseInt(b.fecha.split("/")[1])-1;if(!byMonth[m])byMonth[m]=[];byMonth[m].push(b);});
+  const thumb=(b,color)=>(b.foto?<img src={b.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color,flexShrink:0}}>{b.iniciales||"?"}</div>);
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Cumpleaños</h2>
@@ -2151,9 +2493,10 @@ function CumpleanosPanel({maestros,familias}){
             <div style={{fontWeight:800,color:mColors[mi],marginBottom:10,fontSize:15}}>📅 {month} ({list.length})</div>
             {list.map((b,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,padding:"8px 10px",background:"#F5F0FF",borderRadius:10}}>
+                {thumb(b,b.categoria==="maestro"?"#5B2D8E":(CLASE_COLORS[b.clase]||"#4BBCE0"))}
                 <span style={{fontSize:20}}>🎂</span>
                 <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{b.nombre}</div><div style={{fontSize:11,color:"#7B6B9A"}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""}</div></div>
-                <span style={{fontWeight:800,fontSize:13,color:"#5B2D8E"}}>{b.fecha}</span>
+                <div style={{textAlign:"right"}}><span style={{fontWeight:800,fontSize:13,color:"#5B2D8E",display:"block"}}>{b.fecha}</span>{b.diff!=null&&<span style={{fontSize:11,color:"#E84F9B",fontWeight:700}}>{labelDiasFaltan(b.diff)}</span>}</div>
               </div>
             ))}
           </div>
@@ -2437,6 +2780,26 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     return cnt?(t/cnt).toFixed(1):null;
   };
 
+  const peticiones=data.peticiones||[];
+  const[sortedPeticionesT,setSortedPeticionesT]=useState([]);
+  const[peticionFormT,setPeticionFormT]=useState({texto:"",anonimo:false});
+  const[peticionModalT,setPeticionModalT]=useState(false);
+  const[peticionEditIdT,setPeticionEditIdT]=useState(null);
+  const[peticionEditFormT,setPeticionEditFormT]=useState({texto:"",anonimo:false});
+  useEffect(()=>{setSortedPeticionesT((peticiones||[]).slice().sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)));},[peticiones]);
+  const savePeticionNuevaT=()=>{
+    if(!peticionFormT.texto.trim())return;
+    onUpdateData("peticiones",[...peticiones,{id:Date.now(),texto:peticionFormT.texto.trim(),autor:user.name,anonimo:!!peticionFormT.anonimo,fecha:new Date().toISOString()}]);
+    setPeticionFormT({texto:"",anonimo:false});
+  };
+  const openEditPeticionT=(p)=>{setPeticionEditIdT(p.id);setPeticionEditFormT({texto:p.texto,anonimo:p.anonimo});setPeticionModalT(true);};
+  const savePeticionEditT=()=>{
+    if(!peticionEditFormT.texto.trim())return;
+    if(peticionEditIdT)onUpdateData("peticiones",peticiones.map(p=>p.id===peticionEditIdT?{...p,texto:peticionEditFormT.texto,anonimo:peticionEditFormT.anonimo}:p));
+    setPeticionModalT(false);
+  };
+  const deletePeticionT=()=>{if(peticionEditIdT&&confirm("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",peticiones.filter(p=>p.id!==peticionEditIdT));setPeticionModalT(false);}};
+
   const tabs=[{id:"inicio",label:"Inicio",icon:"🏠"},{id:"cronograma",label:"Horario",icon:"📅"},{id:"calificaciones",label:"Calific.",icon:"📊"},{id:"clase",label:"Clase",icon:"👧"},{id:"mas",label:"Más",icon:"☰"}];
 
   return(
@@ -2493,7 +2856,30 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
               ))}
               {misClases.length===0&&<div style={{color:"#7B6B9A",fontSize:13}}>Sin clases asignadas.</div>}
             </div>
-            <PeticionesDashboard peticiones={data.peticiones} user={user.name} onUpdate={()=>{}}/>
+            <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
+              <div style={{fontWeight:800,color:"#E84F9B",fontSize:15,marginBottom:12}}>🙏 Peticiones de Oración</div>
+              {sortedPeticionesT.length===0&&<div style={{color:"#7B6B9A",textAlign:"center",padding:20,fontStyle:"italic",fontSize:13}}>Sin peticiones. Escribe la primera abajo.</div>}
+              {sortedPeticionesT.map(p=>(
+                <div key={p.id} style={{padding:"10px 0",borderBottom:"1px solid #DDD0F0"}}>
+                  <div style={{fontSize:13,color:"#2D1B4E",lineHeight:1.5}}>{p.texto}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6,marginTop:6}}>
+                    <div style={{fontSize:11,color:"#7B6B9A"}}>
+                      {p.anonimo?"🔒 Anónimo":shortDisplayName(p.autor)} · {p.fecha?new Date(p.fecha).toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric"}):""}
+                    </div>
+                    {p.autor===user.name&&<button style={{...S.btn("#4BBCE0"),padding:"5px 10px",fontSize:12}} onClick={()=>openEditPeticionT(p)}>✏️</button>}
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:16,paddingTop:16,borderTop:"2px solid #E84F9B33"}}>
+                <div style={{fontSize:12,color:"#7B6B9A",marginBottom:8}}>Añadir petición (visible para todos)</div>
+                <textarea style={{...S.input,height:80,resize:"vertical",marginBottom:10}} value={peticionFormT.texto} onChange={e=>setPeticionFormT(f=>({...f,texto:e.target.value}))} placeholder="Escribe tu petición de oración..."/>
+                <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:12}}>
+                  <input type="checkbox" checked={!!peticionFormT.anonimo} onChange={e=>setPeticionFormT(f=>({...f,anonimo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+                  <span style={{fontSize:13,color:"#5B2D8E",fontWeight:600}}>🔒 Petición anónima</span>
+                </label>
+                <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:12,fontSize:14}} onClick={savePeticionNuevaT}>🙏 Guardar Petición</button>
+              </div>
+            </div>
           </div>
         )}
         {activeTab==="cronograma"&&(
@@ -2645,7 +3031,13 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
         {activeTab==="mas"&&(
           <div style={{padding:"1rem 1rem 0"}}>
             <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:4}}>
-              {[["evaluacion","⭐ Evaluac."],["eventos","📆 Eventos"],["cumpleanos","🎂 Cumple."],["oracion","🙏 Oración"],["perfil","👤 Perfil"]].map(([id,label])=>(
+              {[
+                ["eventos","📆 Eventos"],
+                ["cumpleanos","🎂 Cumple."],
+                ...((()=>{const n=(user.name||"").toLowerCase();return n.includes("marcela")&&n.includes("lavaire")?[["finanzas","💰 Finanzas"]]:[];})()),
+                ["evaluacion","⭐ Evaluac."],
+                ["perfil","👤 Perfil"],
+              ].map(([id,label])=>(
                 <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20}} onClick={()=>setMasTab(id)}>{label}</button>
               ))}
             </div>
@@ -2674,18 +3066,38 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
               </div>
             )}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={()=>{}} readOnly/>}
-            {masTab==="oracion"&&<PeticionesPanel peticiones={data.peticiones} user={user.name} onUpdate={v=>onUpdateData("peticiones",v)}/>}
+            {masTab==="finanzas"&&(user.name||"").toLowerCase().includes("marcela")&&(user.name||"").toLowerCase().includes("lavaire")&&(
+              <FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>
+            )}
             {masTab==="cumpleanos"&&(
               <div>
                 <h2 style={S.title}>Cumpleaños — {miClase}</h2>
-                <BirthdayBanner maestros={data.maestros} familias={familias.filter(f=>f.clase===miClase)}/>
-                {familias.filter(f=>f.clase===miClase&&f.cumpleanos).sort((a,b)=>{const[da,ma]=a.cumpleanos.split("/").map(Number);const[db,mb]=b.cumpleanos.split("/").map(Number);return ma-mb||da-db;}).map((f,i)=>(
-                  <div key={i} style={{...S.card,display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:22}}>🎂</span>
-                    <div style={{flex:1}}><div style={{fontWeight:700}}>{f.alumno||""}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{f.edad}</div></div>
-                    <span style={{fontWeight:800,color:"#E84F9B",fontSize:14}}>{f.cumpleanos}</span>
-                  </div>
-                ))}
+                <BirthdayBanner maestros={maestros.filter(m=>m.clase===miClase)} familias={familias.filter(f=>f.clase===miClase)}/>
+                {(()=>{
+                  const maestrosClase=maestros.filter(m=>m.clase===miClase&&(m.cumpleanos||m.nacimiento));
+                  const cumpleMaestros=maestrosClase.map(m=>{
+                    let f=m.cumpleanos;if(!f&&m.nacimiento){try{const d=new Date(m.nacimiento);f=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;}catch(e){}}return f?{nombre:shortDisplayName(m.nombre),fecha:f,tipo:m.cargo,categoria:"maestro",foto:m.foto,iniciales:getInitials(m.nombre),diff:diasHastaCumple(f)}:null;
+                  }).filter(Boolean);
+                  const cumpleAlumnos=familias.filter(f=>f.clase===miClase&&f.cumpleanos).map(f=>({nombre:f.alumno||"",fecha:f.cumpleanos,tipo:"ALUMNO",categoria:"alumno",edad:f.edad,foto:f.foto,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)}));
+                  const sortByDate=(a,b)=>{const[da,ma]=a.fecha.split("/").map(Number);const[db,mb]=b.fecha.split("/").map(Number);return ma-mb||da-db;};
+                  const maestrosOnly=cumpleMaestros.filter(m=>m.tipo==="MAESTRO").sort(sortByDate);
+                  const auxiliaresOnly=cumpleMaestros.filter(m=>m.tipo==="AUXILIAR").sort(sortByDate);
+                  const todos=[...cumpleAlumnos.sort(sortByDate),...maestrosOnly,...auxiliaresOnly];
+                  const thumb=(b,color)=>(b.foto?<img src={b.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color,flexShrink:0}}>{b.iniciales||"?"}</div>);
+                  return todos.length===0?(<div style={{color:"#7B6B9A",textAlign:"center",padding:24,fontStyle:"italic"}}>No hay cumpleaños registrados en tu clase.</div>):(
+                    todos.map((b,i)=>(
+                      <div key={b.nombre+b.fecha+i} style={{...S.card,display:"flex",alignItems:"center",gap:10}}>
+                        {thumb(b,b.categoria==="maestro"?"#5B2D8E":(CLASE_COLORS[miClase]||"#4BBCE0"))}
+                        <span style={{fontSize:22}}>🎂</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:700}}>{b.nombre}</div>
+                          <div style={{fontSize:12,color:"#7B6B9A"}}>{b.tipo}{b.edad?" · "+b.edad:""}</div>
+                        </div>
+                        <div style={{textAlign:"right"}}><span style={{fontWeight:800,color:"#E84F9B",fontSize:14,display:"block"}}>{b.fecha}</span>{b.diff!=null&&<span style={{fontSize:11,color:"#5B2D8E",fontWeight:700}}>{labelDiasFaltan(b.diff)}</span>}</div>
+                      </div>
+                    ))
+                  );
+                })()}
               </div>
             )}
             {masTab==="perfil"&&(
@@ -2721,6 +3133,16 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
           </div>
         )}
       </div>
+      <Modal open={peticionModalT} onClose={()=>setPeticionModalT(false)} title="Editar Petición">
+        <label style={S.label}>Petición</label>
+        <textarea style={{...S.input,height:100,resize:"vertical",marginBottom:12}} value={peticionEditFormT.texto} onChange={e=>setPeticionEditFormT(f=>({...f,texto:e.target.value}))}/>
+        <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:16}}>
+          <input type="checkbox" checked={!!peticionEditFormT.anonimo} onChange={e=>setPeticionEditFormT(f=>({...f,anonimo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+          <span style={{fontSize:13,fontWeight:600}}>🔒 Anónima</span>
+        </label>
+        <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:12}} onClick={savePeticionEditT}>💾 Guardar</button>
+        <button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={deletePeticionT}>🗑 Eliminar</button>
+      </Modal>
       <BottomNav tabs={tabs} active={activeTab} onSelect={setActiveTab}/>
     </div>
   );
@@ -2798,7 +3220,7 @@ function scoreColorHex(v){const n=parseFloat(v);if(isNaN(n))return"#AAA";if(n>=4
 function claseColorHex(cl){return CLASE_COLORS[cl]||"#5B2D8E";}
 
 function InformesPanel({data}){
-  const{maestros,clases,familias,calificaciones,cronograma,evaluaciones,meriendas=[],criterios,videos=[]}=data;
+  const{maestros,clases,familias,calificaciones,cronograma,evaluaciones,meriendas=[],criterios,videos=[],finanzas=DEFAULT_FINANZAS}=data;
   const crit=criterios||CRITERIOS;
   const ckeys=crit.map(c=>c.key);
   const ninos=Object.entries(clases).flatMap(([cl,arr])=>arr.map(n=>({...n,clase:cl})));
@@ -2810,6 +3232,16 @@ function InformesPanel({data}){
   };
   const maestroSesiones=(nombre)=>cronograma.filter(c=>c.maestro===nombre||c.auxiliar===nombre);
   const evalMaestro=(nombre)=>evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=nombre.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
+  const gastoTotal=(m)=>((parseFloat(m?.meriendaCosto)||0)+(parseFloat(m?.trabajoManualCosto)||0));
+
+  // ── Helper para mini gráficos de barras ──
+  const barRow=(label,value,max,color)=>`<div style="display:flex;align-items:center;gap:8;margin-bottom:4;font-size:11px">
+    <div style="width:110px;color:#7B6B9A">${label}</div>
+    <div style="flex:1;background:#F5F0FF;border-radius:999px;overflow:hidden;height:8px;position:relative">
+      <div style="width:${max>0?Math.min(100,(value/max)*100):0}%;background:${color};height:100%"></div>
+    </div>
+    <div style="width:50px;text-align:right;font-weight:700;color:#2D1B4E">${value}</div>
+  </div>`;
 
   // ── Report 1: All Students ──
   const reportAlumnos=()=>{
@@ -2821,10 +3253,11 @@ function InformesPanel({data}){
       const pct=totalSes>0?Math.round((asistencias/totalSes)*100):0;
       const scoreC=avg?scoreColorHex(avg):"#AAA";
       const obsCount=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===n.clase&&c.observacion).length;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;border:2px solid ${claseColorHex(n.clase)}33">`:`<div style="width:28px;height:28px;border-radius:50%;background:${claseColorHex(n.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(n.clase)};margin-right:8px">${getInitials(n.nombre)}</div>`;
       const bautizado=fam?.bautizado?"Sí":"No";
       const sellado=fam?.sellado?"Sí":"No";
       return `<tr>
-        <td><strong>${shortDisplayName(n.nombre)}</strong></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
         <td><span class="badge" style="background:${claseColorHex(n.clase)}22;color:${claseColorHex(n.clase)};border:1px solid ${claseColorHex(n.clase)}44">${n.clase}</span></td>
         <td>${n.edad||"—"}</td>
         <td>${fam?.cumpleanos||"—"}</td>
@@ -2836,9 +3269,15 @@ function InformesPanel({data}){
         <td>${obsCount>0?obsCount+" obs.":"—"}</td>
       </tr>`;
     }).join("");
+    const totalBaut=ninos.filter(n=>{const fam=familias.find(f=>f.alumno===n.nombre);return fam?.bautizado;}).length;
+    const totalSell=ninos.filter(n=>{const fam=familias.find(f=>f.alumno===n.nombre);return fam?.sellado;}).length;
     const html=`
       <div class="section">
         <div class="section-title">📊 Resumen General · ${ninos.length} Alumnos</div>
+        <div style="padding:10px 16px 4px">
+          ${barRow("Bautizados",totalBaut,ninos.length,"#4CAF50")}
+          ${barRow("Sellados",totalSell,ninos.length,"#5B2D8E")}
+        </div>
         <table>
           <thead><tr><th>Alumno</th><th>Clase</th><th>Edad</th><th>Cumpleaños</th><th>Familia</th><th>Bautizado</th><th>Sellado</th><th>Asistencia</th><th>Promedio</th><th>Observac.</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -2874,8 +3313,9 @@ function InformesPanel({data}){
     const ninoRows=misNinos.map(n=>{
       const avg=ninoAvg(n.nombre,m.clase);
       const asist=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===m.clase).length;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(m.clase)}33;vertical-align:middle">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(m.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(m.clase)};margin-right:6px;vertical-align:middle">${getInitials(n.nombre)}</div>`;
       return`<tr>
-        <td><strong>${shortDisplayName(n.nombre)}</strong></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
         <td>${asist} sesiones</td>
         <td style="color:${avg?scoreColorHex(avg):"#AAA"};font-weight:800">${avg||"Sin calificar"}</td>
       </tr>`;
@@ -2902,10 +3342,19 @@ function InformesPanel({data}){
         <p style="font-size:11px;color:#7B6B9A;padding:8px 16px 0">Videos requeridos para clases Corderitos, Vencedores y Conquistadores. Calidad 1-5 y envío a tiempo.</p>
         <table><thead><tr><th>Fecha</th><th>Lección</th><th>Grupo</th><th>Envió</th><th>Calidad</th><th>A tiempo</th><th>Score</th></tr></thead><tbody>${videoRows}</tbody></table>
       </div>`:"";
+    const fotoHtml=m.foto?`<div style="margin-right:14px"><img src="${m.foto}" alt="${shortDisplayName(m.nombre)}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:3px solid ${claseColorHex(m.clase)}33"></div>`:`<div style="width:54px;height:54px;border-radius:50%;background:${claseColorHex(m.clase)}22;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:${claseColorHex(m.clase)};margin-right:14px">${getInitials(m.nombre)}</div>`;
     const html=`
       <div class="card">
-        <div class="card-title">${shortDisplayName(m.nombre)}</div>
-        <div class="card-sub">${m.cargo} · Clase ${m.clase} · Certificado: ${m.certificado||"—"}</div>
+        <div style="display:flex;align-items:center;margin-bottom:10px">
+          ${fotoHtml}
+          <div>
+            <div class="card-title" style="margin:0">${shortDisplayName(m.nombre)}</div>
+            <div class="card-sub">${m.cargo} · Clase ${m.clase} · Certificado: ${m.certificado||"—"}</div>
+          </div>
+        </div>
+        <div style="margin:6px 0 10px;padding:6px 10px;background:#F5F0FF;border-radius:10px;font-size:11px">
+          ${barRow("Cumplimiento",cumpl,100,cumpl>=80?"#4CAF50":cumpl>=60?"#F5A623":"#EF5350")}
+        </div>
         <div class="grid2">
           <div class="stat"><div class="stat-val">${sesiones.length}</div><div class="stat-lbl">Clases asignadas</div></div>
           <div class="stat"><div class="stat-val" style="color:${cumpl>=80?"#4CAF50":cumpl>=60?"#F5A623":"#EF5350"}">${cumpl}%</div><div class="stat-lbl">Cumplimiento</div></div>
@@ -2953,6 +3402,7 @@ function InformesPanel({data}){
     const madreRow=fam&&fam.madre&&fam.madre!=="(No registra)"?"<div style=\"font-size:12px;color:#7B6B9A\">👩 "+fam.madre+(fam.telMadre?" · 📞 "+fam.telMadre:"")+"</div>":"";
     const bautizadoSellado="<div style=\"margin-top:8px;font-size:12px\">"+(fam?.bautizado?"<span style=\"color:#2E7D32;font-weight:700\">🙏 Bautizado</span>":"<span style=\"color:#7B6B9A\">Bautizado: No</span>")+" &nbsp; "+(fam?.sellado?"<span style=\"color:#5B2D8E;font-weight:700\">✨ Sellado</span>":"<span style=\"color:#7B6B9A\">Sellado: No</span>")+"</div>";
     const avgBox=avg?"<div style=\"text-align:center;background:"+scoreC+"22;border-radius:12px;padding:10px 14px\"><div style=\"font-size:28px;font-weight:900;color:"+scoreC+"\">"+avg+"</div><div style=\"font-size:10px;color:#7B6B9A\">/10</div></div>":"";
+    const fotoHtml=n.foto?("<img src=\""+n.foto+"\" alt=\""+shortDisplayName(n.nombre)+"\" style=\"width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid "+claseColorHex(n.clase)+"33\">"):("<div style=\"width:52px;height:52px;border-radius:50%;background:"+claseColorHex(n.clase)+"33;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:"+claseColorHex(n.clase)+"\">"+getInitials(n.nombre)+"</div>");
     const historial=entries.length>0?
       "<div class=\"section\"><div class=\"section-title\">📊 Historial de Calificaciones ("+entries.length+" sesiones)</div>"+
       "<table><thead><tr><th>Fecha</th><th>Lección</th>"+crit.map(c=>"<th>"+c.logro+"</th>").join("")+"<th>Prom.</th><th>Observación</th></tr></thead>"+
@@ -2962,7 +3412,7 @@ function InformesPanel({data}){
     const html=
       "<div class=\"card\" style=\"margin:0 20px 16px;border-left:4px solid "+claseColorHex(n.clase)+"\">"+
       "<div style=\"display:flex;gap:14px;align-items:center;margin-bottom:12px\">"+
-      "<div style=\"width:52px;height:52px;border-radius:50%;background:"+claseColorHex(n.clase)+"33;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:"+claseColorHex(n.clase)+"\">"+n.nombre.charAt(0)+"</div>"+
+      fotoHtml+
       "<div style=\"flex:1\"><div style=\"font-size:20px;font-weight:900;color:#2D1B4E\">"+shortDisplayName(n.nombre)+"</div>"+
       "<div style=\"font-size:12px;color:#7B6B9A\">Clase: <strong>"+n.clase+"</strong> · Edad: <strong>"+(n.edad||"—")+"</strong></div>"+
       padreRow+madreRow+bautizadoSellado+"</div>"+avgBox+"</div>"+
@@ -3003,8 +3453,9 @@ function InformesPanel({data}){
       const asist=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===selClase).length;
       const fam=familias.find(f=>f.alumno===n.nombre);
       const obsCount=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===selClase&&c.observacion).length;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(selClase)}33">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(selClase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(selClase)};margin-right:6px">${getInitials(n.nombre)}</div>`;
       return`<tr>
-        <td><strong>${shortDisplayName(n.nombre)}</strong></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
         <td>${n.edad||"—"}</td>
         <td>${fam?.cumpleanos||"—"}</td>
         <td>${fam?.bautizado?"Sí":"No"}</td>
@@ -3015,6 +3466,9 @@ function InformesPanel({data}){
       </tr>`;
     }).join("");
     const promedioClase=(()=>{let t=0,cnt=0;claseNinos.forEach(n=>{const a=ninoAvg(n.nombre,selClase);if(a){t+=parseFloat(a);cnt++;}});return cnt?(t/cnt).toFixed(1):"—";})();
+    const totalSesionesAsistidas=calificaciones.filter(c=>c.clase===selClase).length;
+    const posibleAsistencias=claseNinos.length*claseSesiones.length||1;
+    const pctAsistGlobal=posibleAsistencias?Math.round((totalSesionesAsistidas/posibleAsistencias)*100):0;
     const html=`
       <div class="card">
         <div class="card-title" style="color:${claseColorHex(selClase)};font-size:18px">🏫 Clase ${selClase}</div>
@@ -3025,6 +3479,9 @@ function InformesPanel({data}){
           <div class="stat"><div class="stat-val">${claseSesiones.length}</div><div class="stat-lbl">Sesiones realizadas</div></div>
           <div class="stat"><div class="stat-val" style="color:#2E7D32">€${totalGasto.toFixed(2)}</div><div class="stat-lbl">Gasto total</div></div>
           <div class="stat"><div class="stat-val" style="color:${claseColorHex(selClase)}">${promedioClase}</div><div class="stat-lbl">Promedio general</div></div>
+        </div>
+        <div style="margin-top:8px;padding:6px 10px;background:#F5F0FF;border-radius:10px;font-size:11px">
+          ${barRow("Asistencia global",pctAsistGlobal,100, pctAsistGlobal>=80?"#4CAF50":pctAsistGlobal>=60?"#F5A623":"#EF5350")}
         </div>
       </div>
       <div class="section">
@@ -3038,6 +3495,168 @@ function InformesPanel({data}){
         <tbody>${ninoRows2||"<tr><td colspan='8' style='text-align:center;color:#AAA'>Sin alumnos</td></tr>"}</tbody></table>
       </div>`;
     generarPDF(`Informe Clase ${selClase}`,html);
+  };
+
+  // ── Report 5: Economic Summary ──
+  const reportEconomico=()=>{
+    const gastosMeriendasTotal=meriendas.reduce((s,m)=>s+gastoTotal(m),0);
+    const gastosComite=(finanzas.gastos||[]).reduce((s,g)=>s+(parseFloat(g.monto)||0),0);
+    const gastosActividades=(finanzas.actividades||[]).reduce((s,a)=>s+(parseFloat(a.gastos)||0),0);
+    const ingresosActividades=(finanzas.actividades||[]).reduce((s,a)=>{
+      const ef=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
+      const tpv=parseFloat(a.ingresoTPV||0)||0;
+      return s+ef+tpv;
+    },0);
+    const donativosTotal=(finanzas.donativos||[]).reduce((s,d)=>{
+      const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+      const tpv=parseFloat(d.tpv||0)||0;
+      return s+ef+tpv;
+    },0);
+    const totalGastos=gastosMeriendasTotal+gastosComite+gastosActividades;
+    const totalIngresos=ingresosActividades+donativosTotal;
+    if(totalGastos===0&&totalIngresos===0){
+      const html=`<div class="section"><div class="section-title">📊 Informe Económico</div><p style="padding:20px;font-size:13px;color:#7B6B9A;font-style:italic">No hay movimientos económicos registrados todavía.</p></div>`;
+      generarPDF("Informe Económico",html);
+      return;
+    }
+    const netoGlobal=totalIngresos-totalGastos;
+    const resumenGlobal=`
+      <div class="section">
+        <div class="section-title">💰 Resumen Económico General</div>
+        <div style="padding:12px 18px;font-size:13px;color:#2D1B4E;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap">
+          <div><div style="font-size:12px;color:#7B6B9A">Total de gastos (clases + comité)</div><div style="font-size:20px;font-weight:900;color:#C62828">€${totalGastos.toFixed(2)}</div></div>
+          <div><div style="font-size:12px;color:#7B6B9A">Total de ingresos (actividades + donativos)</div><div style="font-size:20px;font-weight:900;color:#2E7D32">€${totalIngresos.toFixed(2)}</div></div>
+          <div><div style="font-size:12px;color:#7B6B9A">Resultado neto</div><div style="font-size:20px;font-weight:900;color:${netoGlobal>=0?"#2E7D32":"#C62828"}">€${netoGlobal.toFixed(2)}</div></div>
+          <div><div style="font-size:12px;color:#7B6B9A">Clases con gastos</div><div style="font-size:18px;font-weight:800;color:#5B2D8E">${CLASES_LIST.filter(cl=>meriendas.some(m=>m.clase===cl)).length}/${CLASES_LIST.length}</div></div>
+        </div>
+      </div>`;
+
+    const seccionesClases=CLASES_LIST.map(cl=>{
+      const merClase=meriendas.filter(m=>m.clase===cl);
+      if(!merClase.length)return"";
+      const totalClase=merClase.reduce((s,m)=>s+gastoTotal(m),0);
+      const filasSesiones=merClase.map(m=>{
+        const ses=cronograma.find(c=>c.id===m.sesionId)||{};
+        const fecha=ses.fecha?formatFecha(ses.fecha):"—";
+        const leccion=ses.leccion||"—";
+        const maestro=ses.maestro?shortDisplayName(ses.maestro):"—";
+        const aux=ses.auxiliar?shortDisplayName(ses.auxiliar):"—";
+        const merTxt=m.merienda?String(m.merienda):"";
+        const merCost=parseFloat(m.meriendaCosto)||0;
+        const tmTxt=m.trabajoManual?String(m.trabajoManual):"";
+        const tmCost=parseFloat(m.trabajoManualCosto)||0;
+        const total=merCost+tmCost;
+        return `<tr>
+          <td>${fecha}</td>
+          <td><strong>${leccion}</strong></td>
+          <td>${maestro}</td>
+          <td>${aux}</td>
+          <td>${merTxt||merCost>0?"🍎 "+(merTxt||"Merienda"):"—"}${merCost>0?" · €"+merCost.toFixed(2):""}</td>
+          <td>${tmTxt||tmCost>0?"✂️ "+(tmTxt||"T. manual"):"—"}${tmCost>0?" · €"+tmCost.toFixed(2):""}</td>
+          <td style="font-weight:700;color:${total>0?"#2E7D32":"#7B6B9A"}">${total>0?"€"+total.toFixed(2):"—"}</td>
+        </tr>`;
+      }).join("");
+
+      const porMaestro={};
+      merClase.forEach(m=>{
+        const ses=cronograma.find(c=>c.id===m.sesionId);
+        if(!ses)return;
+        const g=gastoTotal(m);
+        if(!g)return;
+        if(ses.maestro)porMaestro[ses.maestro]=(porMaestro[ses.maestro]||0)+g;
+      });
+      const filasMaestros=Object.entries(porMaestro).sort((a,b)=>b[1]-a[1]).map(([nombre,total])=>{
+        const short=shortDisplayName(nombre);
+        const info=maestros.find(x=>x.nombre===nombre);
+        const cargo=info?.cargo||"MAESTRO";
+        return `<tr>
+          <td>${short}</td>
+          <td>${cargo}</td>
+          <td style="font-weight:800;color:#2E7D32">€${total.toFixed(2)}</td>
+        </tr>`;
+      }).join("");
+
+      return `
+        <div class="section">
+          <div class="section-title">🏫 Clase ${cl}</div>
+          <div style="padding:8px 16px;font-size:12px;color:#7B6B9A">Total de gastos registrados en esta clase: <strong style="color:#2E7D32">€${totalClase.toFixed(2)}</strong></div>
+          <table>
+            <thead><tr><th>Fecha</th><th>Lección</th><th>Maestro</th><th>Auxiliar</th><th>Merienda</th><th>Trabajo Manual</th><th>Total</th></tr></thead>
+            <tbody>${filasSesiones||"<tr><td colspan='7' style='text-align:center;color:#AAA'>Sin gastos registrados</td></tr>"}</tbody>
+          </table>
+          <div style="margin-top:16px">
+            <div style="font-weight:800;font-size:13px;margin-bottom:6px;color:#2D1B4E">👩‍🏫 Resumen por maestro (solo rol de maestro)</div>
+            <table>
+              <thead><tr><th>Maestro</th><th>Cargo</th><th>Total gastado</th></tr></thead>
+              <tbody>${filasMaestros||"<tr><td colspan='3' style='text-align:center;color:#AAA'>Sin gastos por maestro</td></tr>"}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join("");
+
+    const gastosComiteRows=(finanzas.gastos||[]).map(g=>{
+      const resp=g.responsable?shortDisplayName(g.responsable):"—";
+      return `<tr>
+        <td>${g.fecha||"—"}</td>
+        <td><strong>${g.concepto||"—"}</strong></td>
+        <td>${resp}</td>
+        <td style="font-weight:700;color:#C62828">€${(parseFloat(g.monto)||0).toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    const actividadesRows=(finanzas.actividades||[]).map(a=>{
+      const resp=a.responsable?shortDisplayName(a.responsable):"—";
+      const ing=parseFloat(a.ingresos)||0;
+      const gas=parseFloat(a.gastos)||0;
+      const net=ing-gas;
+      return `<tr>
+        <td>${a.fecha||"—"}</td>
+        <td><strong>${a.nombre||"—"}</strong></td>
+        <td>${resp}</td>
+        <td style="color:#2E7D32">€${ing.toFixed(2)}</td>
+        <td style="color:#C62828">€${gas.toFixed(2)}</td>
+        <td style="font-weight:700;color:${net>=0?"#2E7D32":"#C62828"}">€${net.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+    const donativosRows=(finanzas.donativos||[]).map(d=>{
+      const resp=d.responsable?shortDisplayName(d.responsable):"—";
+      return `<tr>
+        <td>${d.fecha||"—"}</td>
+        <td><strong>${d.concepto||"—"}</strong></td>
+        <td>${d.tipo||"DONATIVO"}</td>
+        <td>${resp}</td>
+        <td style="font-weight:700;color:#2E7D32">€${(parseFloat(d.monto)||0).toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+
+    const seccionComite=`
+      <div class="section">
+        <div class="section-title">🏛️ Comité de Escuela Dominical — Gastos Generales</div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Responsable</th><th>Monto</th></tr></thead>
+          <tbody>${gastosComiteRows||"<tr><td colspan='4' style='text-align:center;color:#AAA'>Sin gastos registrados</td></tr>"}</tbody>
+        </table>
+      </div>`;
+
+    const seccionActividades=`
+      <div class="section">
+        <div class="section-title">🎉 Actividades del Comité</div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Actividad</th><th>Responsable</th><th>Efec.</th><th>TPV</th><th>Ingresos</th><th>Gastos</th><th>Neto</th></tr></thead>
+          <tbody>${actividadesRows||"<tr><td colspan='8' style='text-align:center;color:#AAA'>Sin actividades registradas</td></tr>"}</tbody>
+        </table>
+      </div>`;
+
+  const seccionDonativos=`
+      <div class="section">
+        <div class="section-title">🙏 Donativos / Votos</div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Detalle</th><th>Tipo</th><th>Responsable</th><th>Efec.</th><th>TPV</th><th>Total</th></tr></thead>
+          <tbody>${donativosRows||"<tr><td colspan='7' style='text-align:center;color:#AAA'>Sin donativos registrados</td></tr>"}</tbody>
+        </table>
+      </div>`;
+
+    const html=resumenGlobal+seccionesClases+seccionComite+seccionActividades+seccionDonativos;
+    generarPDF("Informe Económico",html);
   };
 
   return(
@@ -3087,7 +3706,7 @@ function InformesPanel({data}){
       </div>
 
       {/* Report 4 - Individual Student */}
-      <div style={{...S.card,borderLeft:"5px solid #4CAF50"}}>
+      <div style={{...S.card,borderLeft:"5px solid #4CAF50",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#2E7D32",marginBottom:4}}>👦 Informe Individual de Alumno</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Ficha personal con historial completo de asistencias, calificaciones y observaciones.</div>
         <label style={S.label}>Seleccionar Alumno</label>
@@ -3098,6 +3717,14 @@ function InformesPanel({data}){
         </select>
         <button style={{...S.btn("#4CAF50","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportNino}>
           📥 Generar Informe — {selNino?shortDisplayName(selNino):"Selecciona uno"}
+        </button>
+      </div>
+      {/* Report 5 - Economic Summary */}
+      <div style={{...S.card,borderLeft:"5px solid #F5C842"}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#B69100",marginBottom:4}}>💰 Informe Económico General</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Resumen de gastos de clases, gastos del comité, actividades y donativos.</div>
+        <button style={{...S.btn("#F5C842","#3D1B6B",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportEconomico}>
+          📥 Generar Informe Económico
         </button>
       </div>
     </div>
@@ -3179,12 +3806,279 @@ function PeticionesPanel({peticiones,user,onUpdate,isAdmin=false}){
   );
 }
 
+// ══════════ FINANZAS PANEL (ADMIN) ══════════
+function FinanzasPanel({finanzas,maestros,onUpdate}){
+  const[gastoForm,setGastoForm]=useState({fecha:"",concepto:"",monto:"",responsable:""});
+  const[actForm,setActForm]=useState({fecha:"",nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""});
+  const[donForm,setDonForm]=useState({fecha:"",concepto:"",efectivo:"",tpv:"",donante:""});
+  const[votoForm,setVotoForm]=useState({fecha:"",concepto:"",efectivo:"",tpv:"",responsable:""});
+
+  const gastos=Array.isArray(finanzas?.gastos)?finanzas.gastos:[];
+  const actividades=Array.isArray(finanzas?.actividades)?finanzas.actividades:[];
+  const donativosRaw=Array.isArray(finanzas?.donativos)?finanzas.donativos:[];
+  const votos=donativosRaw.filter(d=>d.tipo==="VOTO");
+  const donativos=donativosRaw.filter(d=>d.tipo!=="VOTO");
+
+  const saveGasto=()=>{
+    if(!gastoForm.concepto.trim()||!gastoForm.monto)return;
+    const m=parseFloat(gastoForm.monto.replace(",","."));
+    const nuevo={id:Date.now()+"-g",fecha:gastoForm.fecha||new Date().toISOString().slice(0,10),concepto:gastoForm.concepto.trim(),monto:isNaN(m)?0:m,responsable:gastoForm.responsable||""};
+    onUpdate({...finanzas,gastos:[...gastos,nuevo]});
+    setGastoForm({fecha:"",concepto:"",monto:"",responsable:gastoForm.responsable});
+  };
+  const deleteGasto=id=>onUpdate({...finanzas,gastos:gastos.filter(g=>g.id!==id)});
+
+  const saveActividad=()=>{
+    if(!actForm.nombre.trim())return;
+    const ingEf=parseFloat(actForm.ingresoEfectivo.replace(",",".")||"0");
+    const ingTpv=parseFloat(actForm.ingresoTPV.replace(",",".")||"0");
+    const gas=parseFloat(actForm.gastos.replace(",",".")||"0");
+    const nueva={
+      id:Date.now()+"-a",
+      fecha:actForm.fecha||new Date().toISOString().slice(0,10),
+      nombre:actForm.nombre.trim(),
+      ingresoEfectivo:isNaN(ingEf)?0:ingEf,
+      ingresoTPV:isNaN(ingTpv)?0:ingTpv,
+      gastos:isNaN(gas)?0:gas,
+      responsable:actForm.responsable||"",
+    };
+    onUpdate({...finanzas,actividades:[...actividades,nueva]});
+    setActForm({fecha:"",nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
+  };
+  const deleteActividad=id=>onUpdate({...finanzas,actividades:actividades.filter(a=>a.id!==id)});
+
+  const saveDonativo=()=>{
+    if(!donForm.efectivo && !donForm.tpv)return;
+    const mEf=parseFloat(donForm.efectivo.replace(",",".")||"0");
+    const mTpv=parseFloat(donForm.tpv.replace(",",".")||"0");
+    const nuevo={
+      id:Date.now()+"-d",
+      fecha:donForm.fecha||new Date().toISOString().slice(0,10),
+      concepto:donForm.concepto.trim()||"Donativo",
+      tipo:"DONATIVO",
+      efectivo:isNaN(mEf)?0:mEf,
+      tpv:isNaN(mTpv)?0:mTpv,
+      responsable:donForm.donante||"",
+    };
+    onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
+    setDonForm({fecha:"",concepto:"",efectivo:"",tpv:"",donante:donForm.donante});
+  };
+  const saveVoto=()=>{
+    if(!votoForm.efectivo && !votoForm.tpv)return;
+    const mEf=parseFloat(votoForm.efectivo.replace(",",".")||"0");
+    const mTpv=parseFloat(votoForm.tpv.replace(",",".")||"0");
+    const nuevo={
+      id:Date.now()+"-v",
+      fecha:votoForm.fecha||new Date().toISOString().slice(0,10),
+      concepto:votoForm.concepto.trim()||"Voto",
+      tipo:"VOTO",
+      efectivo:isNaN(mEf)?0:mEf,
+      tpv:isNaN(mTpv)?0:mTpv,
+      responsable:votoForm.responsable||"",
+    };
+    onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
+    setVotoForm({fecha:"",concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable});
+  };
+  const deleteDonativo=id=>onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
+
+  const maestrosOpts=[...maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
+
+  return(
+    <div style={{padding:"1rem 1rem 6.25rem"}}>
+      <h2 style={S.title}>💰 Finanzas del Comité</h2>
+
+      <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#E84F9B",marginBottom:4}}>🏛️ Gastos del Comité</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra compras generales (materiales, regalos, transporte, etc.) con un responsable.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+          <input type="date" style={S.input} value={gastoForm.fecha} onChange={e=>setGastoForm(f=>({...f,fecha:e.target.value}))}/>
+          <input style={S.input} placeholder="Concepto" value={gastoForm.concepto} onChange={e=>setGastoForm(f=>({...f,concepto:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Monto" value={gastoForm.monto} onChange={e=>setGastoForm(f=>({...f,monto:e.target.value}))}/>
+          <select style={S.input} value={gastoForm.responsable} onChange={e=>setGastoForm(f=>({...f,responsable:e.target.value}))}>
+            <option value="">Responsable</option>
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+          </select>
+        </div>
+        <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveGasto}>➕ Añadir gasto</button>
+        {gastos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin gastos registrados.</div>}
+        {gastos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(g=>(
+          <div key={g.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#FDF5F7",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+            <div style={{fontSize:12,color:"#2D1B4E"}}>
+              <div style={{fontWeight:700}}>{g.concepto}</div>
+              <div style={{fontSize:11,color:"#7B6B9A"}}>{g.fecha} · {g.responsable?shortDisplayName(g.responsable):"Sin responsable"}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontWeight:800,color:"#C62828",fontSize:13}}>€{(parseFloat(g.monto)||0).toFixed(2)}</span>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>deleteGasto(g.id)}>🗑</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{...S.card,borderLeft:"5px solid #4BBCE0",marginBottom:14}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#2A96BC",marginBottom:4}}>🎉 Actividades del Comité</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra actividades (ventas, rifas, comidas, etc.) con sus ingresos (efectivo / TPV) y gastos.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+          <input type="date" style={S.input} value={actForm.fecha} onChange={e=>setActForm(f=>({...f,fecha:e.target.value}))}/>
+          <input style={S.input} placeholder="Nombre de la actividad" value={actForm.nombre} onChange={e=>setActForm(f=>({...f,nombre:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Efectivo" value={actForm.ingresoEfectivo} onChange={e=>setActForm(f=>({...f,ingresoEfectivo:e.target.value}))}/>
+          <input style={S.input} placeholder="€ TPV" value={actForm.ingresoTPV} onChange={e=>setActForm(f=>({...f,ingresoTPV:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Gastos" value={actForm.gastos} onChange={e=>setActForm(f=>({...f,gastos:e.target.value}))}/>
+          <select style={S.input} value={actForm.responsable} onChange={e=>setActForm(f=>({...f,responsable:e.target.value}))}>
+            <option value="">Responsable</option>
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+          </select>
+        </div>
+        <button style={{...S.btn("#4BBCE0","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveActividad}>➕ Añadir actividad</button>
+        {actividades.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin actividades registradas.</div>}
+        {actividades.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(a=>{
+          const ingEf=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
+          const ingTpv=parseFloat(a.ingresoTPV||0)||0;
+          const ing=ingEf+ingTpv;
+          const gas=parseFloat(a.gastos)||0;
+          const net=ing-gas;
+          return(
+            <div key={a.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#F0FAFF",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <div style={{fontSize:12,color:"#2D1B4E"}}>
+                <div style={{fontWeight:700}}>{a.nombre}</div>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>{a.fecha} · {a.responsable?shortDisplayName(a.responsable):"Sin responsable"}</div>
+              </div>
+              <div style={{textAlign:"right",fontSize:11}}>
+                <div style={{color:"#2E7D32",fontWeight:700}}>Efec.: €{ingEf.toFixed(2)} · TPV: €{ingTpv.toFixed(2)}</div>
+                <div style={{color:"#2E7D32",fontWeight:700}}>Ingresos totales: €{ing.toFixed(2)}</div>
+                <div style={{color:"#C62828",fontWeight:700}}>Gastos: €{gas.toFixed(2)}</div>
+                <div style={{fontWeight:800,color:net>=0?"#2E7D32":"#C62828"}}>Neto: €{net.toFixed(2)}</div>
+              </div>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>deleteActividad(a.id)}>🗑</button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{...S.card,borderLeft:"5px solid #4CAF50",marginBottom:14}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#2E7D32",marginBottom:4}}>🙏 Donativos</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra donativos individuales con el nombre del donante y el desglose entre efectivo y TPV.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+          <input type="date" style={S.input} value={donForm.fecha} onChange={e=>setDonForm(f=>({...f,fecha:e.target.value}))}/>
+          <input style={S.input} placeholder="Concepto" value={donForm.concepto} onChange={e=>setDonForm(f=>({...f,concepto:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Efectivo" value={donForm.efectivo} onChange={e=>setDonForm(f=>({...f,efectivo:e.target.value}))}/>
+          <input style={S.input} placeholder="€ TPV" value={donForm.tpv} onChange={e=>setDonForm(f=>({...f,tpv:e.target.value}))}/>
+          <input style={S.input} placeholder="Donante" value={donForm.donante} onChange={e=>setDonForm(f=>({...f,donante:e.target.value}))}/>
+        </div>
+        <button style={{...S.btn("#4CAF50","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveDonativo}>➕ Añadir donativo</button>
+        {donativos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin donativos registrados.</div>}
+        {donativos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(d=>{
+          const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+          const tpv=parseFloat(d.tpv||0)||0;
+          const total=ef+tpv;
+          return(
+            <div key={d.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#F3FFF5",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <div style={{fontSize:12,color:"#2D1B4E"}}>
+                <div style={{fontWeight:700}}>{d.concepto||d.tipo}</div>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>{d.fecha} · Donante: {d.responsable||"—"}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,fontSize:11}}>
+                <span style={{fontWeight:700,color:"#2E7D32"}}>Efec.: €{ef.toFixed(2)} · TPV: €{tpv.toFixed(2)}</span>
+                <span style={{fontWeight:800,color:"#2E7D32",fontSize:13}}>Total: €{total.toFixed(2)}</span>
+              </div>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>deleteDonativo(d.id)}>🗑</button>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{...S.card,borderLeft:"5px solid #F5C842"}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#B69100",marginBottom:4}}>📝 Votos</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra votos u otras promesas asignadas a un maestro/auxiliar, con su desglose entre efectivo y TPV.</div>
+        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+          <input type="date" style={S.input} value={votoForm.fecha} onChange={e=>setVotoForm(f=>({...f,fecha:e.target.value}))}/>
+          <input style={S.input} placeholder="Concepto" value={votoForm.concepto} onChange={e=>setVotoForm(f=>({...f,concepto:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Efectivo" value={votoForm.efectivo} onChange={e=>setVotoForm(f=>({...f,efectivo:e.target.value}))}/>
+          <input style={S.input} placeholder="€ TPV" value={votoForm.tpv} onChange={e=>setVotoForm(f=>({...f,tpv:e.target.value}))}/>
+          <select style={S.input} value={votoForm.responsable} onChange={e=>setVotoForm(f=>({...f,responsable:e.target.value}))}>
+            <option value="">Responsable</option>
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+          </select>
+        </div>
+        <button style={{...S.btn("#F5C842","#3D1B6B",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveVoto}>➕ Añadir voto</button>
+        {votos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin votos registrados.</div>}
+        {votos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(d=>{
+          const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+          const tpv=parseFloat(d.tpv||0)||0;
+          const total=ef+tpv;
+          return(
+            <div key={d.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#FFF9E6",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+              <div style={{fontSize:12,color:"#2D1B4E"}}>
+                <div style={{fontWeight:700}}>{d.concepto||"Voto"}</div>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>{d.fecha} · Responsable: {d.responsable?shortDisplayName(d.responsable):"—"}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,fontSize:11}}>
+                <span style={{fontWeight:700,color:"#2E7D32"}}>Efec.: €{ef.toFixed(2)} · TPV: €{tpv.toFixed(2)}</span>
+                <span style={{fontWeight:800,color:"#2E7D32",fontSize:13}}>Total: €{total.toFixed(2)}</span>
+              </div>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>deleteDonativo(d.id)}>🗑</button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ══════════ ADMIN APP ══════════
-function AdminApp({data,onUpdateData,onLogout}){
-  const[activeTab,setActiveTab]=useState("dashboard");
-  const[masTab,setMasTab]=useState("clases");
-  const tabs=[{id:"alumnos",label:"Alumnos",icon:"👦"},{id:"dashboard",label:"Inicio",icon:"📊"},{id:"cronograma",label:"Horario",icon:"📅"},{id:"calificaciones",label:"Calif.",icon:"📝"},{id:"maestros",label:"Maestros",icon:"👩‍🏫"},{id:"mas",label:"Más",icon:"☰"}];
+function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords}){
+  const[activeTab,setActiveTab]=useState("inicio");
+  const[masTab,setMasTab]=useState("familias");
+  const[adminPwForm,setAdminPwForm]=useState({current:"",master:"",new1:"",new2:"",error:"",ok:false});
+  const[resetForm,setResetForm]=useState({maestro:"",newPw:"",master:"",error:"",ok:false});
+  const tabs=[
+    {id:"inicio",label:"Inicio",icon:"🏠"},
+    {id:"horario",label:"Horario",icon:"📅"},
+    {id:"calificaciones",label:"Calif.",icon:"📝"},
+    {id:"evaluaciones",label:"Evaluac.",icon:"⭐"},
+    {id:"clases",label:"Clases",icon:"🧒"},
+    {id:"alumnos",label:"Alumnos",icon:"👦"},
+    {id:"maestros",label:"Maestros",icon:"👩‍🏫"},
+    {id:"mas",label:"Más",icon:"☰"},
+  ];
   const useAlumnosSource=!(data.alumnos&&Array.isArray(data.alumnos)&&data.alumnos.length>0)?false:true;
+
+  const saveAdminPassword=async()=>{
+    const currentStored=data.adminProfile?.adminPassword||ADMIN_PASSWORD;
+    if(!adminPwForm.current||adminPwForm.current!==currentStored){
+      setAdminPwForm(f=>({...f,error:"Contraseña actual incorrecta",ok:false}));
+      return;
+    }
+    if(adminPwForm.new1.length<4){
+      setAdminPwForm(f=>({...f,error:"La nueva contraseña debe tener al menos 4 caracteres",ok:false}));
+      return;
+    }
+    if(adminPwForm.new1!==adminPwForm.new2){
+      setAdminPwForm(f=>({...f,error:"Las contraseñas nuevas no coinciden",ok:false}));
+      return;
+    }
+    const nextProfile={...(data.adminProfile||{}),adminPassword:adminPwForm.new1};
+    const ok=await onUpdateData("adminProfile",nextProfile);
+    setAdminPwForm(f=>ok?{current:"",master:"",new1:"",new2:"",error:"",ok:true}:{...f,error:"No se pudo guardar. Revisa la conexión.",ok:false});
+  };
+
+  const resetTeacherPassword=async()=>{
+    if(!resetForm.maestro){
+      setResetForm(f=>({...f,error:"Selecciona un maestro o auxiliar",ok:false}));
+      return;
+    }
+    if(resetForm.newPw.length<4){
+      setResetForm(f=>({...f,error:"La nueva contraseña debe tener al menos 4 caracteres",ok:false}));
+      return;
+    }
+    // Contraseña maestra: ADMIN_PASSWORD
+    if(resetForm.master!==ADMIN_PASSWORD){
+      setResetForm(f=>({...f,error:"Contraseña maestra incorrecta",ok:false}));
+      return;
+    }
+    const ok=await onUpdatePasswords({...teacherPasswords,[resetForm.maestro]:resetForm.newPw});
+    setResetForm(f=>ok?{maestro:"",newPw:"",master:"",error:"",ok:true}:{...f,error:"No se pudo guardar en la nube",ok:false});
+  };
+
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
       <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
@@ -3195,26 +4089,113 @@ function AdminApp({data,onUpdateData,onLogout}){
         </div>
       </div>
       <div>
-        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig}/>}
-        {activeTab==="dashboard"&&<AdminDashboard data={data}/>}
-        {activeTab==="cronograma"&&<CronogramaPanel cronograma={data.cronograma} maestros={data.maestros} onUpdate={v=>onUpdateData("cronograma",v)}/>}
+        {activeTab==="inicio"&&<AdminDashboard data={data} onUpdateData={onUpdateData}/>}
+        {activeTab==="horario"&&<CronogramaPanel cronograma={data.cronograma} maestros={data.maestros} onUpdate={v=>onUpdateData("cronograma",v)}/>}
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
+        {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} maestros={data.maestros||[]}/>}
+        {activeTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
+        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig}/>}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
         {activeTab==="mas"&&(
           <div style={{padding:"1rem 1rem 0"}}>
             <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:16,paddingBottom:4}}>
-              {[["clases","🧒 Clases"],["familias","👨‍👩‍👧 Familias"],["eventos","📆 Eventos"],["videos","🎬 Videos"],["evaluaciones","⭐ Evaluac."],["cumpleanos","🎂 Cumple."],["peticiones","🙏 Oración"],["informes","📄 Informes"]].map(([id,label])=>(
+              {[["familias","👨‍👩‍👧 Familias"],["eventos","📆 Eventos"],["cumpleanos","🎂 Cumple."],["finanzas","💰 Finanzas"],["informes","📄 Informes"],["perfilAdmin","👑 Admin"]].map(([id,label])=>(
                 <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20,whiteSpace:"nowrap"}} onClick={()=>setMasTab(id)}>{label}</button>
               ))}
             </div>
-            {masTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
             {masTab==="familias"&&<FamiliasPanel readOnly={useAlumnosSource} familias={data.familias} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)} clases={data.clases} onUpdateClases={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)}/>}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={v=>onUpdateData("eventos",v)}/>}
-            {masTab==="videos"&&<VideosPanel videos={data.videos||[]} onUpdate={v=>onUpdateData("videos",v)} cronograma={data.cronograma} maestros={data.maestros}/>}
-            {masTab==="evaluaciones"&&<EvaluacionesPanel evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} maestros={data.maestros||[]}/>}
             {masTab==="cumpleanos"&&<CumpleanosPanel maestros={data.maestros} familias={data.familias}/>}
-            {masTab==="peticiones"&&<PeticionesPanel peticiones={data.peticiones} user="admin" onUpdate={v=>onUpdateData("peticiones",v)} isAdmin/>}
+            {masTab==="finanzas"&&<FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={data.maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>}
             {masTab==="informes"&&<InformesPanel data={data}/>}
+            {masTab==="perfilAdmin"&&(
+              <div style={{paddingBottom:20}}>
+                <h2 style={S.title}>👑 Admin</h2>
+                <div style={{...S.card,marginBottom:14}}>
+                  <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                    <div style={{position:"relative",width:70,height:70}}>
+                      {data.adminProfile?.foto
+                        ? <img src={data.adminProfile.foto} alt="Admin" style={{width:70,height:70,borderRadius:"50%",objectFit:"cover",border:"3px solid #5B2D8E"}}/>
+                        : <div style={{width:70,height:70,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:26,color:"#5B2D8E",border:"3px solid #DDD0F0"}}>{getInitials(data.adminProfile?.nombre||"Admin")}</div>
+                      }
+                      <label style={{position:"absolute",bottom:-4,right:-4,width:26,height:26,borderRadius:"50%",background:"#5B2D8E",border:"2px solid #FFFFFF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#FFFFFF",cursor:"pointer"}}>
+                        📷
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{display:"none"}}
+                          onChange={async e=>{
+                            const file=e.target.files?.[0];
+                            if(!file)return;
+                            const compressed=await compressImage(file,128,0.5);
+                            onUpdateData("adminProfile",{...(data.adminProfile||{}),foto:compressed});
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div>
+                      <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,margin:"0 0 4px"}}>💼 Datos visibles del admin</h3>
+                      <p style={{fontSize:11,color:"#7B6B9A",margin:0}}>Aquí puedes configurar cómo se verá el administrador en los informes.</p>
+                    </div>
+                  </div>
+                  <label style={S.label}>Nombre del administrador</label>
+                  <input
+                    style={{...S.input,marginBottom:10}}
+                    value={data.adminProfile?.nombre||""}
+                    onChange={e=>onUpdateData("adminProfile",{...(data.adminProfile||{}),nombre:e.target.value})}
+                    placeholder="Ej: Coordinador Escuela Dominical"
+                  />
+                  <p style={{fontSize:11,color:"#7B6B9A",margin:0}}>Solo se usa para mostrar en informes u otras pantallas de administración.</p>
+                </div>
+                <div style={{...S.card,marginBottom:14}}>
+                  <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,marginBottom:10}}>🔐 Cambiar contraseña de administrador</h3>
+                  <p style={{fontSize:11,color:"#7B6B9A",marginBottom:6}}>Esta contraseña se usará para entrar como administrador (además de la contraseña maestra fija).</p>
+                  <p style={{fontSize:11,color:"#9E9E9E",marginBottom:10,fontStyle:"italic"}}>Contraseña maestra (fija): <strong>{ADMIN_PASSWORD}</strong></p>
+                  <label style={S.label}>Contraseña actual</label>
+                  <input type="password" style={{...S.input,marginBottom:10}} value={adminPwForm.current} onChange={e=>setAdminPwForm(f=>({...f,current:e.target.value,error:"",ok:false}))}/>
+                  <label style={S.label}>Nueva contraseña</label>
+                  <input type="password" style={{...S.input,marginBottom:10}} value={adminPwForm.new1} onChange={e=>setAdminPwForm(f=>({...f,new1:e.target.value,error:"",ok:false}))}/>
+                  <label style={S.label}>Confirmar nueva contraseña</label>
+                  <input type="password" style={{...S.input,marginBottom:10}} value={adminPwForm.new2} onChange={e=>setAdminPwForm(f=>({...f,new2:e.target.value,error:"",ok:false}))}/>
+                  {adminPwForm.error&&<div style={{color:"#EF5350",fontSize:12,fontWeight:700,marginBottom:8}}>{adminPwForm.error}</div>}
+                  {adminPwForm.ok&&<div style={{color:"#4CAF50",fontSize:12,fontWeight:700,marginBottom:8}}>Contraseña de admin actualizada.</div>}
+                  <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:12}} onClick={saveAdminPassword}>💾 Guardar contraseña admin</button>
+                </div>
+                <div style={S.card}>
+                  <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,marginBottom:10}}>🔑 Restablecer contraseña de maestro/auxiliar</h3>
+                  <p style={{fontSize:11,color:"#7B6B9A",marginBottom:10}}>Usa la <strong>contraseña maestra de administrador</strong> para poder cambiar la contraseña de cualquier maestro o auxiliar.</p>
+                  <label style={S.label}>Seleccionar maestro/auxiliar</label>
+                  <select
+                    style={{...S.input,marginBottom:10}}
+                    value={resetForm.maestro}
+                    onChange={e=>setResetForm(f=>({...f,maestro:e.target.value,error:"",ok:false}))}
+                  >
+                    <option value="">— Selecciona —</option>
+                    {[...data.maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=>(
+                      <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
+                    ))}
+                  </select>
+                  <label style={S.label}>Nueva contraseña</label>
+                  <input
+                    type="password"
+                    style={{...S.input,marginBottom:10}}
+                    value={resetForm.newPw}
+                    onChange={e=>setResetForm(f=>({...f,newPw:e.target.value,error:"",ok:false}))}
+                  />
+                  <label style={S.label}>Contraseña maestra (solo admin)</label>
+                  <input
+                    type="password"
+                    style={{...S.input,marginBottom:10}}
+                    value={resetForm.master}
+                    onChange={e=>setResetForm(f=>({...f,master:e.target.value,error:"",ok:false}))}
+                    placeholder="Contraseña maestra de administrador"
+                  />
+                  {resetForm.error&&<div style={{color:"#EF5350",fontSize:12,fontWeight:700,marginBottom:8}}>{resetForm.error}</div>}
+                  {resetForm.ok&&<div style={{color:"#4CAF50",fontSize:12,fontWeight:700,marginBottom:8}}>Contraseña actualizada para el maestro seleccionado.</div>}
+                  <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:12}} onClick={resetTeacherPassword}>🔑 Restablecer contraseña</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -3242,12 +4223,13 @@ function App(){
     meriendas:[],
     clasesConfig:DEFAULT_CLASES_CONFIG,
     videos:[],
+    finanzas:DEFAULT_FINANZAS,
   });
   useEffect(()=>{
     (async()=>{
       try{
         const loaded={};
-        for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos"]){
+        for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas"]){
           const v=await loadData(k);if(v!==null)loaded[k]=v;
         }
         const familias=loaded.familias??INITIAL_FAMILIAS;
@@ -3258,7 +4240,7 @@ function App(){
             saveData("alumnos",alumnos);
           }else alumnos=INITIAL_ALUMNOS;
         }
-        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[] };
+        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
       }catch(e){
@@ -3299,7 +4281,7 @@ function App(){
   const screen = !user
     ? <LoginScreen onLogin={setUser}/>
     : user==="admin"
-      ? <AdminApp data={dataWithDerived} onUpdateData={updateData} onLogout={()=>setUser(null)}/>
+      ? <AdminApp data={dataWithDerived} onUpdateData={updateData} onLogout={()=>setUser(null)} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>
       : <TeacherApp user={user} data={dataWithDerived} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>;
 
   if(loading){
