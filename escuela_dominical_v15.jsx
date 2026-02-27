@@ -1591,6 +1591,9 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
   const[editId,setEditId]=useState(null);
+  const[encargoModal,setEncargoModal]=useState(false);
+  const[encargoFamilyKey,setEncargoFamilyKey]=useState(null);
+  const[encargoForm,setEncargoForm]=useState({servicio:"",fecha:"",estado:"PENDIENTE",calificacion:"",nota:""});
   const empty={familia:"",padre:"",madre:"",telPadre:"",telMadre:"",alumno:"",edad:"",cumpleanos:"",nacimiento:"",clase:"CORDERITOS",bautizado:false,sellado:false};
   const conAlMenosUnPadre=familias.filter(f=>((f.padre||"").trim())||((f.madre||"").trim()));
   const filtered=conAlMenosUnPadre
@@ -1633,6 +1636,28 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   };
   const updateMemberFoto=(id,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>f.id===id?{...f,foto}:f)); };
   const updateFamilyFoto=(key,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>(f.familia||f.alumno)===key?{...f,fotoFamilia:foto}:f)); };
+  const abrirEncargo=(familyKey)=>{
+    const todayStr=new Date().toISOString().slice(0,10);
+    setEncargoFamilyKey(familyKey);
+    setEncargoForm({servicio:"",fecha:todayStr,estado:"PENDIENTE",calificacion:"",nota:""});
+    setEncargoModal(true);
+  };
+  const guardarEncargo=()=>{
+    if(!encargoFamilyKey||!encargoForm.servicio.trim())return;
+    const baseMember=familias.find(f=>(f.familia||f.alumno)===encargoFamilyKey);
+    const prev=(baseMember&&baseMember.encargosFamilia)||[];
+    const nuevo={
+      id:Date.now(),
+      servicio:encargoForm.servicio.trim(),
+      fecha:encargoForm.fecha||new Date().toISOString().slice(0,10),
+      estado:encargoForm.estado||"PENDIENTE",
+      calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,
+      nota:encargoForm.nota||""
+    };
+    const next=prev.concat([nuevo]);
+    onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:next}:f));
+    setEncargoModal(false);
+  };
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -1642,9 +1667,17 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         {teacherMode&&!readOnly&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Edita teléfonos y datos</div>}
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      {Object.entries(grouped).sort(([a],[b])=>sortKeyName(a).localeCompare(sortKeyName(b),"es")).map(([key,membersRaw])=>{
+      {Object.entries(grouped).sort(([,aMembers],[,bMembers])=>{
+        const aAlumno=aMembers[0]?.alumno||"";
+        const bAlumno=bMembers[0]?.alumno||"";
+        const pa=parseNombre4(aAlumno).primerApellido||"";
+        const pb=parseNombre4(bAlumno).primerApellido||"";
+        const cmp=pa.localeCompare(pb,"es");
+        return cmp!==0?cmp:aAlumno.localeCompare(bAlumno,"es");
+      }).map(([key,membersRaw])=>{
         const members=[...membersRaw].sort((a,b)=>sortKeyFirstName(a.alumno||"").localeCompare(sortKeyFirstName(b.alumno||""),"es"));
         const fotoFam=members[0].fotoFamilia||null;
+        const encargos=members[0].encargosFamilia||[];
         return(
           <div key={key} style={{...S.card,borderLeft:"5px solid #5B2D8E"}}>
             {/* Family header with group photo */}
@@ -1654,6 +1687,9 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
                 <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>👨‍👩‍👧 {members[0].familia||fullNameToApellidos(members[0].alumno)||key}</div>
                 <div style={{fontSize:11,color:"#7B6B9A"}}>{members.length} alumno{members.length!==1?"s":""}</div>
               </div>
+              {!readOnly&&(
+                <button style={{...S.btn("#F5C842"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)}>📝 Encargar servicio</button>
+              )}
             </div>
             {/* Parents + phones */}
             {(members[0].padre||members[0].madre)&&(
@@ -1689,6 +1725,21 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
                 {!readOnly&&<button style={{...S.btn("#4BBCE0"),padding:"6px 10px",fontSize:12}} onClick={()=>openEdit(m)}>✏️</button>}
               </div>
             ))}
+            {encargos.length>0&&(
+              <div style={{marginTop:10,paddingTop:10,borderTop:"1px dashed #DDD0F0"}}>
+                <div style={{fontWeight:800,color:"#7B5A00",fontSize:12,marginBottom:6}}>📝 Encargos a la familia</div>
+                {encargos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(e=>(
+                  <div key={e.id} style={{fontSize:11,color:"#7B6B9A",marginBottom:4}}>
+                    <div style={{fontWeight:700,color:"#5B2D8E"}}>{e.servicio}</div>
+                    <div>
+                      📅 {e.fecha||"—"} · Estado: {e.estado||"—"}
+                      {e.calificacion!=null&&` · ⭐ ${e.calificacion}/5`}
+                    </div>
+                    {e.nota&&<div style={{fontStyle:"italic"}}>{e.nota}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -1738,6 +1789,25 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
         {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+(form.alumno||"")+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
+      </Modal>
+      <Modal open={encargoModal} onClose={()=>setEncargoModal(false)} title="Encargar servicio a la familia">
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>
+          Este registro quedará guardado como historial de servicios realizados por la familia.
+        </div>
+        <label style={S.label}>Servicio / tarea</label>
+        <input style={{...S.input,marginBottom:10}} placeholder="Ej: Merienda general, decoración, visita, etc." value={encargoForm.servicio} onChange={e=>setEncargoForm(f=>({...f,servicio:e.target.value}))}/>
+        <label style={S.label}>Fecha</label>
+        <input type="date" style={{...S.input,marginBottom:10}} value={encargoForm.fecha} onChange={e=>setEncargoForm(f=>({...f,fecha:e.target.value}))}/>
+        <label style={S.label}>Estado</label>
+        <select style={{...S.input,marginBottom:10}} value={encargoForm.estado} onChange={e=>setEncargoForm(f=>({...f,estado:e.target.value}))}>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="CUMPLIDO">Cumplido</option>
+        </select>
+        <label style={S.label}>Calificación (1–5, opcional)</label>
+        <input type="number" min="1" max="5" step="1" style={{...S.input,marginBottom:10}} value={encargoForm.calificacion} onChange={e=>setEncargoForm(f=>({...f,calificacion:e.target.value}))} placeholder="Ej: 5"/>
+        <label style={S.label}>Notas adicionales</label>
+        <textarea style={{...S.input,minHeight:70,resize:"vertical",marginBottom:14}} value={encargoForm.nota} onChange={e=>setEncargoForm(f=>({...f,nota:e.target.value}))} placeholder="Comentarios sobre cómo cumplió la familia con el servicio."/>
+        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={guardarEncargo}>💾 Guardar encargo</button>
       </Modal>
     </div>
   );
