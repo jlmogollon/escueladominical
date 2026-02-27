@@ -1687,9 +1687,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
                 <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>👨‍👩‍👧 {members[0].familia||fullNameToApellidos(members[0].alumno)||key}</div>
                 <div style={{fontSize:11,color:"#7B6B9A"}}>{members.length} alumno{members.length!==1?"s":""}</div>
               </div>
-              {!readOnly&&(
-                <button style={{...S.btn("#F5C842"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)}>📝 Encargar servicio</button>
-              )}
+              <button style={{...S.btn("#F5C842"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)}>📝 Encargar servicio</button>
             </div>
             {/* Parents + phones */}
             {(members[0].padre||members[0].madre)&&(
