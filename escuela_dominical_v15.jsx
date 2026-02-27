@@ -945,7 +945,7 @@ function MaestrosPanel({maestros,onUpdate}){
       </div>
         <div style={{fontSize:11,color:"#7B6B9A"}}>Toca la foto para actualizarla</div>
       </div>
-      {filtered.map(m=>(
+      {[...filtered].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=>(
         <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
           <AvatarUpload
             photo={m.foto||null}
@@ -1584,7 +1584,8 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   const[editId,setEditId]=useState(null);
   const empty={familia:"",padre:"",madre:"",telPadre:"",telMadre:"",alumno:"",edad:"",cumpleanos:"",nacimiento:"",clase:"CORDERITOS",bautizado:false,sellado:false};
   const conAlMenosUnPadre=familias.filter(f=>((f.padre||"").trim())||((f.madre||"").trim()));
-  const filtered=conAlMenosUnPadre.filter(f=>{const q=search.toLowerCase();return!q||f.alumno?.toLowerCase().includes(q)||f.familia?.toLowerCase().includes(q)||f.padre?.toLowerCase().includes(q)||f.madre?.toLowerCase().includes(q);});
+  const filtered=conAlMenosUnPadre
+    .filter(f=>{const q=search.toLowerCase();return!q||f.alumno?.toLowerCase().includes(q)||f.familia?.toLowerCase().includes(q)||f.padre?.toLowerCase().includes(q)||f.madre?.toLowerCase().includes(q);});
   const grouped={};
   filtered.forEach(f=>{const k=f.familia||f.alumno;if(!grouped[k])grouped[k]=[];grouped[k].push(f);});
   const openEdit=(f)=>{if(!readOnly){setForm({...empty,...f});setEditId(f.id);setModal(true);}};
@@ -1632,7 +1633,8 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         {teacherMode&&!readOnly&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Edita teléfonos y datos</div>}
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      {Object.entries(grouped).map(([key,members])=>{
+      {Object.entries(grouped).sort(([a],[b])=>sortKeyName(a).localeCompare(sortKeyName(b),"es")).map(([key,membersRaw])=>{
+        const members=[...membersRaw].sort((a,b)=>sortKeyName(a.alumno||"").localeCompare(sortKeyName(b.alumno||""),"es"));
         const fotoFam=members[0].fotoFamilia||null;
         return(
           <div key={key} style={{...S.card,borderLeft:"5px solid #5B2D8E"}}>
@@ -1795,7 +1797,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
-              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"8px 12px"}} onClick={()=>deleteAlumno(a)} title="Eliminar">🗑</button>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"8px 12px"}} onClick={()=>{if(!confirmDelete("¿Eliminar a "+shortDisplayName(a.nombre)+"?"))return;deleteAlumno(a);}} title="Eliminar">🗑</button>
             </div>
           );
         })
@@ -2632,7 +2634,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
   const criterios=data.criterios||CRITERIOS;
   const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
   const miClase=teacherInfo.clase;
-  const misNinos=clases[miClase]||[];
+  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
   const misSesiones=cronograma.filter(c=>(c.maestro===user.name||c.auxiliar===user.name)&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
@@ -2810,7 +2812,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const alumnosSource=alumnos&&Array.isArray(alumnos)&&alumnos.length>0;
   const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
   const miClase=teacherInfo.clase;
-  const misNinos=clases[miClase]||[];
+  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
   const misClases=cronograma.filter(c=>c.maestro===user.name||c.auxiliar===user.name).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
 
@@ -2877,7 +2879,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     if(peticionEditIdT)onUpdateData("peticiones",peticiones.map(p=>p.id===peticionEditIdT?{...p,texto:peticionEditFormT.texto,anonimo:peticionEditFormT.anonimo}:p));
     setPeticionModalT(false);
   };
-  const deletePeticionT=()=>{if(peticionEditIdT&&confirm("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",peticiones.filter(p=>p.id!==peticionEditIdT));setPeticionModalT(false);}};
+  const deletePeticionT=()=>{if(peticionEditIdT&&confirmDelete("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",peticiones.filter(p=>p.id!==peticionEditIdT));setPeticionModalT(false);}};
 
   const tabs=[{id:"inicio",label:"Inicio",icon:"🏠"},{id:"cronograma",label:"Horario",icon:"📅"},{id:"calificaciones",label:"Calific.",icon:"📊"},{id:"clase",label:"Clase",icon:"👧"},{id:"mas",label:"Más",icon:"☰"}];
 
@@ -4024,8 +4026,8 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
   const todayStr=new Date().toISOString().slice(0,10);
   const[gastoForm,setGastoForm]=useState({fecha:todayStr,concepto:"",monto:"",responsable:""});
   const[actForm,setActForm]=useState({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""});
-  const[donForm,setDonForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:""});
-  const[votoForm,setVotoForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:""});
+  const[donForm,setDonForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:"",responsableMaestro:""});
+  const[votoForm,setVotoForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:"",otroNombre:""});
 
   const gastos=Array.isArray(finanzas?.gastos)?finanzas.gastos:[];
   const actividades=Array.isArray(finanzas?.actividades)?finanzas.actividades:[];
@@ -4040,7 +4042,10 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
     onUpdate({...finanzas,gastos:[...gastos,nuevo]});
     setGastoForm({fecha:todayStr,concepto:"",monto:"",responsable:gastoForm.responsable});
   };
-  const deleteGasto=id=>onUpdate({...finanzas,gastos:gastos.filter(g=>g.id!==id)});
+  const deleteGasto=id=>{
+    if(!confirmDelete("¿Eliminar este gasto del comité?"))return;
+    onUpdate({...finanzas,gastos:gastos.filter(g=>g.id!==id)});
+  };
 
   const saveActividad=()=>{
     if(!actForm.nombre.trim())return;
@@ -4059,12 +4064,16 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
     onUpdate({...finanzas,actividades:[...actividades,nueva]});
     setActForm({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
   };
-  const deleteActividad=id=>onUpdate({...finanzas,actividades:actividades.filter(a=>a.id!==id)});
+  const deleteActividad=id=>{
+    if(!confirmDelete("¿Eliminar esta actividad del comité?"))return;
+    onUpdate({...finanzas,actividades:actividades.filter(a=>a.id!==id)});
+  };
 
   const saveDonativo=()=>{
     if(!donForm.efectivo && !donForm.tpv)return;
     const mEf=parseFloat(donForm.efectivo.replace(",",".")||"0");
     const mTpv=parseFloat(donForm.tpv.replace(",",".")||"0");
+    const responsable=donForm.responsableMaestro||donForm.donante||"";
     const nuevo={
       id:Date.now()+"-d",
       fecha:donForm.fecha||new Date().toISOString().slice(0,10),
@@ -4072,15 +4081,16 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       tipo:"DONATIVO",
       efectivo:isNaN(mEf)?0:mEf,
       tpv:isNaN(mTpv)?0:mTpv,
-      responsable:donForm.donante||"",
+      responsable,
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setDonForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:donForm.donante});
+    setDonForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:donForm.donante,responsableMaestro:donForm.responsableMaestro});
   };
   const saveVoto=()=>{
     if(!votoForm.efectivo && !votoForm.tpv)return;
     const mEf=parseFloat(votoForm.efectivo.replace(",",".")||"0");
     const mTpv=parseFloat(votoForm.tpv.replace(",",".")||"0");
+    const responsable=votoForm.responsable||votoForm.otroNombre||"";
     const nuevo={
       id:Date.now()+"-v",
       fecha:votoForm.fecha||new Date().toISOString().slice(0,10),
@@ -4088,12 +4098,15 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       tipo:"VOTO",
       efectivo:isNaN(mEf)?0:mEf,
       tpv:isNaN(mTpv)?0:mTpv,
-      responsable:votoForm.responsable||"",
+      responsable,
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setVotoForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable});
+    setVotoForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable,otroNombre:votoForm.otroNombre});
   };
-  const deleteDonativo=id=>onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
+  const deleteDonativo=id=>{
+    if(!confirmDelete("¿Eliminar este registro de donativo/voto?"))return;
+    onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
+  };
 
   const maestrosOpts=[...maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
 
@@ -4177,7 +4190,11 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <input style={S.input} placeholder="Concepto" value={donForm.concepto} onChange={e=>setDonForm(f=>({...f,concepto:e.target.value}))}/>
           <input style={S.input} placeholder="€ Efectivo" value={donForm.efectivo} onChange={e=>setDonForm(f=>({...f,efectivo:e.target.value}))}/>
           <input style={S.input} placeholder="€ TPV" value={donForm.tpv} onChange={e=>setDonForm(f=>({...f,tpv:e.target.value}))}/>
-          <input style={S.input} placeholder="Donante" value={donForm.donante} onChange={e=>setDonForm(f=>({...f,donante:e.target.value}))}/>
+          <select style={S.input} value={donForm.responsableMaestro} onChange={e=>setDonForm(f=>({...f,responsableMaestro:e.target.value,donante:e.target.value||f.donante}))}>
+            <option value="">Responsable (maestro/aux)</option>
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+          </select>
+          <input style={S.input} placeholder="Otro donante (si aplica)" value={donForm.donante} onChange={e=>setDonForm(f=>({...f,donante:e.target.value}))}/>
         </div>
         <button style={{...S.btn("#4CAF50","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveDonativo}>➕ Añadir donativo</button>
         {donativos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin donativos registrados.</div>}
@@ -4212,6 +4229,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
             <option value="">Responsable</option>
             {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
           </select>
+          <input style={S.input} placeholder="Nombre si no es maestro" value={votoForm.otroNombre} onChange={e=>setVotoForm(f=>({...f,otroNombre:e.target.value}))}/>
         </div>
         <button style={{...S.btn("#F5C842","#3D1B6B",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveVoto}>➕ Añadir voto</button>
         {votos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin votos registrados.</div>}
