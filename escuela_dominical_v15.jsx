@@ -468,6 +468,15 @@ function sortKeyName(str){
   const out=[apellidos,nombres].filter(Boolean).join(" ").trim();
   return out||str;
 }
+// Clave para ordenar personas por primer nombre (P1 [P2]) y luego apellidos.
+function sortKeyFirstName(str){
+  if(!str)return str;
+  const p4=parseNombre4(str);
+  const nombres=[p4.primerNombre||"",p4.segundoNombre||""].filter(Boolean).join(" ").trim();
+  const apellidos=[p4.primerApellido||"",p4.segundoApellido||""].filter(Boolean).join(" ").trim();
+  const out=[nombres,apellidos].filter(Boolean).join(" ").trim();
+  return out||str;
+}
 // De un nombre completo devuelve solo apellidos (A1 [A2]) para mostrar como nombre de familia.
 function fullNameToApellidos(str){
   if(!str)return"";
@@ -762,7 +771,7 @@ function LoginScreen({onLogin}){
             <label style={S.label}>Tu nombre</label>
             <select style={{...S.input,marginBottom:14}} value={teacherName} onChange={e=>{setTeacherName(e.target.value);setError("");}}>
               <option value="">— Selecciona tu nombre —</option>
-              {[...maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} ({m.cargo})</option>)}
+              {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} ({m.cargo})</option>)}
             </select>
             <label style={S.label}>Contraseña</label>
             <input type="password" style={{...S.input,marginBottom:16}} value={teacherPw} onChange={e=>setTeacherPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} placeholder="••••"/>
@@ -945,7 +954,7 @@ function MaestrosPanel({maestros,onUpdate}){
       </div>
         <div style={{fontSize:11,color:"#7B6B9A"}}>Toca la foto para actualizarla</div>
       </div>
-      {[...filtered].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=>(
+      {[...filtered].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=>(
         <div key={m.id} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
           <AvatarUpload
             photo={m.foto||null}
@@ -1257,10 +1266,8 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         <select style={{...S.input,marginBottom:12}} value={form.maestro} onChange={e=>setForm(f=>({...f,maestro:e.target.value}))}>
           <option value="">— Sin asignar —</option>
           {form.grupo==="ADOLESCENTES"
-            ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)).sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)}</option>)
+            ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)).sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)}</option>)
             : <>
-                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
-                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
               </>
           }
         </select>
@@ -1270,8 +1277,10 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             <label style={S.label}>🤝 Auxiliar</label>
             <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
               <option value="">— Sin asignar —</option>
-              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
             </select>
           </>
         )}
@@ -1634,7 +1643,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
       {Object.entries(grouped).sort(([a],[b])=>sortKeyName(a).localeCompare(sortKeyName(b),"es")).map(([key,membersRaw])=>{
-        const members=[...membersRaw].sort((a,b)=>sortKeyName(a.alumno||"").localeCompare(sortKeyName(b.alumno||""),"es"));
+        const members=[...membersRaw].sort((a,b)=>sortKeyFirstName(a.alumno||"").localeCompare(sortKeyFirstName(b.alumno||""),"es"));
         const fotoFam=members[0].fotoFamilia||null;
         return(
           <div key={key} style={{...S.card,borderLeft:"5px solid #5B2D8E"}}>
@@ -1740,7 +1749,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
   const[form,setForm]=useState({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null});
-  const sorted=[...(alumnos||[])].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
+  const sorted=[...(alumnos||[])].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
 
   const openAdd=()=>{ setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
@@ -2634,7 +2643,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
   const criterios=data.criterios||CRITERIOS;
   const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
   const miClase=teacherInfo.clase;
-  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
+  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
   const misSesiones=cronograma.filter(c=>(c.maestro===user.name||c.auxiliar===user.name)&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
@@ -2812,7 +2821,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const alumnosSource=alumnos&&Array.isArray(alumnos)&&alumnos.length>0;
   const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
   const miClase=teacherInfo.clase;
-  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
+  const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
   const misClases=cronograma.filter(c=>c.maestro===user.name||c.auxiliar===user.name).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
 
@@ -3896,7 +3905,7 @@ function InformesPanel({data}){
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Historial de clases, alumnos, evaluación y estadísticas personales.</div>
         <label style={S.label}>Seleccionar Maestro/Auxiliar</label>
         <select style={{...S.input,marginBottom:14}} value={selMaestro} onChange={e=>setSelMaestro(e.target.value)}>
-          {[...maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=>(
+          {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=>(
             <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
           ))}
         </select>
@@ -3926,7 +3935,7 @@ function InformesPanel({data}){
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Ficha personal con historial completo de asistencias, calificaciones y observaciones.</div>
         <label style={S.label}>Seleccionar Alumno</label>
         <select style={{...S.input,marginBottom:14}} value={selNino} onChange={e=>setSelNino(e.target.value)}>
-          {ninos.sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(n=>(
+          {ninos.sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(n=>(
             <option key={n.nombre+n.clase} value={n.nombre}>{shortDisplayName(n.nombre)} — {n.clase}</option>
           ))}
         </select>
@@ -4108,7 +4117,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
     onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
   };
 
-  const maestrosOpts=[...maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es"));
+  const maestrosOpts=[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
 
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
@@ -4403,7 +4412,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
                     onChange={e=>setResetForm(f=>({...f,maestro:e.target.value,error:"",ok:false}))}
                   >
                     <option value="">— Selecciona —</option>
-                    {[...data.maestros].sort((a,b)=>sortKeyName(a.nombre).localeCompare(sortKeyName(b.nombre),"es")).map(m=>(
+                    {[...data.maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=>(
                       <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
                     ))}
                   </select>
