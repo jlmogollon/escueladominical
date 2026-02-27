@@ -3890,7 +3890,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#E84F9B",marginBottom:4}}>🏛️ Gastos del Comité</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra compras generales (materiales, regalos, transporte, etc.) con un responsable.</div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:10}}>
           <input type="date" style={S.input} value={gastoForm.fecha} onChange={e=>setGastoForm(f=>({...f,fecha:e.target.value}))}/>
           <input style={S.input} placeholder="Concepto" value={gastoForm.concepto} onChange={e=>setGastoForm(f=>({...f,concepto:e.target.value}))}/>
           <input style={S.input} placeholder="€ Monto" value={gastoForm.monto} onChange={e=>setGastoForm(f=>({...f,monto:e.target.value}))}/>
@@ -3918,7 +3918,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       <div style={{...S.card,borderLeft:"5px solid #4BBCE0",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#2A96BC",marginBottom:4}}>🎉 Actividades del Comité</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra actividades (ventas, rifas, comidas, etc.) con sus ingresos (efectivo / TPV) y gastos.</div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:10}}>
           <input type="date" style={S.input} value={actForm.fecha} onChange={e=>setActForm(f=>({...f,fecha:e.target.value}))}/>
           <input style={S.input} placeholder="Nombre de la actividad" value={actForm.nombre} onChange={e=>setActForm(f=>({...f,nombre:e.target.value}))}/>
           <input style={S.input} placeholder="€ Efectivo" value={actForm.ingresoEfectivo} onChange={e=>setActForm(f=>({...f,ingresoEfectivo:e.target.value}))}/>
@@ -3958,7 +3958,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       <div style={{...S.card,borderLeft:"5px solid #4CAF50",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#2E7D32",marginBottom:4}}>🙏 Donativos</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra donativos individuales con el nombre del donante y el desglose entre efectivo y TPV.</div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:10}}>
           <input type="date" style={S.input} value={donForm.fecha} onChange={e=>setDonForm(f=>({...f,fecha:e.target.value}))}/>
           <input style={S.input} placeholder="Concepto" value={donForm.concepto} onChange={e=>setDonForm(f=>({...f,concepto:e.target.value}))}/>
           <input style={S.input} placeholder="€ Efectivo" value={donForm.efectivo} onChange={e=>setDonForm(f=>({...f,efectivo:e.target.value}))}/>
@@ -3989,7 +3989,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       <div style={{...S.card,borderLeft:"5px solid #F5C842"}}>
         <div style={{fontWeight:800,fontSize:15,color:"#B69100",marginBottom:4}}>📝 Votos</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra votos u otras promesas asignadas a un maestro/auxiliar, con su desglose entre efectivo y TPV.</div>
-        <div style={{display:"grid",gridTemplateColumns:"1.2fr 2fr 1fr 1fr 1.4fr",gap:8,marginBottom:10}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:10}}>
           <input type="date" style={S.input} value={votoForm.fecha} onChange={e=>setVotoForm(f=>({...f,fecha:e.target.value}))}/>
           <input style={S.input} placeholder="Concepto" value={votoForm.concepto} onChange={e=>setVotoForm(f=>({...f,concepto:e.target.value}))}/>
           <input style={S.input} placeholder="€ Efectivo" value={votoForm.efectivo} onChange={e=>setVotoForm(f=>({...f,efectivo:e.target.value}))}/>
