@@ -1625,8 +1625,12 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   const[encargoModal,setEncargoModal]=useState(false);
   const[encargoFamilyKey,setEncargoFamilyKey]=useState(null);
   const[encargoEditId,setEncargoEditId]=useState(null);
+  const[openEncargosKey,setOpenEncargosKey]=useState(null);
   const[encargoForm,setEncargoForm]=useState({servicio:"",fecha:"",estado:"PENDIENTE",calificacion:"",nota:""});
   const empty={familia:"",padre:"",madre:"",telPadre:"",telMadre:"",alumno:"",edad:"",cumpleanos:"",nacimiento:"",clase:"CORDERITOS",bautizado:false,sellado:false};
+  const updateEncargoInline=(familyKey,encargoId,patch)=>{
+    onUpdate(familias.map(f=>(f.familia||f.alumno)===familyKey?{...f,encargosFamilia:(f.encargosFamilia||[]).map(e=>e.id===encargoId?{...e,...patch}:e)}:f));
+  };
   const conAlMenosUnPadre=familias.filter(f=>((f.padre||"").trim())||((f.madre||"").trim()));
   const filtered=conAlMenosUnPadre
     .filter(f=>{const q=search.toLowerCase();return!q||f.alumno?.toLowerCase().includes(q)||f.familia?.toLowerCase().includes(q)||f.padre?.toLowerCase().includes(q)||f.madre?.toLowerCase().includes(q);});
@@ -1754,30 +1758,48 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
               </div>
               <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)} title="Asignar un servicio a esta familia">📝 Encargar servicio</button>
             </div>
-            {/* Historial de encargos de servicio — siempre visible al entrar en la familia */}
-            <div style={{background:"#FFFBF0",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #F5C84244"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:8}}>
-                <div>
-                  <div style={{fontWeight:800,color:"#7B5A00",fontSize:14}}>📝 Historial de encargos de servicio</div>
-                  <div style={{fontSize:11,color:"#7B6B9A",marginTop:2}}>Encargos que tiene o ha tenido esta familia. Editar, calificar o eliminar; el registro se conserva.</div>
+            {/* Historial de encargos en desplegable */}
+            <div style={{marginBottom:12}}>
+              <button
+                style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"#FFFBF0",border:"1px solid #F5C84244",borderRadius:10,fontSize:13,fontWeight:700,color:"#7B5A00",cursor:"pointer",fontFamily:"inherit"}}
+                onClick={()=>setOpenEncargosKey(openEncargosKey===key?null:key)}
+              >
+                <span>📝 Historial de encargos de servicio {encargos.length>0?`(${encargos.length})`:""}</span>
+                <span style={{fontSize:18}}>{openEncargosKey===key?"▼":"▶"}</span>
+              </button>
+              {openEncargosKey===key&&(
+                <div style={{marginTop:8,padding:"12px 14px",background:"#FFFEF5",borderRadius:10,border:"1px solid #F5C84233"}}>
+                  {encargos.length===0?(
+                    <div style={{fontSize:13,color:"#7B6B9A",fontStyle:"italic"}}>Aún no hay encargos. Usa «Encargar servicio» para asignar uno.</div>
+                  ):(
+                    encargos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(e=>(
+                        <div key={e.id} style={{padding:"10px 0",borderBottom:"1px solid #F5C84233"}}>
+                          <div style={{fontWeight:700,fontSize:13,color:"#5B2D8E"}}>{e.servicio}</div>
+                          <div style={{fontSize:11,color:"#7B6B9A",marginBottom:8}}>📅 {e.fecha||"—"}</div>
+                          <div style={{fontSize:11,color:"#7B6B9A",marginBottom:4}}>Estado: {e.estado==="CUMPLIDO"?"✅ Cumplió":e.estado==="NO_CUMPLIO"?"❌ No cumplió":"⏳ Pendiente"}</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center",marginBottom:6}}>
+                            <span style={{fontSize:11,color:"#7B6B9A"}}>¿Cumplió?</span>
+                            <button style={{...S.btn(e.estado==="CUMPLIDO"?"#4CAF50":"#F5F0FF",e.estado==="CUMPLIDO"?"#FFF":"#2D1B4E"),padding:"4px 10px",fontSize:11}} onClick={()=>updateEncargoInline(key,e.id,{...e,estado:"CUMPLIDO"})}>Cumplió</button>
+                            <button style={{...S.btn(e.estado==="NO_CUMPLIO"?"#EF5350":"#F5F0FF",e.estado==="NO_CUMPLIO"?"#FFF":"#2D1B4E"),padding:"4px 10px",fontSize:11}} onClick={()=>updateEncargoInline(key,e.id,{...e,estado:"NO_CUMPLIO"})}>No cumplió</button>
+                            <button style={{...S.btn(e.estado==="PENDIENTE"?"#7B6B9A":"#F5F0FF",e.estado==="PENDIENTE"?"#FFF":"#2D1B4E"),padding:"4px 10px",fontSize:11}} onClick={()=>updateEncargoInline(key,e.id,{...e,estado:"PENDIENTE"})}>Pendiente</button>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",marginBottom:6}}>
+                            <span style={{fontSize:11,color:"#7B6B9A"}}>Calificación:</span>
+                            {[1,2,3,4,5].map(s=>(
+                              <button key={s} type="button" style={{padding:2,border:"none",background:"transparent",cursor:"pointer",fontSize:18}} onClick={()=>updateEncargoInline(key,e.id,{...e,calificacion:s})} title={`${s} estrella(s)`}>
+                                <span style={{color:(e.calificacion!=null&&e.calificacion>=s)?"#F5C842":"#e0e0e0"}}>★</span>
+                              </button>
+                            ))}
+                            {e.calificacion!=null&&<span style={{fontSize:11,color:"#7B6B9A"}}>{e.calificacion}/5</span>}
+                          </div>
+                          <div style={{display:"flex",gap:6}}>
+                            <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"4px 8px",fontSize:11}} onClick={()=>abrirEncargo(key,e)}>✏️ Editar / Nota</button>
+                            <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>eliminarEncargo(key,e.id)}>🗑 Eliminar</button>
+                          </div>
+                        </div>
+                    ))
+                  )}
                 </div>
-              </div>
-              {encargos.length===0?(
-                <div style={{fontSize:13,color:"#7B6B9A",fontStyle:"italic"}}>Aún no hay encargos. Usa el botón de arriba para asignar uno.</div>
-              ):(
-                encargos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(e=>(
-                  <div key={e.id} style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8,flexWrap:"wrap",padding:"8px 0",borderBottom:"1px solid #F5C84233"}}>
-                    <div style={{flex:1,fontSize:12,color:"#2D1B4E",minWidth:0}}>
-                      <div style={{fontWeight:700,color:"#5B2D8E"}}>{e.servicio}</div>
-                      <div style={{fontSize:11,color:"#7B6B9A"}}>📅 {e.fecha||"—"} · Estado: {e.estado||"—"}{e.calificacion!=null&&` · ⭐ ${e.calificacion}/5`}</div>
-                      {e.nota&&<div style={{fontStyle:"italic",fontSize:11,color:"#7B6B9A"}}>{e.nota}</div>}
-                    </div>
-                    <>
-                      <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"4px 10px",fontSize:11}} onClick={()=>abrirEncargo(key,e)}>✏️ Editar / Calificar</button>
-                      <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 10px",fontSize:11}} onClick={()=>eliminarEncargo(key,e.id)} title="Eliminar encargo">🗑 Eliminar</button>
-                    </>
-                  </div>
-                ))
               )}
             </div>
             {/* Parents + phones */}
@@ -1802,7 +1824,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:i>0?"1px solid #DDD0F0":"none"}}>
                 <AvatarUpload photo={m.foto||null} onPhoto={readOnly?()=>{}:(f)=>updateMemberFoto(m.id,f)} size={40} initials={getInitials(m.alumno)} color={CLASE_COLORS[m.clase]||"#4BBCE0"}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{m.alumno||""}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{shortDisplayName(m.alumno||"")}</div>
               <div style={{fontSize:12,color:"#7B6B9A"}}>
                 {m.edad}
                 {m.cumpleanos?" · 🎂 "+m.cumpleanos:""}
@@ -1862,7 +1884,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
           </>
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
-        {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+(form.alumno||"")+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
+        {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+shortDisplayName(buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido)||form.alumno||"")+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
       </Modal>
       <Modal open={encargoModal} onClose={()=>{setEncargoModal(false);setEncargoEditId(null);}} title={encargoEditId?"Revisar / Calificar servicio":"Encargar servicio a la familia"}>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>
@@ -1921,8 +1943,10 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
   const openEdit=(a)=>{
     const words=(a.nombre||"").trim().split(/\s+/).filter(Boolean);
     const primerNombre=words.length?words[0]:"";
-    const primerApellido=words.length>=2?(words.length===2?words[1]:words[words.length-2]):"";
-    setForm({ primerNombre, segundoNombre: "", primerApellido, segundoApellido: "", nombrePadre: (a.padre||"").trim(), nombreMadre: (a.madre||"").trim(), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
+    const segundoNombre=words.length>=3?words[1]:"";
+    const primerApellido=words.length>=2?(words.length===2?words[1]:words[2]):"";
+    const segundoApellido=words.length>=4?words[3]:"";
+    setForm({ primerNombre, segundoNombre, primerApellido, segundoApellido, nombrePadre: (a.padre||"").trim(), nombreMadre: (a.madre||"").trim(), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     setEditId(a.id);
     setModal(true);
   };
