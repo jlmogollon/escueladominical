@@ -19,7 +19,7 @@ function flipName(str) {
   if (parts.length < 2) return str;
   let apellido, nombre;
   if (parts.length === 4) {
-    apellido = parts[0] + " " + parts[1];
+    apellido = parts[0] + " mi" + parts[1];
     nombre = parts[2] + " " + parts[3];
   } else if (parts.length === 3) {
     apellido = parts[0] + " " + parts[1];
@@ -657,9 +657,18 @@ function BottomNav({tabs,active,onSelect}){
   );
 }
 
-function StatCard({icon,value,label,color="#5B2D8E"}){
+function StatCard({icon,value,label,color="#5B2D8E",onClick}){
+  const baseStyle={background:"#FFFFFF",borderRadius:16,padding:"14px 16px",boxShadow:"0 2px 12px rgba(91,45,142,0.09)",borderLeft:"5px solid "+color,display:"flex",alignItems:"center",gap:12};
+  const style=onClick?{...baseStyle,cursor:"pointer",transition:"transform 0.15s, box-shadow 0.15s"}:baseStyle;
   return(
-    <div style={{background:"#FFFFFF",borderRadius:16,padding:"14px 16px",boxShadow:"0 2px 12px rgba(91,45,142,0.09)",borderLeft:`5px solid ${color}`,display:"flex",alignItems:"center",gap:12}}>
+    <div
+      style={style}
+      onClick={onClick}
+      onMouseDown={onClick?e=>e.currentTarget.style.transform="scale(0.98)":undefined}
+      onMouseUp={onClick?e=>e.currentTarget.style.transform="":undefined}
+      onMouseLeave={onClick?e=>e.currentTarget.style.transform="":undefined}
+      role={onClick?"button":undefined}
+    >
       <div style={{fontSize:26,width:46,height:46,background:color+"20",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</div>
       <div><div style={{fontSize:24,fontWeight:900,color,lineHeight:1}}>{value}</div><div style={{fontSize:11,color:"#7B6B9A",fontWeight:600,marginTop:2}}>{label}</div></div>
     </div>
@@ -814,13 +823,14 @@ function LoginScreen({onLogin}){
 }
 
 // ══════════ ADMIN DASHBOARD ══════════
-function AdminDashboard({data,onUpdateData}){
+function AdminDashboard({data,onUpdateData,onGoToTab}){
   const maestros=Array.isArray(data.maestros)?data.maestros:[];
   const familias=Array.isArray(data.familias)?data.familias:[];
   const eventos=Array.isArray(data.eventos)?data.eventos:[];
   const peticiones=Array.isArray(data.peticiones)?data.peticiones:[];
   const clases=data.clases&&typeof data.clases==="object"?data.clases:{};
   const ninos=Object.values(clases).flat();
+  const go=(tabId,masSub)=>{if(onGoToTab)onGoToTab(tabId,masSub);};
   const today=new Date();
   const upcomingEvents=eventos.filter(e=>{try{const[d,m,y]=e.fecha.split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-today)/86400000);return diff>=0&&diff<=60;}catch(e){return false;}}).slice(0,5);
   const[sortedPeticiones,setSortedPeticiones]=useState([]);
@@ -847,10 +857,12 @@ function AdminDashboard({data,onUpdateData}){
       <div style={{padding:"0 1rem 6.25rem"}}>
         <h2 style={S.title}>Panel General</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-          <StatCard icon="👨‍🏫" value={maestros.filter(m=>m.cargo==="MAESTRO").length} label="Maestros" color="#5B2D8E"/>
-          <StatCard icon="🤝" value={maestros.filter(m=>m.cargo==="AUXILIAR").length} label="Auxiliares" color="#4BBCE0"/>
-          <StatCard icon="👶" value={ninos.length} label="Niños" color="#E84F9B"/>
-          <StatCard icon="👨‍👩‍👧" value={[...new Set(familias.map(f=>f.num))].filter(Boolean).length} label="Familias" color="#F5C842"/>
+          <StatCard icon="👨‍🏫" value={maestros.filter(m=>m.cargo==="MAESTRO").length} label="Maestros" color="#5B2D8E" onClick={onGoToTab?()=>go("maestros"):undefined}/>
+          <StatCard icon="🤝" value={maestros.filter(m=>m.cargo==="AUXILIAR").length} label="Auxiliares" color="#4BBCE0" onClick={onGoToTab?()=>go("maestros"):undefined}/>
+          <StatCard icon="👶" value={ninos.length} label="Niños" color="#E84F9B" onClick={onGoToTab?()=>go("clases"):undefined}/>
+          <StatCard icon="👨‍👩‍👧" value={[...new Set(familias.map(f=>f.num))].filter(Boolean).length} label="Familias" color="#F5C842" onClick={onGoToTab?()=>go("mas","familias"):undefined}/>
+          <StatCard icon="🙏" value={ninos.filter(n=>n.bautizado).length} label="Bautizados" color="#22c55e" onClick={onGoToTab?()=>go("alumnos","bautizados"):undefined}/>
+          <StatCard icon="✨" value={ninos.filter(n=>n.sellado).length} label="Sellados" color="#a78bfa" onClick={onGoToTab?()=>go("alumnos","sellados"):undefined}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
           <a href="https://drive.google.com/drive/folders/1PW00hDNw0POgEPW4LiANMH7PgByvX8A5?usp=sharing" target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
@@ -876,7 +888,15 @@ function AdminDashboard({data,onUpdateData}){
           <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,marginBottom:12}}>📊 Alumnos por Clase</h3>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
             {CLASES_LIST.map(cl=>(
-              <div key={cl} style={{background:CLASE_COLORS[cl]+"18",border:`2px solid ${CLASE_COLORS[cl]}44`,borderRadius:14,padding:"12px",textAlign:"center"}}>
+              <div
+                key={cl}
+                role={onGoToTab?"button":undefined}
+                style={{background:CLASE_COLORS[cl]+"18",border:`2px solid ${CLASE_COLORS[cl]}44`,borderRadius:14,padding:"12px",textAlign:"center",...(onGoToTab?{cursor:"pointer",transition:"transform 0.15s"}:{})}}
+                onClick={onGoToTab?()=>go("clases"):undefined}
+                onMouseDown={onGoToTab?e=>e.currentTarget.style.transform="scale(0.98)":undefined}
+                onMouseUp={onGoToTab?e=>e.currentTarget.style.transform="":undefined}
+                onMouseLeave={onGoToTab?e=>e.currentTarget.style.transform="":undefined}
+              >
                 <div style={{fontSize:26,fontWeight:900,color:CLASE_COLORS[cl]}}>{(clases[cl]||[]).length}</div>
                 <div style={{fontWeight:800,color:CLASE_COLORS[cl],fontSize:11}}>{cl}</div>
                 <div style={{fontSize:10,color:"#7B6B9A",marginTop:2}}>{maestros.filter(m=>m.clase===cl).length} maestros</div>
@@ -1562,11 +1582,11 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
         {form.nacimiento&&(function(){try{const d=new Date(form.nacimiento);const dd=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;const hoy=new Date();const edad=hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0);return <div style={{marginBottom:12,background:"#F5F0FF",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#5B2D8E"}}>🎂 {dd} · {edad} años</div>;}catch(e){return null;}}())}
         <div style={{display:"flex",gap:16,marginBottom:18}}>
           <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-            <input type="checkbox" checked={!!form.bautizado} onChange={e=>setForm(f=>({...f,bautizado:e.target.checked,sellado:e.target.checked?false:f.sellado}))}/>
+            <input type="checkbox" checked={!!form.bautizado} onChange={e=>setForm(f=>({...f,bautizado:e.target.checked}))}/>
             Bautizado
           </label>
           <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-            <input type="checkbox" checked={!!form.sellado} onChange={e=>setForm(f=>({...f,sellado:e.target.checked,bautizado:e.target.checked?false:f.bautizado}))}/>
+            <input type="checkbox" checked={!!form.sellado} onChange={e=>setForm(f=>({...f,sellado:e.target.checked}))}/>
             Sellado
           </label>
         </div>
@@ -1842,30 +1862,17 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
             <select style={{...S.input,marginBottom:18}} value={form.clase||"CORDERITOS"} onChange={e=>setForm(f=>({...f,clase:e.target.value}))}>
               {CLASES_LIST.map(cl=><option key={cl} value={cl}>{cl}</option>)}
             </select>
-            <div style={{display:"flex",gap:16,marginBottom:18,marginTop:4}}>
+            <div style={{display:"flex",gap:16,marginBottom:18,marginTop:4,flexWrap:"wrap"}}>
               <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-                <input
-                  type="checkbox"
-                  checked={!!form.bautizado}
-                  onChange={e=>setForm(f=>({
-                    ...f,
-                    bautizado:e.target.checked,
-                    sellado:e.target.checked?false:f.sellado
-                  }))}/>
-                Bautizado
+                <input type="checkbox" checked={!!form.bautizado} onChange={e=>setForm(f=>({...f,bautizado:e.target.checked}))}/>
+                🙏 Bautizado
               </label>
               <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-                <input
-                  type="checkbox"
-                  checked={!!form.sellado}
-                  onChange={e=>setForm(f=>({
-                    ...f,
-                    sellado:e.target.checked,
-                    bautizado:e.target.checked?false:f.bautizado
-                  }))}/>
-                Sellado
+                <input type="checkbox" checked={!!form.sellado} onChange={e=>setForm(f=>({...f,sellado:e.target.checked}))}/>
+                ✨ Sellado
               </label>
             </div>
+            <div style={{fontSize:11,color:"#7B6B9A",marginTop:-8,marginBottom:8}}>Puedes marcar uno, ambos o ninguno.</div>
           </>
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
@@ -1917,12 +1924,17 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
 }
 
 // ══════════ ALUMNOS PANEL (única fuente de verdad; aquí se editan todos los alumnos) ══════════
-function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
+function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onSubTabConsumed}){
   const cfg=getCfgList(clasesConfig);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
+  const[alumnoSubTab,setAlumnoSubTab]=useState("todos"); // "todos" | "bautizados" | "sellados"
   const[form,setForm]=useState({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null});
   const sorted=[...(alumnos||[])].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
+  const bautizados=sorted.filter(a=>a.bautizado);
+  const sellados=sorted.filter(a=>a.sellado);
+  const listado=alumnoSubTab==="bautizados"?bautizados:alumnoSubTab==="sellados"?sellados:sorted;
+  useEffect(()=>{ if(initialSubTab==="bautizados"||initialSubTab==="sellados"){ setAlumnoSubTab(initialSubTab); onSubTabConsumed&&onSubTabConsumed(); } },[initialSubTab]);
 
   const openAdd=()=>{ setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
@@ -1969,17 +1981,29 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
         </div>
         <div style={{fontSize:12,color:"#7B6B9A",marginTop:4}}>Lista única; las clases y familias se derivan de aquí. Solo aquí se editan alumnos.</div>
       </div>
-      {sorted.length===0?(
-        <div style={{textAlign:"center",padding:"40px 20px",color:"#7B6B9A",fontSize:14}}>No hay alumnos. Agrega el primero desde el botón superior.</div>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <button style={{...S.btn(alumnoSubTab==="todos"?"#5B2D8E":"#F5F0FF",alumnoSubTab==="todos"?"#FFFFFF":"#2D1B4E"),padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:700}} onClick={()=>setAlumnoSubTab("todos")}>👦 Todos ({sorted.length})</button>
+        <button style={{...S.btn(alumnoSubTab==="bautizados"?"#22c55e":"#F5F0FF",alumnoSubTab==="bautizados"?"#FFFFFF":"#2D1B4E"),padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:700}} onClick={()=>setAlumnoSubTab("bautizados")}>🙏 Bautizados ({bautizados.length})</button>
+        <button style={{...S.btn(alumnoSubTab==="sellados"?"#a78bfa":"#F5F0FF",alumnoSubTab==="sellados"?"#FFFFFF":"#2D1B4E"),padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:700}} onClick={()=>setAlumnoSubTab("sellados")}>✨ Sellados ({sellados.length})</button>
+      </div>
+      {listado.length===0?(
+        <div style={{textAlign:"center",padding:"40px 20px",color:"#7B6B9A",fontSize:14}}>
+          {sorted.length===0?"No hay alumnos. Agrega el primero desde el botón superior.":alumnoSubTab==="bautizados"?"Ningún alumno marcado como bautizado.":alumnoSubTab==="sellados"?"Ningún alumno marcado como sellado.":"No hay resultados."}
+        </div>
       ):(
-        sorted.map(a=>{
+        listado.map(a=>{
           const color=getCfgColor(normalizarClase(a.clase),clasesConfig);
           return(
             <div key={a.id} style={{...S.card,display:"flex",alignItems:"center",gap:12,borderLeft:"4px solid "+color}}>
               <AvatarUpload photo={a.foto} onPhoto={()=>{}} size={44} initials={getInitials(a.nombre)} color={color}/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700}}>{displayNameAlumno(a)}</div>
-                <div style={{fontSize:12,color:"#7B6B9A"}}>{(a.padre||a.madre)?"👨‍👩‍👧 Familia":"—"}</div>
+                <div style={{fontSize:12,color:"#7B6B9A",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  {(a.padre||a.madre)?"👨‍👩‍👧 Familia":""}
+                  {a.bautizado&&<span style={{background:"#22c55e22",color:"#22c55e",padding:"2px 6px",borderRadius:6,fontSize:10,fontWeight:700}}>🙏 Bautizado</span>}
+                  {a.sellado&&<span style={{background:"#a78bfa22",color:"#a78bfa",padding:"2px 6px",borderRadius:6,fontSize:10,fontWeight:700}}>✨ Sellado</span>}
+                  {!(a.padre||a.madre)&&!a.bautizado&&!a.sellado&&"—"}
+                </div>
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
@@ -2018,16 +2042,17 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
         <label style={S.label}>Fecha de nacimiento</label>
         <input type="date" style={{...S.input,marginBottom:12}} value={form.nacimiento||""} onChange={e=>setForm(f=>({...f,nacimiento:e.target.value}))}/>
         {form.nacimiento&&(function(){try{const d=new Date(form.nacimiento);const dd=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;const hoy=new Date();const edad=hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0);return <div style={{marginBottom:12,background:"#F5F0FF",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#5B2D8E"}}>🎂 {dd} · {edad} años</div>;}catch(e){return null;}}())}
-        <div style={{display:"flex",gap:16,marginBottom:18}}>
+        <div style={{display:"flex",gap:16,marginBottom:18,flexWrap:"wrap"}}>
           <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-            <input type="checkbox" checked={!!form.bautizado} onChange={e=>setForm(f=>({...f,bautizado:e.target.checked,sellado:e.target.checked?false:f.sellado}))}/>
-            Bautizado
+            <input type="checkbox" checked={!!form.bautizado} onChange={e=>setForm(f=>({...f,bautizado:e.target.checked}))}/>
+            🙏 Bautizado
           </label>
           <label style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#5B2D8E"}}>
-            <input type="checkbox" checked={!!form.sellado} onChange={e=>setForm(f=>({...f,sellado:e.target.checked,bautizado:e.target.checked?false:f.bautizado}))}/>
-            Sellado
+            <input type="checkbox" checked={!!form.sellado} onChange={e=>setForm(f=>({...f,sellado:e.target.checked}))}/>
+            ✨ Sellado
           </label>
         </div>
+        <div style={{fontSize:11,color:"#7B6B9A",marginBottom:12}}>Puedes marcar uno, ambos o ninguno.</div>
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
         {editId&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{const a=(alumnos||[]).find(x=>x.id===editId);if(a)deleteAlumno(a);}}>🗑 Eliminar</button>}
       </Modal>
@@ -4546,6 +4571,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
 function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords}){
   const[activeTab,setActiveTab]=useState("inicio");
   const[masTab,setMasTab]=useState("familias");
+  const[alumnoSubTabInitial,setAlumnoSubTabInitial]=useState(null); // "bautizados" | "sellados" cuando se viene del dashboard
   const[adminPwForm,setAdminPwForm]=useState({current:"",master:"",new1:"",new2:"",error:"",ok:false});
   const[resetForm,setResetForm]=useState({maestro:"",newPw:"",master:"",error:"",ok:false});
   const tabs=[
@@ -4607,12 +4633,12 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
         </div>
       </div>
       <div>
-        {activeTab==="inicio"&&<AdminDashboard data={data} onUpdateData={onUpdateData}/>}
+        {activeTab==="inicio"&&<AdminDashboard data={data} onUpdateData={onUpdateData} onGoToTab={(tabId,masSub)=>{setActiveTab(tabId);if(tabId==="alumnos"&&(masSub==="bautizados"||masSub==="sellados"))setAlumnoSubTabInitial(masSub);else if(masSub)setMasTab(masSub);}}/>}
         {activeTab==="horario"&&<CronogramaPanel cronograma={data.cronograma} maestros={data.maestros} onUpdate={v=>onUpdateData("cronograma",v)}/>}
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
         {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} onUpdateCronograma={v=>onUpdateData("cronograma",v)} maestros={data.maestros||[]}/>}
         {activeTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
-        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig}/>}
+        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig} initialSubTab={alumnoSubTabInitial} onSubTabConsumed={()=>setAlumnoSubTabInitial(null)}/>}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
         {activeTab==="mas"&&(
           <div style={{padding:"1rem 1rem 0"}}>
