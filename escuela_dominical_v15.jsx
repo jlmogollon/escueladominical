@@ -200,8 +200,8 @@ function normalizarClase(c){ return (c||"").trim().toUpperCase().replace(/\s+/g,
 // Parsea "Nombre Apellido" en { nombre, apellido }; si solo hay una parte, apellido queda ""
 function parseNombreCompleto(s){const t=(s||"").trim().split(/\s+/).filter(Boolean);if(t.length<2)return{nombre:t[0]||"",apellido:""};return{nombre:t[0],apellido:t.slice(1).join(" ")};}
 // Estructura: primer nombre, [segundo nombre], primer apellido, [segundo apellido]. Segundo nombre y segundo apellido pueden estar vacíos.
-// Parsea nombre en orden "P1 [P2] A1 [A2]" en 4 campos. 2 partes: P1 A1. 3 partes: P1 A1 A2 (sin segundo nombre). 4: P1 P2 A1 A2.
-function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);if(p.length>=4)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};if(p.length===3)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:p[2]||""};if(p.length===2)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:""};return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:"",segundoApellido:""};}
+// Parsea nombre en orden "P1 [P2] A1 [A2]". No rellena segundo nombre ni segundo apellido si no hay: 2 partes P1 A1; 3 partes P1 P2 A1 (segundo apellido en blanco); 4 partes P1 P2 A1 A2.
+function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);if(p.length>=4)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};if(p.length===3)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:""};if(p.length===2)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:""};return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:"",segundoApellido:""};}
 // Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
 function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 // Familia del alumno = primer y segundo apellido del alumno
@@ -229,25 +229,14 @@ const INITIAL_EVENTOS = [
   {id:19,fecha:"17/01/2027",tipo:"LOCAL",nombre:"Clausura y Grado de Escuela Dominical"},
 ];
 
+const EVAL_DEFAULT_3={dominioBiblico:3,habilidadEnsenar:3,claridadComunicarse:3,recursosVisuales:3,manejoGrupo:3,empatia:3,creatividad:3,preparacion:3,compromiso:3,aplicacionPractica:3,cumplimientoClases:3};
 const INITIAL_EVALUACIONES = [
-  {nombre:"Arboleda Diana",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:4,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Bohórquez Luz Mery",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:4,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Cano Ana",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:null,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Castrillón Deisy",dominioBiblico:4,habilidadEnsenar:4,claridadComunicarse:4,recursosVisuales:5,manejoGrupo:4,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Ceballos Yuliet",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:null,manejoGrupo:5,empatia:4,creatividad:null,preparacion:5,compromiso:4,aplicacionPractica:5},
-  {nombre:"Cedeño Mabel",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:4,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Cruz Rosy",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Del Castillo Astrid",dominioBiblico:5,habilidadEnsenar:4,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:4,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Hernández Blanca",dominioBiblico:4,habilidadEnsenar:4,claridadComunicarse:4,recursosVisuales:4,manejoGrupo:4,empatia:4,creatividad:4,preparacion:4,compromiso:4,aplicacionPractica:5},
-  {nombre:"Hernández Ana María",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:null},
-  {nombre:"Mogollón José Luis",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Mora Lucy",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Mora Ana",dominioBiblico:4,habilidadEnsenar:4,claridadComunicarse:4,recursosVisuales:5,manejoGrupo:4,empatia:4,creatividad:4,preparacion:5,compromiso:4,aplicacionPractica:5},
-  {nombre:"Peralta Astrid",dominioBiblico:4,habilidadEnsenar:4,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:4,empatia:4,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Ocampo Alejandro",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:4,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Rodríguez Michael",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5},
-  {nombre:"Rodríguez Carlos",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:4,aplicacionPractica:5},
-  {nombre:"Sepúlveda Andrés",dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:4,compromiso:4,aplicacionPractica:5},
+  {nombre:"Arboleda Diana",...EVAL_DEFAULT_3},{nombre:"Bohórquez Luz Mery",...EVAL_DEFAULT_3},{nombre:"Cano Ana",...EVAL_DEFAULT_3},
+  {nombre:"Castrillón Deisy",...EVAL_DEFAULT_3},{nombre:"Ceballos Yuliet",...EVAL_DEFAULT_3},{nombre:"Cedeño Mabel",...EVAL_DEFAULT_3},
+  {nombre:"Cruz Rosy",...EVAL_DEFAULT_3},{nombre:"Del Castillo Astrid",...EVAL_DEFAULT_3},{nombre:"Hernández Blanca",...EVAL_DEFAULT_3},
+  {nombre:"Hernández Ana María",...EVAL_DEFAULT_3},{nombre:"Mogollón José Luis",...EVAL_DEFAULT_3},{nombre:"Mora Lucy",...EVAL_DEFAULT_3},
+  {nombre:"Mora Ana",...EVAL_DEFAULT_3},{nombre:"Peralta Astrid",...EVAL_DEFAULT_3},{nombre:"Ocampo Alejandro",...EVAL_DEFAULT_3},
+  {nombre:"Rodríguez Michael",...EVAL_DEFAULT_3},{nombre:"Rodríguez Carlos",...EVAL_DEFAULT_3},{nombre:"Sepúlveda Andrés",...EVAL_DEFAULT_3},
 ];
 
 const CRITERIOS = [
@@ -264,11 +253,11 @@ const CLASES_LIST = ["CORDERITOS","VENCEDORES","CONQUISTADORES","ADOLESCENTES"];
 const CLASE_COLORS = {CORDERITOS:"#4BBCE0",VENCEDORES:"#F5C842",CONQUISTADORES:"#5B2D8E",ADOLESCENTES:"#E84F9B"};
 const DEFAULT_FINANZAS = { gastos:[], actividades:[], donativos:[] };
 
-// Maestros autorizados exclusivamente para la clase ADOLESCENTES (sin auxiliar)
+// Maestros autorizados exclusivamente para la clase ADOLESCENTES (sin auxiliar): José Mogollón, Yuliet Ceballos, Martha Caro, Ana María Hernández, José Hernán Díaz
 const ADOLESCENTES_MAESTROS = [
   "Mogollón José Luis",
-  "Caro Martha",
   "Ceballos Yuliet",
+  "Caro Martha",
   "Hernández Ana María",
   "Díaz José Hernán",
 ];
@@ -483,6 +472,21 @@ function fullNameToApellidos(str){
   const p4=parseNombre4(str);
   return [p4.primerApellido||"",p4.segundoApellido||""].filter(Boolean).join(" ").trim();
 }
+// Una sola base: maestros/auxiliares. Mostrar siempre "Primer nombre + Primer apellido". Asume almacenamiento "Nombre(s) Apellido(s)" (parseNombre4).
+function displayMaestroNombre(str){
+  if(!str)return"";
+  return shortDisplayName(str);
+}
+// Parsea para el formulario asumiendo "Apellido Nombre(s)": así al guardar con buildNombreFull queda "Nombre(s) Apellido(s)" y se unifica la base.
+function parseNombreMaestroParaForm(str){
+  if(!str)return{primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:""};
+  const p=(str.trim()).split(/\s+/).filter(Boolean);
+  if(p.length>=4) return{primerNombre:p[2],segundoNombre:p[3],primerApellido:p[0],segundoApellido:p[1]};
+  if(p.length===3) return{primerNombre:p[1],segundoNombre:p[2],primerApellido:p[0],segundoApellido:""};
+  if(p.length>=2){const p4=parseNombre4(str);return{primerNombre:p4.primerNombre,segundoNombre:p4.segundoNombre,primerApellido:p4.primerApellido,segundoApellido:p4.segundoApellido};}
+  const p4=parseNombre4(str);
+  return{primerNombre:p4.primerNombre,segundoNombre:p4.segundoNombre,primerApellido:p4.primerApellido,segundoApellido:p4.segundoApellido};
+}
 function evalAvg(ev,videoAvg=null){
   const v=EVAL_KEYS.map(k=>ev[k]).filter(x=>x!=null);
   if(!v.length)return "—";
@@ -513,6 +517,22 @@ function videoAvgForMaestro(maestroNombre,videos,maestros){
 const VIDEO_CLASES=["CORDERITOS","VENCEDORES","CONQUISTADORES"];
 function scoreColor(v){const n=parseFloat(v);if(isNaN(n))return"#9E9E9E";return n>=4?"#4CAF50":n>=3?"#F5A623":"#EF5350";}
 function formatFecha(str){if(!str)return"";try{const[y,m,d]=str.split("-");return`${d} ${["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][parseInt(m)-1]}`;}catch(e){return str;}}
+// Sesión con fecha al menos 7 días en el pasado (para evaluar cumplimiento)
+function sessionDateAtLeast7DaysAgo(fechaStr){if(!fechaStr)return false;try{const[y,m,d]=fechaStr.split("-").map(Number);const sessionDate=new Date(y,m-1,d);sessionDate.setHours(0,0,0,0);const today=new Date();today.setHours(0,0,0,0);return (today-sessionDate)>=7*86400000;}catch(e){return false;}}
+// Cumplimiento de clases (1-5): según clases asignadas. Empieza en 5; cada falla registrada resta 1 punto (mínimo 1). Con una falla nunca puede tener 5 estrellas. Solo se calcula si tiene al menos una sesión como maestro/auxiliar o una falla.
+function cumplimientoClasesFromCronograma(nombre,cronograma){
+  let fallas=0;
+  let tieneSesiones=false;
+  (cronograma||[]).forEach(e=>{
+    if(!e.leccion||e.leccion==="NO HAY CLASE")return;
+    if(e.maestro===nombre||e.auxiliar===nombre)tieneSesiones=true;
+    if(e.fallaMaestro===nombre){fallas++;tieneSesiones=true;}
+    if(e.fallaAuxiliar===nombre){fallas++;tieneSesiones=true;}
+  });
+  if(!tieneSesiones)return null;
+  if(fallas===0)return 5;
+  return Math.max(1,5-fallas);
+}
 
 function diasHastaCumple(fechaDDMM){
   if(!fechaDDMM)return null;
@@ -539,7 +559,7 @@ function getBirthdays(maestros,familias){
     let dt,fecha;
     if(mx.nacimiento){const r=parseNacimiento(mx.nacimiento);if(r){dt=r.dt;fecha=r.fecha;}}
     else{dt=parseDDMM(mx.cumpleanos);fecha=mx.cumpleanos;}
-    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro",foto:mx.foto||null,iniciales:getInitials(mx.nombre)});}
+    if(dt&&fecha){const diff=Math.round((dt-today)/86400000);result.push({nombre:displayMaestroNombre(mx.nombre),tipo:mx.cargo,clase:mx.clase,fecha,diff,categoria:"maestro",foto:mx.foto||null,iniciales:getInitials(mx.nombre)});}
   });
   familias.forEach(f=>{const dt=parseDDMM(f.cumpleanos);if(dt){const diff=Math.round((dt-today)/86400000);result.push({nombre:shortDisplayName(f.alumno),tipo:"ALUMNO",clase:f.clase,fecha:f.cumpleanos,diff,categoria:"alumno",foto:f.foto||null,iniciales:getInitials(f.alumno)});}});
   return result.sort((a,b)=>a.diff-b.diff);
@@ -771,7 +791,7 @@ function LoginScreen({onLogin}){
             <label style={S.label}>Tu nombre</label>
             <select style={{...S.input,marginBottom:14}} value={teacherName} onChange={e=>{setTeacherName(e.target.value);setError("");}}>
               <option value="">— Selecciona tu nombre —</option>
-              {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} ({m.cargo})</option>)}
+              {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} ({m.cargo})</option>)}
             </select>
             <label style={S.label}>Contraseña</label>
             <input type="password" style={{...S.input,marginBottom:16}} value={teacherPw} onChange={e=>setTeacherPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} placeholder="••••"/>
@@ -872,7 +892,7 @@ function AdminDashboard({data,onUpdateData}){
             ?<div style={{color:"#4CAF50",fontWeight:700}}>✅ Todos al día</div>
             :maestros.filter(m=>m.certificado==="NO").map((m,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                <div style={{flex:1,fontWeight:700,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
+                <div style={{flex:1,fontWeight:700,fontSize:13}}>{displayMaestroNombre(m.nombre)}</div>
                 <span style={S.badge(CLASE_COLORS[m.clase]||"#5B2D8E")}>{m.clase}</span>
               </div>
             ))
@@ -924,9 +944,9 @@ function MaestrosPanel({maestros,onUpdate}){
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
   const[editId,setEditId]=useState(null);
-  const filtered=maestros.filter(m=>{const q=search.toLowerCase();if(q&&!shortDisplayName(m.nombre).toLowerCase().includes(q))return false;if(filterCargo!=="TODOS"&&m.cargo!==filterCargo)return false;return true;});
+  const filtered=maestros.filter(m=>{const q=search.toLowerCase();if(q&&!displayMaestroNombre(m.nombre).toLowerCase().includes(q))return false;if(filterCargo!=="TODOS"&&m.cargo!==filterCargo)return false;return true;});
   const openAdd=()=>{setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",cargo:"MAESTRO",clase:"CORDERITOS",nacimiento:"",cumpleanos:"",certificado:"SI"});setEditId(null);setModal(true);};
-  const openEdit=(m)=>{const p4=parseNombre4(m.nombre||"");setForm({...m,primerNombre:p4.primerNombre,segundoNombre:p4.segundoNombre,primerApellido:p4.primerApellido,segundoApellido:p4.segundoApellido,nacimiento:m.nacimiento||""});setEditId(m.id);setModal(true);};
+  const openEdit=(m)=>{const fields=parseNombreMaestroParaForm(m.nombre||"");setForm({...m,primerNombre:fields.primerNombre,segundoNombre:fields.segundoNombre,primerApellido:fields.primerApellido,segundoApellido:fields.segundoApellido,nacimiento:m.nacimiento||""});setEditId(m.id);setModal(true);};
   const save=()=>{
     const nombre=buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido);
     let toSave={...form,nombre};
@@ -938,7 +958,7 @@ function MaestrosPanel({maestros,onUpdate}){
     }
     onUpdate(editId?maestros.map(m=>m.id===editId?{...toSave,id:editId}:m):[...maestros,{...toSave,id:Date.now()}]);setModal(false);
   };
-  const deleteMaestro=()=>{if(!confirmDelete("¿Eliminar a "+shortDisplayName(form.nombre||buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido))+"?"))return;onUpdate(maestros.filter(x=>x.id!==editId));setModal(false);};
+  const deleteMaestro=()=>{if(!confirmDelete("¿Eliminar a "+displayMaestroNombre(form.nombre||buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido))+"?"))return;onUpdate(maestros.filter(x=>x.id!==editId));setModal(false);};
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
@@ -964,7 +984,7 @@ function MaestrosPanel({maestros,onUpdate}){
             color={CLASE_COLORS[m.clase]||"#5B2D8E"}
           />
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:800,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortDisplayName(m.nombre)}</div>
+            <div style={{fontWeight:800,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayMaestroNombre(m.nombre)}</div>
             <div style={{display:"flex",gap:5,marginTop:4,flexWrap:"wrap"}}>
               <span style={S.badge(m.cargo==="MAESTRO"?"#5B2D8E":"#4BBCE0")}>{m.cargo}</span>
               <span style={S.badge(CLASE_COLORS[m.clase]||"#5B2D8E")}>{m.clase}</span>
@@ -1007,9 +1027,11 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
   // ── Smart rotation helpers ──
   const nextSundays=(n=6)=>{
     const res=[];const d=new Date();
-    d.setDate(d.getDate()+(7-d.getDay())%7||7);// next sunday
+    const daysUntilSunday=d.getDay()===0?0:7-d.getDay();
+    d.setDate(d.getDate()+daysUntilSunday);
+    const toLocalYYYYMMDD=(x)=>{const y=x.getFullYear(),m=x.getMonth()+1,day=x.getDate();return `${y}-${String(m).padStart(2,"0")}-${String(day).padStart(2,"0")}`;};
     for(let i=0;i<n;i++){
-      res.push(d.toISOString().slice(0,10));
+      res.push(toLocalYYYYMMDD(d));
       d.setDate(d.getDate()+7);
     }
     return res;
@@ -1060,15 +1082,14 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
     const cumplimiento=total>0?Math.round(((total-noClass)/total)*100):100;
     return{total,asMaestro,asAux,noClass,cumplimiento};
   };
-  const getSortedSubs=(grupo,role)=>{
-    const assigned=cronograma.filter(c=>c.fecha===activeDate).flatMap(c=>[c.maestro,c.auxiliar]).filter(Boolean);
-    // ADOLESCENTES: solo maestros autorizados, sin auxiliar
+  const getSortedSubs=(grupo,role,entryId)=>{
+    const currentEntry=entryId?cronograma.find(c=>c.id===entryId):null;
+    const entryDate=currentEntry?.fecha||activeDate;
+    const assigned=cronograma.filter(c=>c.fecha===entryDate&&c.id!==entryId).flatMap(c=>[c.maestro,c.auxiliar]).filter(Boolean);
     const isAdolescentes=grupo==="ADOLESCENTES";
-    const pool=maestros.filter(m=>{
-      if(unavailable.includes(m.nombre)||assigned.includes(m.nombre))return false;
-      if(isAdolescentes)return ADOLESCENTES_MAESTROS.includes(m.nombre);
-      return true;
-    });
+    const pool=isAdolescentes
+      ? ADOLESCENTES_MAESTROS.filter(n=>!unavailable.includes(n)&&!assigned.includes(n)).map(n=>maestros.find(m=>m.nombre===n)||{id:n,nombre:n,cargo:"MAESTRO",clase:"ADOLESCENTES"})
+      : maestros.filter(m=>!unavailable.includes(m.nombre)&&!assigned.includes(m.nombre));
     return pool.sort((a,b)=>{
       if(a.clase===grupo&&b.clase!==grupo)return -1;
       if(b.clase===grupo&&a.clase!==grupo)return 1;
@@ -1103,32 +1124,41 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                 <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                   <div style={{flex:1}}>
                     <span style={S.tag(CLASE_COLORS[e.grupo]||"#5B2D8E")}>{e.grupo}</span>
-                    <div style={{fontWeight:800,fontSize:15,marginTop:6}}>{e.leccion}</div>
+                    <div style={{fontWeight:800,fontSize:15,marginTop:6}}>{e.leccion||"(sin lección)"}</div>
                     {e.tema&&<div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>{e.tema}</div>}
                   </div>
-                  <button
-                    style={{
-                      ...S.btn("#F5F0FF","#5B2D8E"),
-                      padding:"6px 10px",
-                      fontSize:16,
-                      borderRadius:999,
-                      boxShadow:`0 0 0 1px ${(CLASE_COLORS[e.grupo]||"#5B2D8E")+"33"}`,
-                    }}
-                    onClick={()=>setEditEntryId(e.id)}
-                  >
-                    ✏️
-                  </button>
+                  <div style={{display:"flex",gap:6,flexShrink:0}}>
+                    <button
+                      style={{...S.btn("#F5F0FF","#5B2D8E"),padding:"6px 10px",fontSize:16,borderRadius:999,boxShadow:`0 0 0 1px ${(CLASE_COLORS[e.grupo]||"#5B2D8E")+"33"}`}}
+                      onClick={()=>setEditEntryId(e.id)}
+                      title="Editar"
+                    >✏️</button>
+                    <button
+                      style={{...S.btn("#FFF0F0","#EF5350"),padding:"6px 10px",fontSize:16,borderRadius:999,border:"1.5px solid #EF535044"}}
+                      onClick={()=>{if(confirmDelete("¿Eliminar esta sesión del cronograma?"))onUpdate(cronograma.filter(c=>c.id!==e.id));}}
+                      title="Eliminar sesión (también si no hay clase)"
+                    >🗑</button>
+                  </div>
                 </div>
-                {[["maestro","MAESTRO","🎓","#5B2D8E"],["auxiliar","AUXILIAR","🤝","#E84F9B"]].filter(([role])=>!(e.grupo==="ADOLESCENTES"&&role==="auxiliar")).map(([role,label,icon,color])=>{
+                {[["maestro","MAESTRO","🎓","#5B2D8E","asistioMaestro","fallaMaestro"],["auxiliar","AUXILIAR","🤝","#E84F9B","asistioAuxiliar","fallaAuxiliar"]].filter(([role])=>!(e.grupo==="ADOLESCENTES"&&role==="auxiliar")).map(([role,label,icon,color,asistioKey,fallaKey])=>{
                   const nombreRole=e[role];const mRole=nombreRole?maestros.find(x=>x.nombre===nombreRole):null;
+                  const puedeRegistrarAsistencia=nombreRole&&sessionDateAtLeast7DaysAgo(e.fecha);
+                  const asistio=puedeRegistrarAsistencia?e[asistioKey]:undefined;
                   return(
                   <div key={role} style={{marginTop:8,background:"rgba(255,255,255,0.85)",borderRadius:10,padding:"10px 12px"}}>
                     <div style={{fontSize:11,fontWeight:800,color:"#7B6B9A",marginBottom:4,letterSpacing:1}}>{label}</div>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       {nombreRole&&(mRole?.foto?<img src={mRole.foto} alt="" style={{width:32,height:32,borderRadius:"50%",objectFit:"cover",border:`2px solid ${color}44`,flexShrink:0}}/>:<div style={{width:32,height:32,borderRadius:"50%",background:color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:11,color,flexShrink:0}}>{getInitials(nombreRole)}</div>)}
                       <div style={{flex:1,fontWeight:700,fontSize:13,color:nombreRole&&unavailable.includes(nombreRole)?"#EF5350":"#2D1B4E"}}>
-                        {nombreRole?(unavailable.includes(nombreRole)?"⚠️ ":icon+" ")+shortDisplayName(nombreRole):<span style={{color:"#7B6B9A",fontStyle:"italic"}}>Sin asignar</span>}
+                        {nombreRole?(unavailable.includes(nombreRole)?"⚠️ ":icon+" ")+displayMaestroNombre(nombreRole):<span style={{color:"#7B6B9A",fontStyle:"italic"}}>Sin asignar</span>}
                       </div>
+                      {puedeRegistrarAsistencia&&(
+                        <div style={{display:"flex",gap:4}}>
+                          <button style={{...S.btn(asistio===true?"#4CAF50":"#F5F0FF",asistio===true?"#FFF":"#2D1B4E"),padding:"4px 8px",fontSize:11}} onClick={()=>onUpdate(cronograma.map(c=>c.id===e.id?{...c,[asistioKey]:true}:c))} title="Asistió">✓</button>
+                          <button style={{...S.btn(asistio===false?"#EF5350":"#F5F0FF",asistio===false?"#FFF":"#2D1B4E"),padding:"4px 8px",fontSize:11}} onClick={()=>onUpdate(cronograma.map(c=>c.id===e.id?{...c,[asistioKey]:false}:c))} title="No asistió">✕</button>
+                        </div>
+                      )}
+                      {nombreRole&&<button style={{...S.btn("#EF5350"),padding:"6px 10px",fontSize:11}} onClick={()=>{if(!window.confirm("¿Registrar falla a "+displayMaestroNombre(nombreRole)+" para esta sesión?\n\nSe le restará 1 punto de cumplimiento, se quitará del horario y se abrirá la selección de sustituto."))return;onUpdate(cronograma.map(c=>c.id===e.id?{...c,[fallaKey]:nombreRole,[role]:"",[asistioKey]:undefined}:c));setSubModal({entryId:e.id,role,grupo:e.grupo});setActiveDate(d);}} title="Falla: quita al maestro/auxiliar y resta cumplimiento; elige sustituto">Falla</button>}
                       <button style={{...S.btn(color),padding:"6px 12px",fontSize:12}} onClick={()=>{setSubModal({entryId:e.id,role,grupo:e.grupo});setActiveDate(d);}}>✏️</button>
                     </div>
                   </div>
@@ -1144,7 +1174,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             <div key={m.id} onClick={()=>setUnavailable(u=>u.includes(m.nombre)?u.filter(n=>n!==m.nombre):[...u,m.nombre])}
               style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",background:unavailable.includes(m.nombre)?"#EF535018":"#F5F0FF",borderRadius:12,border:`2px solid ${unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0"}`,cursor:"pointer"}}>
               {m.foto?<img src={m.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
-              <div style={{flex:1}}><div style={{fontWeight:700}}>{shortDisplayName(m.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div></div>
+              <div style={{flex:1}}><div style={{fontWeight:700}}>{displayMaestroNombre(m.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div></div>
               <div style={{width:28,height:28,borderRadius:"50%",background:unavailable.includes(m.nombre)?"#EF5350":"#DDD0F0",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFFFFF",fontWeight:800}}>{unavailable.includes(m.nombre)?"✕":""}</div>
             </div>
           ))}
@@ -1164,7 +1194,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                   {m.foto?<img src={m.foto} alt="" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",border:"2px solid "+(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",flexShrink:0}}/>:<div style={{width:36,height:36,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
+                    <div style={{fontWeight:800,fontSize:13}}>{displayMaestroNombre(m.nombre)}</div>
                     <div style={{fontSize:11,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div>
                   </div>
                   <span style={{...S.badge(barColor),fontSize:12}}>{st.cumplimiento}%</span>
@@ -1190,7 +1220,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
               🤖 <strong>Orden por sugerencia:</strong> misma clase · menos clases asignadas · mayor cumplimiento
             </div>
             {["MISMA CLASE","OTRAS CLASES"].map(sec=>{
-              const subs=getSortedSubs(subModal.grupo,subModal.role).filter(m=>sec==="MISMA CLASE"?m.clase===subModal.grupo:m.clase!==subModal.grupo);
+              const subs=getSortedSubs(subModal.grupo,subModal.role,subModal.entryId).filter(m=>sec==="MISMA CLASE"?m.clase===subModal.grupo:m.clase!==subModal.grupo);
               if(!subs.length)return null;
               return(
                 <div key={sec} style={{marginBottom:16}}>
@@ -1202,7 +1232,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                       {m.foto?<img src={m.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:"2px solid "+(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",flexShrink:0}}/>:<div style={{width:40,height:40,borderRadius:"50%",background:(CLASE_COLORS[m.clase]||"#5B2D8E")+"44",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[m.clase]||"#5B2D8E",flexShrink:0}}>{getInitials(m.nombre)}</div>}
                       <div style={{flex:1}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <div style={{fontWeight:800,fontSize:13}}>{shortDisplayName(m.nombre)}</div>
+                          <div style={{fontWeight:800,fontSize:13}}>{displayMaestroNombre(m.nombre)}</div>
                           {mi===0&&<span style={{...S.badge("#4CAF50"),fontSize:9,padding:"2px 7px"}}>⭐ SUGERIDO</span>}
                         </div>
                         <div style={{fontSize:11,color:"#7B6B9A"}}>{m.cargo} · {m.clase}</div>
@@ -1250,8 +1280,8 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         <div style={{background:"linear-gradient(135deg,#4BBCE015,#4BBCE025)",border:"1.5px solid #4BBCE055",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
           <div style={{fontSize:11,fontWeight:800,color:"#2A96BC",letterSpacing:0.5,marginBottom:6}}>🔄 ROTACIÓN SUGERIDA SEGÚN HISTORIAL</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {form.maestro&&<span style={{...S.badge("#5B2D8E"),fontSize:11}}>🎓 {shortDisplayName(form.maestro)}</span>}
-            {form.auxiliar&&<span style={{...S.badge("#E84F9B"),fontSize:11}}>🤝 {shortDisplayName(form.auxiliar)}</span>}
+            {form.maestro&&<span style={{...S.badge("#5B2D8E"),fontSize:11}}>🎓 {displayMaestroNombre(form.maestro)}</span>}
+            {form.auxiliar&&<span style={{...S.badge("#E84F9B"),fontSize:11}}>🤝 {displayMaestroNombre(form.auxiliar)}</span>}
             {!form.maestro&&!form.auxiliar&&<span style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin equipo sugerido aún</span>}
           </div>
         </div>
@@ -1266,8 +1296,10 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         <select style={{...S.input,marginBottom:12}} value={form.maestro} onChange={e=>setForm(f=>({...f,maestro:e.target.value}))}>
           <option value="">— Sin asignar —</option>
           {form.grupo==="ADOLESCENTES"
-            ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)).sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)}</option>)
+            ? ADOLESCENTES_MAESTROS.slice().sort((a,b)=>sortKeyFirstName(a).localeCompare(sortKeyFirstName(b),"es")).map(nombre=><option key={nombre} value={nombre}>{(()=>{const p=(nombre||"").trim().split(/\s+/).filter(Boolean);return p.length>=2?p.slice(1).join(" ")+" "+p[0]:nombre;})()}</option>)
             : <>
+                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
               </>
           }
         </select>
@@ -1277,10 +1309,10 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             <label style={S.label}>🤝 Auxiliar</label>
             <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
               <option value="">— Sin asignar —</option>
-                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
-                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
             </select>
           </>
         )}
@@ -1291,7 +1323,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         {editEntry&&(
           <div>
             <div style={{background:"#F5F0FF",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
-              <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>{editEntry.leccion}</div>
+              <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>{editEntry.leccion||"(sin lección)"}</div>
               {editEntry.tema&&<div style={{fontSize:13,color:"#7B6B9A",marginTop:4}}>{editEntry.tema}</div>}
               <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
                 <span style={S.badge(CLASE_COLORS[editEntry.grupo]||"#5B2D8E")}>{editEntry.grupo}</span>
@@ -1305,7 +1337,8 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
               </div>
             ))}
             <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:13,marginTop:4}} onClick={()=>setEditEntryId(null)}>✅ Listo</button>
-            <button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar esta sesión del cronograma?")){onUpdate(cronograma.filter(c=>c.id!==editEntryId));setEditEntryId(null);}}}>🗑 Eliminar Sesión</button>
+            <p style={{fontSize:12,color:"#7B6B9A",marginTop:12,marginBottom:4}}>Puedes eliminar esta sesión aunque no tenga clase asignada (ej. NO HAY CLASE).</p>
+            <button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:4,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar esta sesión del cronograma?")){onUpdate(cronograma.filter(c=>c.id!==editEntryId));setEditEntryId(null);}}}>🗑 Eliminar Sesión</button>
           </div>
         )}
       </Modal>
@@ -1593,6 +1626,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   const[editId,setEditId]=useState(null);
   const[encargoModal,setEncargoModal]=useState(false);
   const[encargoFamilyKey,setEncargoFamilyKey]=useState(null);
+  const[encargoEditId,setEncargoEditId]=useState(null);
   const[encargoForm,setEncargoForm]=useState({servicio:"",fecha:"",estado:"PENDIENTE",calificacion:"",nota:""});
   const empty={familia:"",padre:"",madre:"",telPadre:"",telMadre:"",alumno:"",edad:"",cumpleanos:"",nacimiento:"",clase:"CORDERITOS",bautizado:false,sellado:false};
   const conAlMenosUnPadre=familias.filter(f=>((f.padre||"").trim())||((f.madre||"").trim()));
@@ -1636,27 +1670,42 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   };
   const updateMemberFoto=(id,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>f.id===id?{...f,foto}:f)); };
   const updateFamilyFoto=(key,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>(f.familia||f.alumno)===key?{...f,fotoFamilia:foto}:f)); };
-  const abrirEncargo=(familyKey)=>{
+  const abrirEncargo=(familyKey,encargoExisting=null)=>{
     const todayStr=new Date().toISOString().slice(0,10);
     setEncargoFamilyKey(familyKey);
-    setEncargoForm({servicio:"",fecha:todayStr,estado:"PENDIENTE",calificacion:"",nota:""});
+    if(encargoExisting){
+      setEncargoEditId(encargoExisting.id);
+      setEncargoForm({servicio:encargoExisting.servicio||"",fecha:encargoExisting.fecha||todayStr,estado:encargoExisting.estado||"PENDIENTE",calificacion:encargoExisting.calificacion!=null?String(encargoExisting.calificacion):"",nota:encargoExisting.nota||""});
+    }else{
+      setEncargoEditId(null);
+      setEncargoForm({servicio:"",fecha:todayStr,estado:"PENDIENTE",calificacion:"",nota:""});
+    }
     setEncargoModal(true);
   };
   const guardarEncargo=()=>{
     if(!encargoFamilyKey||!encargoForm.servicio.trim())return;
     const baseMember=familias.find(f=>(f.familia||f.alumno)===encargoFamilyKey);
     const prev=(baseMember&&baseMember.encargosFamilia)||[];
-    const nuevo={
-      id:Date.now(),
-      servicio:encargoForm.servicio.trim(),
-      fecha:encargoForm.fecha||new Date().toISOString().slice(0,10),
-      estado:encargoForm.estado||"PENDIENTE",
-      calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,
-      nota:encargoForm.nota||""
-    };
-    const next=prev.concat([nuevo]);
-    onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:next}:f));
+    if(encargoEditId!=null){
+      const next=prev.map(e=>e.id===encargoEditId?{...e,servicio:encargoForm.servicio.trim(),fecha:encargoForm.fecha||e.fecha,estado:encargoForm.estado||"PENDIENTE",calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,nota:encargoForm.nota||""}:e);
+      onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:next}:f));
+    }else{
+      const nuevo={id:Date.now(),servicio:encargoForm.servicio.trim(),fecha:encargoForm.fecha||new Date().toISOString().slice(0,10),estado:encargoForm.estado||"PENDIENTE",calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,nota:encargoForm.nota||""};
+      onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:prev.concat([nuevo])}:f));
+    }
     setEncargoModal(false);
+    setEncargoEditId(null);
+  };
+  const todosEncargos=familias.filter(f=>((f.familia||f.alumno)&&(f.encargosFamilia||[]).length>0)).flatMap(f=>{
+    const key=f.familia||f.alumno;
+    const label=f.familia||fullNameToApellidos(f.alumno)||f.alumno;
+    return (f.encargosFamilia||[]).map(e=>({familyKey:key,familyLabel:label,encargo:e}));
+  }).sort((a,b)=>(b.encargo.fecha||"").localeCompare(a.encargo.fecha||""));
+  const eliminarEncargo=(familyKey,encargoId)=>{
+    if(!window.confirm("¿Eliminar este encargo del historial de la familia?"))return;
+    onUpdate(familias.map(f=>(f.familia||f.alumno)===familyKey?{...f,encargosFamilia:(f.encargosFamilia||[]).filter(x=>x.id!==encargoId)}:f));
+    setEncargoModal(false);
+    setEncargoEditId(null);
   };
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
@@ -1667,6 +1716,24 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         {teacherMode&&!readOnly&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Edita teléfonos y datos</div>}
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      {!readOnly&&todosEncargos.length>0&&(
+        <div style={{...S.card,marginBottom:16,borderLeft:"5px solid #F5C842",background:"linear-gradient(135deg,#F5C84208,#F5C84218)"}}>
+          <div style={{fontWeight:800,color:"#7B5A00",fontSize:14,marginBottom:8}}>📝 Servicios encargados — Revisar y calificar</div>
+          <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Lista de todos los servicios asignados a las familias. Usa «Calificar» para marcar estado y puntuación.</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {todosEncargos.map(({familyKey,familyLabel,encargo})=>(
+              <div key={encargo.id} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",background:"#FFFFFF",borderRadius:10,padding:"10px 12px",border:"1px solid #DDD0F0"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:13,color:"#5B2D8E"}}>{encargo.servicio}</div>
+                  <div style={{fontSize:11,color:"#7B6B9A"}}>👨‍👩‍👧 {familyLabel} · 📅 {encargo.fecha||"—"} · Estado: {encargo.estado||"—"}{encargo.calificacion!=null?` · ⭐ ${encargo.calificacion}/5`:""}</div>
+                </div>
+                <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 12px",fontSize:12}} onClick={()=>abrirEncargo(familyKey,encargo)}>✏️ Editar / Calificar</button>
+                <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"6px 10px",fontSize:12}} onClick={()=>eliminarEncargo(familyKey,encargo.id)} title="Eliminar encargo">🗑 Eliminar</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {Object.entries(grouped).sort(([,aMembers],[,bMembers])=>{
         const aAlumno=aMembers[0]?.alumno||"";
         const bAlumno=bMembers[0]?.alumno||"";
@@ -1727,13 +1794,18 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
               <div style={{marginTop:10,paddingTop:10,borderTop:"1px dashed #DDD0F0"}}>
                 <div style={{fontWeight:800,color:"#7B5A00",fontSize:12,marginBottom:6}}>📝 Encargos a la familia</div>
                 {encargos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(e=>(
-                  <div key={e.id} style={{fontSize:11,color:"#7B6B9A",marginBottom:4}}>
-                    <div style={{fontWeight:700,color:"#5B2D8E"}}>{e.servicio}</div>
-                    <div>
-                      📅 {e.fecha||"—"} · Estado: {e.estado||"—"}
-                      {e.calificacion!=null&&` · ⭐ ${e.calificacion}/5`}
+                  <div key={e.id} style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                    <div style={{flex:1,fontSize:11,color:"#7B6B9A",minWidth:0}}>
+                      <div style={{fontWeight:700,color:"#5B2D8E"}}>{e.servicio}</div>
+                      <div>📅 {e.fecha||"—"} · Estado: {e.estado||"—"}{e.calificacion!=null&&` · ⭐ ${e.calificacion}/5`}</div>
+                      {e.nota&&<div style={{fontStyle:"italic"}}>{e.nota}</div>}
                     </div>
-                    {e.nota&&<div style={{fontStyle:"italic"}}>{e.nota}</div>}
+                    {!readOnly&&(
+                      <>
+                        <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"4px 8px",fontSize:11}} onClick={()=>abrirEncargo(key,e)}>✏️ Editar</button>
+                        <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>eliminarEncargo(key,e.id)} title="Eliminar encargo">🗑 Eliminar</button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1788,24 +1860,46 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
         {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+(form.alumno||"")+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
       </Modal>
-      <Modal open={encargoModal} onClose={()=>setEncargoModal(false)} title="Encargar servicio a la familia">
+      <Modal open={encargoModal} onClose={()=>{setEncargoModal(false);setEncargoEditId(null);}} title={encargoEditId?"Revisar / Calificar servicio":"Encargar servicio a la familia"}>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>
-          Este registro quedará guardado como historial de servicios realizados por la familia.
+          {encargoEditId?"Puedes calificar cuando haya pasado la fecha de la tarea. Queda en el historial de calificación de la familia.":"Solo servicio y fecha. La calificación se hará después, cuando pase la fecha de la tarea."}
         </div>
         <label style={S.label}>Servicio / tarea</label>
         <input style={{...S.input,marginBottom:10}} placeholder="Ej: Merienda general, decoración, visita, etc." value={encargoForm.servicio} onChange={e=>setEncargoForm(f=>({...f,servicio:e.target.value}))}/>
-        <label style={S.label}>Fecha</label>
+        <label style={S.label}>Fecha de la tarea</label>
         <input type="date" style={{...S.input,marginBottom:10}} value={encargoForm.fecha} onChange={e=>setEncargoForm(f=>({...f,fecha:e.target.value}))}/>
-        <label style={S.label}>Estado</label>
-        <select style={{...S.input,marginBottom:10}} value={encargoForm.estado} onChange={e=>setEncargoForm(f=>({...f,estado:e.target.value}))}>
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="CUMPLIDO">Cumplido</option>
-        </select>
-        <label style={S.label}>Calificación (1–5, opcional)</label>
-        <input type="number" min="1" max="5" step="1" style={{...S.input,marginBottom:10}} value={encargoForm.calificacion} onChange={e=>setEncargoForm(f=>({...f,calificacion:e.target.value}))} placeholder="Ej: 5"/>
-        <label style={S.label}>Notas adicionales</label>
-        <textarea style={{...S.input,minHeight:70,resize:"vertical",marginBottom:14}} value={encargoForm.nota} onChange={e=>setEncargoForm(f=>({...f,nota:e.target.value}))} placeholder="Comentarios sobre cómo cumplió la familia con el servicio."/>
-        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={guardarEncargo}>💾 Guardar encargo</button>
+        {encargoEditId&&(()=>{
+          const hoyStr=new Date().toISOString().slice(0,10);
+          const yaPasó=!(encargoForm.fecha&&encargoForm.fecha>hoyStr);
+          if(!yaPasó)return(
+            <div style={{background:"#FFF8E0",borderRadius:10,padding:"12px 14px",marginBottom:14,fontSize:13,color:"#7B5A00"}}>
+              Podrás calificar cuando pase la fecha de la tarea ({encargoForm.fecha}).
+            </div>
+          );
+          return(
+            <>
+              <label style={S.label}>Estado</label>
+              <select style={{...S.input,marginBottom:10}} value={encargoForm.estado} onChange={e=>setEncargoForm(f=>({...f,estado:e.target.value}))}>
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="CUMPLIDO">Cumplido</option>
+              </select>
+              <label style={S.label}>Calificación (1–5, opcional)</label>
+              <input type="number" min="1" max="5" step="1" style={{...S.input,marginBottom:10}} value={encargoForm.calificacion} onChange={e=>setEncargoForm(f=>({...f,calificacion:e.target.value}))} placeholder="Ej: 5"/>
+              <label style={S.label}>Notas</label>
+              <textarea style={{...S.input,minHeight:70,resize:"vertical",marginBottom:14}} value={encargoForm.nota} onChange={e=>setEncargoForm(f=>({...f,nota:e.target.value}))} placeholder="Comentarios sobre cómo cumplió la familia."/>
+            </>
+          );
+        })()}
+        {!encargoEditId&&(
+          <label style={S.label}>Nota (opcional)</label>
+        )}
+        {!encargoEditId&&(
+          <textarea style={{...S.input,minHeight:60,resize:"vertical",marginBottom:14}} value={encargoForm.nota} onChange={e=>setEncargoForm(f=>({...f,nota:e.target.value}))} placeholder="Detalle del encargo si lo necesitas"/>
+        )}
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={guardarEncargo}>{encargoEditId?"💾 Guardar calificación":"💾 Guardar encargo"}</button>
+          {encargoEditId&&encargoFamilyKey&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:14,border:"1.5px solid #EF535044"}} onClick={()=>eliminarEncargo(encargoFamilyKey,encargoEditId)}>🗑 Eliminar encargo</button>}
+        </div>
       </Modal>
     </div>
   );
@@ -2095,7 +2189,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
           <div key={i} style={{...S.card,borderLeft:`5px solid ${color}`}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
               {mFoto?.foto?<img src={mFoto.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E",flexShrink:0}}>{getInitials(ev.nombre)}</div>}
-              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(ev.nombre)}</div>
+              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{displayMaestroNombre(ev.nombre)}</div>
                 {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
               </div>
               <div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}>
@@ -2114,7 +2208,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
           </div>
         );
       })}
-      <Modal open={editModal} onClose={()=>setEditModal(false)} title={`Editar: ${editForm?shortDisplayName(editForm.nombre):""}`}>
+      <Modal open={editModal} onClose={()=>setEditModal(false)} title={`Editar: ${editForm?displayMaestroNombre(editForm.nombre):""}`}>
         {editForm&&EVAL_KEYS.map((k,j)=>(
           <div key={k} style={{marginBottom:16}}>
             <label style={S.label}>{EVAL_LABELS[j]}</label>
@@ -2140,7 +2234,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
 
 // ══════════ EVALUACIONES + VIDEOS UNIFICADO (admin) ══════════
 // Una sola pestaña: maestros ordenados por sesiones, icono si hay videos por calificar
-function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos,cronograma,maestros}){
+function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos,cronograma,onUpdateCronograma,maestros}){
   const[editModal,setEditModal]=useState(false);
   const[editForm,setEditForm]=useState(null);
   const[editIdx,setEditIdx]=useState(null);
@@ -2150,16 +2244,31 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
   const sesiones=cronograma
     .filter(c=>c.maestro&&c.leccion&&c.leccion!=="NO HAY CLASE")
     .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-  const orderedMaestros=[];
-  sesiones.forEach(s=>{if(s.maestro&&!orderedMaestros.includes(s.maestro))orderedMaestros.push(s.maestro);});
-  evaluaciones.forEach(e=>{if(e.nombre&&!orderedMaestros.includes(e.nombre))orderedMaestros.push(e.nombre);});
+  const nombresEnMaestros=new Set((maestros||[]).map(m=>m.nombre));
+  const findEvalForMaestro=(nombre)=>evaluaciones.find(e=>e.nombre===nombre)||evaluaciones.find(e=>samePersonName(e.nombre,nombre));
+  // Orden: primero pendientes por calificar (sin evaluación), ordenados por fecha de sesión (quien dio clase más reciente primero); luego el resto alfabéticamente
+  const fechaPorMaestro={};
+  sesiones.forEach(s=>{if(s.maestro&&nombresEnMaestros.has(s.maestro)&&!fechaPorMaestro[s.maestro])fechaPorMaestro[s.maestro]=s.fecha;});
+  const allNombres=(maestros||[]).map(m=>m.nombre);
+  const pendientesPorCalificar=allNombres.filter(n=>!findEvalForMaestro(n));
+  const conEvaluacion=allNombres.filter(n=>findEvalForMaestro(n));
+  const pendientesOrdenados=[...pendientesPorCalificar].sort((a,b)=>(fechaPorMaestro[b]||"").localeCompare(fechaPorMaestro[a]||""));
+  const conEvalAlfabetico=[...conEvaluacion].sort((a,b)=>displayMaestroNombre(a).localeCompare(displayMaestroNombre(b),"es"));
+  const orderedMaestros=[...pendientesOrdenados,...conEvalAlfabetico];
 
   const getVideo=(sesionId,maestro)=>videos.find(v=>v.sesionId===sesionId&&v.maestro===maestro)||null;
   const sesionesConVideoPorMaestro=(nombre)=>sesiones.filter(s=>VIDEO_CLASES.includes(s.grupo)&&s.maestro===nombre);
   const pendientesVideos=(nombre)=>sesionesConVideoPorMaestro(nombre).filter(s=>!getVideo(s.id,s.maestro));
 
-  const openEdit=(ev,i)=>{setEditForm({...ev});setEditIdx(i);setEditModal(true);};
-  const save=()=>{onUpdate(evaluaciones.map((e,i)=>i===editIdx?editForm:e));setEditModal(false);};
+  const openEdit=(ev,i,canonicalNombre)=>{setEditForm({...ev,...(canonicalNombre&&ev.nombre!==canonicalNombre?{nombre:canonicalNombre}:{})});setEditIdx(i);setEditModal(true);};
+  const openAdd=(nombre)=>{const default3=EVAL_KEYS.filter(k=>k!=="cumplimientoClases").reduce((o,k)=>({...o,[k]:3}),{});setEditForm({nombre,...default3,cumplimientoClases:null,observaciones:""});setEditIdx(-1);setEditModal(true);};
+  const save=()=>{
+    const cumplimientoAuto=cumplimientoClasesFromCronograma(editForm.nombre,cronograma);
+    const toSave={...editForm,cumplimientoClases:cumplimientoAuto!=null?cumplimientoAuto:(editForm.cumplimientoClases??3)};
+    if(editIdx===-1)onUpdate([...evaluaciones,toSave]);
+    else onUpdate(evaluaciones.map((e,i)=>i===editIdx?toSave:e));
+    setEditModal(false);
+  };
 
   const openVideosModal=(nombre)=>{setVideoModalMaestro(nombre);setEditVideo(null);};
   const openEditVideo=(ses)=>{
@@ -2175,19 +2284,25 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
     setEditVideo(null);
   };
 
+  const resetAllTo3=()=>{if(!confirm("¿Poner todas las evaluaciones en 3 estrellas (y cumplimiento 3)? Se conservan nombres y observaciones."))return;onUpdate((evaluaciones||[]).map(ev=>({...ev,...EVAL_DEFAULT_3,nombre:ev.nombre,observaciones:ev.observaciones||""})));};
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
-      <h2 style={S.title}>Evaluaciones Maestros</h2>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10,marginBottom:14}}>
+        <h2 style={S.title}>Evaluaciones Maestros</h2>
+        <button style={{...S.btn("#F5F0FF","#5B2D8E"),padding:"8px 14px",fontSize:13}} onClick={resetAllTo3}>🔄 Todas a 3 estrellas</button>
+      </div>
       <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",border:"1.5px solid #4BBCE055",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,color:"#2D1B4E"}}>
-        <div style={{fontWeight:800,marginBottom:4}}>📋 Orden por sesiones · 🎬 Videos por calificar</div>
-        <div style={{color:"#5B2D8E",fontSize:12}}>Los maestros aparecen en el orden de las sesiones del cronograma. El icono <strong>🎬</strong> indica que hay videos de clase pendientes de calificar (Corderitos, Vencedores, Conquistadores).</div>
+        <div style={{fontWeight:800,marginBottom:4}}>📋 Pendientes por fecha de clase · Luego alfabético · 🎬 Videos por calificar</div>
+        <div style={{color:"#5B2D8E",fontSize:12}}>Quienes faltan por calificar aparecen primero (por fecha de su última clase); el resto en orden alfabético. El icono <strong>🎬</strong> indica videos pendientes de calificar.</div>
       </div>
       {orderedMaestros.map(nombre=>{
-        const ev=evaluaciones.find(e=>e.nombre===nombre);
+        const ev=findEvalForMaestro(nombre);
         const evIdx=ev!=null?evaluaciones.indexOf(ev):-1;
+        const cumplimientoAuto=cumplimientoClasesFromCronograma(nombre,cronograma);
+        const evDisplay=ev?{...ev,cumplimientoClases:cumplimientoAuto!=null?cumplimientoAuto:(ev.cumplimientoClases??3)}:null;
         const vAvg=videoAvgForMaestro(nombre,videos,maestros);
-        const avg=ev?evalAvg(ev,vAvg):(vAvg!=null?String(vAvg.toFixed(1)):null);
-        const avgN=parseFloat(avg);const color=avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
+        const avg=evDisplay?evalAvg(evDisplay,vAvg):(vAvg!=null?String(vAvg.toFixed(1)):null);
+        const avgN=parseFloat(avg);const color=Number.isNaN(avgN)? "#DDD0F0" : avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
         const mFoto=maestros.find(m=>m.nombre===nombre);
         const pendientes=pendientesVideos(nombre);
         const tienePendientes=pendientes.length>0;
@@ -2195,7 +2310,9 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
           <div key={nombre} style={{...S.card,borderLeft:`5px solid ${ev?color:"#DDD0F0"}`}}>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
               {mFoto?.foto?<img src={mFoto.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#5B2D8E",flexShrink:0}}>{getInitials(nombre)}</div>}
-              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(nombre)}</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:800,fontSize:14}}>{displayMaestroNombre(nombre)}</div>
+                {!ev&&<div style={{fontSize:11,color:"#F5A623",fontWeight:700,marginTop:2}}>⏳ Pendiente por calificar</div>}
                 {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
               </div>
               {tienePendientes&&(
@@ -2203,15 +2320,15 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
                   🎬 {pendientes.length>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:18,height:18,borderRadius:9,background:"#FFFFFF",color:"#E84F9B",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #E84F9B"}}>{pendientes.length}</span>}
                 </button>
               )}
-              {evIdx>=0&&<button style={{...S.btn("#4BBCE0"),padding:"8px 12px",fontSize:13}} onClick={()=>openEdit(ev,evIdx)}>✏️</button>}
-              {ev&&<div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}><div style={{fontSize:22,fontWeight:900,color}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5.0</div></div>}
+              {evIdx>=0?<button style={{...S.btn("#4BBCE0"),padding:"8px 12px",fontSize:13}} onClick={()=>openEdit(ev,evIdx,nombre)}>✏️</button>:<button style={{...S.btn("#4CAF50"),padding:"8px 12px",fontSize:13}} onClick={()=>openAdd(nombre)}>+ Evaluar</button>}
+              {ev&&<div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}><div style={{fontSize:22,fontWeight:900,color}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5.0 <span style={{fontSize:9}}>incl. video</span></div></div>}
             </div>
             {ev&&(
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {EVAL_KEYS.map((k,j)=>(
                   <div key={k} style={{background:k==="cumplimientoClases"?"linear-gradient(135deg,#5B2D8E15,#5B2D8E25)":"#F5F0FF",borderRadius:10,padding:"8px 10px",border:k==="cumplimientoClases"?"1.5px solid #5B2D8E44":"none"}}>
-                    <div style={{fontSize:10,color:k==="cumplimientoClases"?"#5B2D8E":"#7B6B9A",marginBottom:4,fontWeight:k==="cumplimientoClases"?800:400}}>{EVAL_LABELS[j]}</div>
-                    <div style={{display:"flex",gap:1}}>{[1,2,3,4,5].map(s=><span key={s} style={{color:s<=(ev[k]||0)?"#F5C842":"#e0e0e0",fontSize:16}}>★</span>)}</div>
+                    <div style={{fontSize:10,color:k==="cumplimientoClases"?"#5B2D8E":"#7B6B9A",marginBottom:4,fontWeight:k==="cumplimientoClases"?800:400}}>{EVAL_LABELS[j]}{k==="cumplimientoClases"?" (auto)":""}</div>
+                    <div style={{display:"flex",gap:1}}>{[1,2,3,4,5].map(s=><span key={s} style={{color:s<=(evDisplay[k]||0)?"#F5C842":"#e0e0e0",fontSize:16}}>★</span>)}</div>
                   </div>
                 ))}
               </div>
@@ -2219,10 +2336,10 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
           </div>
         );
       })}
-      <Modal open={editModal} onClose={()=>setEditModal(false)} title={editForm?`Editar: ${shortDisplayName(editForm.nombre)}`:""}>
-        {editForm&&EVAL_KEYS.map((k,j)=>(
+      <Modal open={editModal} onClose={()=>setEditModal(false)} title={editForm?(editIdx===-1?`Nueva evaluación: ${displayMaestroNombre(editForm.nombre)}`:`Editar: ${displayMaestroNombre(editForm.nombre)}`):""}>
+        {editForm&&EVAL_KEYS.filter(k=>k!=="cumplimientoClases").map((k,j)=>(
           <div key={k} style={{marginBottom:16}}>
-            <label style={S.label}>{EVAL_LABELS[j]}</label>
+            <label style={S.label}>{EVAL_LABELS[EVAL_KEYS.indexOf(k)]}</label>
             <div style={{display:"flex",gap:8,justifyContent:"center"}}>
               {[1,2,3,4,5].map(s=>(
                 <button key={s} onClick={()=>setEditForm(f=>({...f,[k]:s}))}
@@ -2232,6 +2349,61 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
           </div>
         ))}
         {editForm&&(
+          <div style={{marginBottom:16,background:"linear-gradient(135deg,#5B2D8E12,#5B2D8E22)",borderRadius:12,padding:"12px 14px",border:"1.5px solid #5B2D8E44"}}>
+            <label style={{...S.label,color:"#5B2D8E",fontWeight:800}}>✅ Cumplimiento de Clases (automático)</label>
+            <div style={{fontSize:13,color:"#7B6B9A",marginTop:4}}>Se calcula automáticamente según las clases asignadas: empieza en 5 estrellas. Cada falla registrada en Horario (botón Falla) resta 1 punto. Con una falla nunca podrá tener las 5 estrellas. Las fallas quedan registradas más abajo con fecha, lección y grupo.</div>
+            <div style={{display:"flex",gap:4,marginTop:8,alignItems:"center"}}>
+              {[1,2,3,4,5].map(s=>(
+                <span key={s} style={{color:s<=(cumplimientoClasesFromCronograma(editForm.nombre,cronograma)??0)?"#F5C842":"#e0e0e0",fontSize:20}}>★</span>
+              ))}
+              <span style={{fontSize:12,color:"#5B2D8E",marginLeft:4}}>{(cumplimientoClasesFromCronograma(editForm.nombre,cronograma)??"—")+"/5"}</span>
+            </div>
+            {(()=>{
+              const fallasReg=(cronograma||[]).filter(e=>(e.fallaMaestro===editForm.nombre||e.fallaAuxiliar===editForm.nombre));
+              if(fallasReg.length===0)return null;
+              const quitarFalla=(ent)=>{
+                const esMaestro=ent.fallaMaestro===editForm.nombre;
+                const key=esMaestro?"fallaMaestro":"fallaAuxiliar";
+                if(!window.confirm("¿Quitar esta falla del historial? Ya no se descontará cumplimiento para esta sesión."))return;
+                if(onUpdateCronograma)onUpdateCronograma(cronograma.map(c=>c.id===ent.id?{...c,[key]:undefined}:c));
+              };
+              return(
+                <div style={{marginTop:12,paddingTop:10,borderTop:"1px solid #DDD0F0"}}>
+                  <div style={{fontSize:11,fontWeight:800,color:"#EF5350",marginBottom:6}}>📋 Registro de fallas (fecha, lección, grupo) — Admin puede quitar si fue un error</div>
+                  {fallasReg.map(e=>(
+                    <div key={e.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"#2D1B4E",marginBottom:6}}>
+                      <span style={{flex:1}}>📅 {e.fecha} · {e.leccion||"—"} · {e.grupo||"—"}</span>
+                      {onUpdateCronograma&&<button type="button" style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 10px",fontSize:11}} onClick={()=>quitarFalla(e)} title="Quitar esta falla del historial">🗑 Quitar falla</button>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        )}
+        {editForm&&(()=>{
+          const sesionesVideo=(cronograma||[]).filter(s=>s.maestro===editForm.nombre&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE");
+          const conCalif=sesionesVideo.map(s=>{const v=videos.find(vid=>vid.sesionId===s.id&&vid.maestro===s.maestro);return {ses:s,v,score:v?videoScore(v):null};}).filter(x=>x.v);
+          if(conCalif.length===0)return null;
+          const openVideoEdit=(ses)=>{setVideoModalMaestro(editForm.nombre);openEditVideo(ses);setEditModal(false);};
+          const eliminarVideoCalif=(v)=>{if(!window.confirm("¿Eliminar esta calificación de video del historial? Se borrará el registro de esta sesión."))return;onUpdateVideos(videos.filter(vid=>!(vid.sesionId===v.sesionId&&vid.maestro===v.maestro)));};
+          return(
+            <div style={{marginBottom:16,background:"#4BBCE008",borderRadius:12,padding:"12px 14px",border:"1.5px solid #4BBCE044"}}>
+              <label style={{...S.label,color:"#4BBCE0",fontWeight:800}}>🎬 Historial de calificaciones (videos)</label>
+              <div style={{fontSize:11,color:"#7B6B9A",marginTop:4,marginBottom:8}}>Cada fila es una sesión con video calificado. Admin puede editar o eliminar si hubo error.</div>
+              {conCalif.map(({ses,v,score})=>(
+                <div key={ses.id} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,marginBottom:8,flexWrap:"wrap"}}>
+                  <span style={{fontWeight:700,color:"#5B2D8E"}}>{ses.leccion}</span>
+                  <span style={{color:"#7B6B9A"}}>📅 {ses.fecha} · {ses.grupo}</span>
+                  <span style={{fontWeight:800,color:score>=4?"#4CAF50":score>=2.5?"#F5A623":"#EF5350"}}>{score!=null?score.toFixed(1):"—"}/5</span>
+                  <button type="button" style={{...S.btn("#4BBCE0","#FFF"),padding:"4px 10px",fontSize:11}} onClick={()=>openVideoEdit(ses)} title="Editar calificación">✏️ Editar</button>
+                  <button type="button" style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 10px",fontSize:11}} onClick={()=>eliminarVideoCalif(v)} title="Eliminar del historial">🗑 Eliminar</button>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+        {editForm&&(
           <div style={{marginBottom:16}}>
             <label style={S.label}>Observaciones</label>
             <textarea style={{...S.input,minHeight:80,resize:"vertical"}} placeholder="Comentarios sobre el maestro para el informe" value={editForm.observaciones||""} onChange={e=>setEditForm(f=>({...f,observaciones:e.target.value}))}/>
@@ -2240,7 +2412,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14,marginTop:8}} onClick={save}>💾 Guardar</button>
       </Modal>
 
-      <Modal open={!!videoModalMaestro} onClose={()=>{setVideoModalMaestro(null);setEditVideo(null);}} title={videoModalMaestro?`🎬 Videos · ${shortDisplayName(videoModalMaestro)}`:""}>
+      <Modal open={!!videoModalMaestro} onClose={()=>{setVideoModalMaestro(null);setEditVideo(null);}} title={videoModalMaestro?`🎬 Videos · ${displayMaestroNombre(videoModalMaestro)}`:""}>
         {videoModalMaestro&&!editVideo&&(
           <div>
             {sesionesConVideoPorMaestro(videoModalMaestro).length===0?(
@@ -2378,7 +2550,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
               <div key={m} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid #EEE8FF"}}>
                 {mo?.foto?<img src={mo.foto} alt="" style={{width:36,height:36,borderRadius:"50%",objectFit:"cover",border:"2px solid "+CLASE_COLORS[selClase]+"44",flexShrink:0}}/>:<div style={{width:36,height:36,borderRadius:"50%",background:CLASE_COLORS[selClase]+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[selClase],fontSize:12,flexShrink:0}}>{getInitials(m)}</div>}
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{shortDisplayName(m)}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{displayMaestroNombre(m)}</div>
                   <div style={{fontSize:11,color:"#7B6B9A"}}>{hechos} de {vs.length} videos enviados</div>
                 </div>
                 {avg!=null&&(
@@ -2410,7 +2582,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
               <div style={{flex:1}}>
                 <div style={{fontWeight:800,fontSize:14}}>{ses.leccion}</div>
                 {ses.tema&&<div style={{fontSize:12,color:"#7B6B9A"}}>{ses.tema}</div>}
-                <div style={{fontSize:11,color:"#7B6B9A",marginTop:2}}>📅 {ses.fecha} · 🎓 {shortDisplayName(ses.maestro)}</div>
+                <div style={{fontSize:11,color:"#7B6B9A",marginTop:2}}>📅 {ses.fecha} · 🎓 {displayMaestroNombre(ses.maestro)}</div>
               </div>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 13px",fontSize:13}} onClick={()=>openEdit(ses)}>
                 {v?"✏️":"📋"}
@@ -2438,7 +2610,7 @@ function VideosPanel({videos,onUpdate,cronograma,maestros}){
               {(()=>{const mo=maestros.find(x=>x.nombre===editVideo.maestro);return mo?.foto?<img src={mo.foto} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",border:"2px solid #5B2D8E44",flexShrink:0}}/>:<div style={{width:44,height:44,borderRadius:"50%",background:"#5B2D8E22",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:16,color:"#5B2D8E",flexShrink:0}}>{getInitials(editVideo.maestro)}</div>;})()}
               <div>
                 <div style={{fontWeight:800,color:"#5B2D8E"}}>{editVideo.leccion}</div>
-                <div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>📅 {editVideo.fecha} · 🎓 {shortDisplayName(editVideo.maestro)}</div>
+                <div style={{fontSize:12,color:"#7B6B9A",marginTop:2}}>📅 {editVideo.fecha} · 🎓 {displayMaestroNombre(editVideo.maestro)}</div>
               </div>
             </div>
 
@@ -2556,7 +2728,7 @@ function CumpleanosPanel({maestros,familias}){
   const mColors=["#4BBCE0","#5B2D8E","#E84F9B","#F5C842","#2A96BC","#E84F9B","#5B2D8E","#4BBCE0","#F5C842","#E84F9B","#7B4DB2","#4BBCE0"];
   const ordenCategoria=(b)=>(b.categoria==="alumno"?0:b.tipo==="MAESTRO"?1:2);
   const all=[
-    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:shortDisplayName(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro",clase:m.clase,foto:m.foto||null,iniciales:getInitials(m.nombre),diff:diasHastaCumple(m.cumpleanos)})),
+    ...maestros.filter(m=>m.cumpleanos).map(m=>({nombre:displayMaestroNombre(m.nombre),fecha:m.cumpleanos,tipo:m.cargo,categoria:"maestro",clase:m.clase,foto:m.foto||null,iniciales:getInitials(m.nombre),diff:diasHastaCumple(m.cumpleanos)})),
     ...familias.filter(f=>f.cumpleanos).map(f=>({nombre:shortDisplayName(f.alumno),fecha:f.cumpleanos,tipo:"ALUMNO",clase:f.clase,categoria:"alumno",foto:f.foto||null,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)})),
   ].sort((a,b)=>{
     const da=a.diff!=null?a.diff:9999;
@@ -2966,7 +3138,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
         <LogoImg height={38}/>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{textAlign:"right"}}>
-            <div style={{color:"#F5C842",fontWeight:800,fontSize:12,lineHeight:1.2}}>{shortDisplayName(user.name)}</div>
+            <div style={{color:"#F5C842",fontWeight:800,fontSize:12,lineHeight:1.2}}>{displayMaestroNombre(user.name)}</div>
             <div style={{color:"rgba(255,255,255,0.65)",fontSize:10}}>{teacherInfo.cargo} · {miClase}</div>
           </div>
           <button style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:10,padding:"8px 12px",color:"#FFFFFF",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={onLogout}>🚪 Salir</button>
@@ -2976,7 +3148,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
       <div style={{paddingBottom:10}}>
         {activeTab==="inicio"&&(
           <div style={{padding:"1rem 1rem 0"}}>
-            <h2 style={S.title}>Hola, {shortDisplayName(user.name).split(" ")[0]} 👋</h2>
+            <h2 style={S.title}>Hola, {displayMaestroNombre(user.name).split(" ")[0]} 👋</h2>
             <BirthdayBanner maestros={maestros} familias={familias}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <StatCard icon="👧" value={misNinos.length} label="Mis alumnos" color={CLASE_COLORS[miClase]||"#5B2D8E"}/>
@@ -3050,7 +3222,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 <div style={{fontSize:13,color:"#7B6B9A",marginBottom:8}}>{c.tema}</div>
                 <div style={{display:"flex",gap:10}}>
                   <span style={S.badge(c.maestro===user.name?"#5B2D8E":"#4BBCE0")}>{c.maestro===user.name?"🎓 Maestro":"🤝 Auxiliar"}</span>
-                  <span style={{fontSize:12,color:"#7B6B9A"}}>Aux: {c.auxiliar?shortDisplayName(c.auxiliar):"—"}</span>
+                  <span style={{fontSize:12,color:"#7B6B9A"}}>Aux: {c.auxiliar?displayMaestroNombre(c.auxiliar):"—"}</span>
                 </div>
               </div>
             ))}
@@ -3193,10 +3365,11 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 ["eventos","📆 Eventos"],
                 ["cumpleanos","🎂 Cumple."],
                 ["finanzas","💰 Finanzas"],
+                ...((()=>{const n=(user.name||"").toLowerCase();return n.includes("marcela")&&n.includes("lavaire")?[["finanzasED","💰 Finanzas ED"]]:[];})()),
                 ["evaluacion","⭐ Evaluac."],
                 ["perfil","👤 Perfil"],
               ].map(([id,label])=>(
-                <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20}} onClick={()=>setMasTab(id)}>{label}</button>
+                <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20,whiteSpace:"nowrap"}} onClick={()=>setMasTab(id)}>{label}</button>
               ))}
             </div>
             {masTab==="evaluacion"&&(
@@ -3205,7 +3378,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 {miEval?(
                   <div style={S.card}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                      <div><div style={{fontWeight:800,fontSize:16}}>{shortDisplayName(user.name)}</div><div style={{color:"#7B6B9A",fontSize:13}}>{teacherInfo.cargo} · {miClase}</div></div>
+                      <div><div style={{fontWeight:800,fontSize:16}}>{displayMaestroNombre(user.name)}</div><div style={{color:"#7B6B9A",fontSize:13}}>{teacherInfo.cargo} · {miClase}</div></div>
                       <div style={{background:"#5B2D8E15",borderRadius:14,padding:"12px 18px",textAlign:"center"}}>
                         <div style={{fontSize:32,fontWeight:900,color:"#5B2D8E"}}>{evalAvg(miEval,videoAvgForMaestro(user.name,data.videos||[],data.maestros||[]))}</div><div style={{fontSize:11,color:"#7B6B9A"}}>/5.0</div>
                       </div>
@@ -3220,38 +3393,55 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                       </div>
                     ))}
                     {(()=>{
+                      const crono=data.cronograma||[];
+                      const fallasReg=crono.filter(e=>e.fallaMaestro===user.name||e.fallaAuxiliar===user.name);
                       const videos=data.videos||[];
-                      const sesiones=(data.cronograma||[])
-                        .filter(s=>s.maestro===user.name&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE")
-                        .sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
-                      const rows=sesiones.map(s=>{
+                      const sesionesVideo=crono.filter(s=>s.maestro===user.name&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE").sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+                      const rowsVideo=sesionesVideo.map(s=>{
                         const v=videos.find(x=>x.sesionId===s.id&&x.maestro===s.maestro);
                         const score=v?videoScore(v):null;
                         return{ses:s,vid:v,score};
                       }).filter(r=>r.vid&&r.vid.hizo);
-                      if(!rows.length)return null;
+                      const hayFallas=fallasReg.length>0;
+                      const hayVideos=rowsVideo.length>0;
+                      if(!hayFallas&&!hayVideos)return null;
                       return(
                         <div style={{marginTop:16}}>
-                          <div style={{fontWeight:800,fontSize:13,color:"#4BBCE0",marginBottom:6}}>🎬 Historial de videos</div>
-                          <div style={{fontSize:11,color:"#7B6B9A",marginBottom:8}}>Solo se muestran las clases que requieren video (Corderitos, Vencedores, Conquistadores).</div>
-                          <div style={{borderRadius:12,overflow:"hidden",border:"1px solid #DDD0F0"}}>
-                            {rows.map((r,i)=>(
-                              <div key={r.ses.id||i} style={{display:"flex",alignItems:"center",padding:"8px 10px",background:i%2===0?"#F5F0FF":"#FFFFFF"}}>
-                                <div style={{flex:1,minWidth:0}}>
-                                  <div style={{fontWeight:700,fontSize:13,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.ses.leccion||"Sesión"}</div>
-                                  <div style={{fontSize:11,color:"#7B6B9A"}}>{formatFecha(r.ses.fecha)} · {r.ses.grupo}</div>
-                                </div>
-                                <div style={{textAlign:"right",fontSize:11}}>
-                                  <div>{r.vid?.hizo?"✅ Enviado":"❌ Sin video"}</div>
-                                  {r.score!=null&&(
-                                    <div style={{fontWeight:800,fontSize:14,color:scoreColor(r.score.toFixed(1))}}>
-                                      {r.score.toFixed(1)}/5
-                                    </div>
-                                  )}
-                                </div>
+                          <div style={{fontWeight:800,fontSize:14,color:"#5B2D8E",marginBottom:8}}>📋 Historial de calificaciones</div>
+                          {hayFallas&&(
+                            <div style={{marginBottom:14}}>
+                              <div style={{fontWeight:800,fontSize:12,color:"#EF5350",marginBottom:6}}>Fallas registradas (fecha, lección, grupo)</div>
+                              <div style={{borderRadius:12,overflow:"hidden",border:"1px solid #EF535044"}}>
+                                {fallasReg.map((e,i)=>(
+                                  <div key={e.id||i} style={{display:"flex",alignItems:"center",padding:"8px 12px",background:i%2===0?"#FFF0F0":"#FFFFFF",fontSize:12}}>
+                                    <span style={{color:"#EF5350",marginRight:8}}>❌</span>
+                                    <span style={{fontWeight:600,color:"#2D1B4E"}}>{e.leccion||"—"}</span>
+                                    <span style={{color:"#7B6B9A",marginLeft:8}}>📅 {formatFecha(e.fecha)} · {e.grupo||"—"}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
+                          {hayVideos&&(
+                            <div>
+                              <div style={{fontWeight:800,fontSize:12,color:"#4BBCE0",marginBottom:6}}>🎬 Calificaciones de videos (fecha, lección, grupo)</div>
+                              <div style={{fontSize:11,color:"#7B6B9A",marginBottom:6}}>Clases que requieren video: Corderitos, Vencedores, Conquistadores.</div>
+                              <div style={{borderRadius:12,overflow:"hidden",border:"1px solid #DDD0F0"}}>
+                                {rowsVideo.map((r,i)=>(
+                                  <div key={r.ses.id||i} style={{display:"flex",alignItems:"center",padding:"8px 10px",background:i%2===0?"#F5F0FF":"#FFFFFF"}}>
+                                    <div style={{flex:1,minWidth:0}}>
+                                      <div style={{fontWeight:700,fontSize:13}}>{r.ses.leccion||"Sesión"}</div>
+                                      <div style={{fontSize:11,color:"#7B6B9A"}}>{formatFecha(r.ses.fecha)} · {r.ses.grupo}</div>
+                                    </div>
+                                    <div style={{textAlign:"right",fontSize:11}}>
+                                      <div>{r.vid?.hizo?"✅ Enviado":"❌ Sin video"}</div>
+                                      {r.score!=null&&<div style={{fontWeight:800,fontSize:14,color:scoreColor(r.score.toFixed(1))}}>{r.score.toFixed(1)}/5</div>}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -3263,6 +3453,9 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
             {masTab==="finanzas"&&(
               <TeacherFinanzasPanel user={user} data={data}/>
             )}
+            {masTab==="finanzasED"&&(user.name||"").toLowerCase().includes("marcela")&&(user.name||"").toLowerCase().includes("lavaire")&&(
+              <FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={data.maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>
+            )}
             {masTab==="cumpleanos"&&(
               <div>
                 <h2 style={S.title}>Cumpleaños — {miClase}</h2>
@@ -3270,7 +3463,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 {(()=>{
                   const maestrosClase=maestros.filter(m=>m.clase===miClase&&(m.cumpleanos||m.nacimiento));
                   const cumpleMaestros=maestrosClase.map(m=>{
-                    let f=m.cumpleanos;if(!f&&m.nacimiento){try{const d=new Date(m.nacimiento);f=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;}catch(e){}}return f?{nombre:shortDisplayName(m.nombre),fecha:f,tipo:m.cargo,categoria:"maestro",foto:m.foto,iniciales:getInitials(m.nombre),diff:diasHastaCumple(f)}:null;
+                    let f=m.cumpleanos;if(!f&&m.nacimiento){try{const d=new Date(m.nacimiento);f=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;}catch(e){}}return f?{nombre:displayMaestroNombre(m.nombre),fecha:f,tipo:m.cargo,categoria:"maestro",foto:m.foto,iniciales:getInitials(m.nombre),diff:diasHastaCumple(f)}:null;
                   }).filter(Boolean);
                   const cumpleAlumnos=familias.filter(f=>f.clase===miClase&&f.cumpleanos).map(f=>({nombre:f.alumno||"",fecha:f.cumpleanos,tipo:"ALUMNO",categoria:"alumno",edad:f.edad,foto:f.foto,iniciales:getInitials(f.alumno),diff:diasHastaCumple(f.cumpleanos)}));
                   const sortByDiff=(a,b)=>{
@@ -3311,7 +3504,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                     <button onClick={()=>fileRef.current.click()} style={{position:"absolute",bottom:0,right:0,width:28,height:28,borderRadius:"50%",background:"#5B2D8E",border:"none",cursor:"pointer",fontSize:14,color:"#FFFFFF"}}>📷</button>
                     <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={handlePhoto}/>
                   </div>
-                  <div style={{fontWeight:800,fontSize:18}}>{shortDisplayName(user.name)}</div>
+                  <div style={{fontWeight:800,fontSize:18}}>{displayMaestroNombre(user.name)}</div>
                   <div style={{color:"#7B6B9A",marginTop:4}}>{teacherInfo.cargo} · {miClase}</div>
                   {teacherInfo.cumpleanos&&<div style={{marginTop:8,color:"#E84F9B",fontWeight:700}}>🎂 {teacherInfo.cumpleanos}</div>}
                   <div style={{marginTop:10}}><span style={S.badge(teacherInfo.certificado==="SI"?"#4CAF50":"#EF5350")}>{teacherInfo.certificado==="SI"?"✅ Certificado al día":"❌ Pendiente"}</span></div>
@@ -3453,7 +3646,7 @@ function InformesPanel({data}){
     const totalIngresos=ingresosActividades+donativosTotal;
     const neto=totalIngresos-totalGastos;
     const filasGastos=(finanzas.gastos||[]).map(g=>{
-      const resp=g.responsable?shortDisplayName(g.responsable):"—";
+      const resp=g.responsable?displayMaestroNombre(g.responsable):"—";
       return `<tr>
         <td>${g.fecha||"—"}</td>
         <td><strong>${g.concepto||"—"}</strong></td>
@@ -3462,7 +3655,7 @@ function InformesPanel({data}){
       </tr>`;
     }).join("");
     const filasActiv=(finanzas.actividades||[]).map(a=>{
-      const resp=a.responsable?shortDisplayName(a.responsable):"—";
+      const resp=a.responsable?displayMaestroNombre(a.responsable):"—";
       const ef=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
       const tpv=parseFloat(a.ingresoTPV||0)||0;
       const ing=ef+tpv;
@@ -3478,7 +3671,7 @@ function InformesPanel({data}){
       </tr>`;
     }).join("");
     const filasDon=(finanzas.donativos||[]).map(d=>{
-      const resp=d.responsable?shortDisplayName(d.responsable):"—";
+      const resp=d.responsable?displayMaestroNombre(d.responsable):"—";
       const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
       const tpv=parseFloat(d.tpv||0)||0;
       const tot=ef+tpv;
@@ -3634,13 +3827,13 @@ function InformesPanel({data}){
         <p style="font-size:11px;color:#7B6B9A;padding:8px 16px 0">Videos requeridos para clases Corderitos, Vencedores y Conquistadores. Calidad 1-5 y envío a tiempo.</p>
         <table><thead><tr><th>Fecha</th><th>Lección</th><th>Grupo</th><th>Envió</th><th>Calidad</th><th>A tiempo</th><th>Score</th></tr></thead><tbody>${videoRows}</tbody></table>
       </div>`:"";
-    const fotoHtml=m.foto?`<div style="margin-right:14px"><img src="${m.foto}" alt="${shortDisplayName(m.nombre)}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:3px solid ${claseColorHex(m.clase)}33"></div>`:`<div style="width:54px;height:54px;border-radius:50%;background:${claseColorHex(m.clase)}22;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:${claseColorHex(m.clase)};margin-right:14px">${getInitials(m.nombre)}</div>`;
+    const fotoHtml=m.foto?`<div style="margin-right:14px"><img src="${m.foto}" alt="${displayMaestroNombre(m.nombre)}" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:3px solid ${claseColorHex(m.clase)}33"></div>`:`<div style="width:54px;height:54px;border-radius:50%;background:${claseColorHex(m.clase)}22;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:${claseColorHex(m.clase)};margin-right:14px">${getInitials(m.nombre)}</div>`;
     const html=`
       <div class="card">
         <div style="display:flex;align-items:center;margin-bottom:10px">
           ${fotoHtml}
           <div>
-            <div class="card-title" style="margin:0">${shortDisplayName(m.nombre)}</div>
+            <div class="card-title" style="margin:0">${displayMaestroNombre(m.nombre)}</div>
             <div class="card-sub">${m.cargo} · Clase ${m.clase} · Certificado: ${m.certificado||"—"}</div>
           </div>
         </div>
@@ -3664,7 +3857,7 @@ function InformesPanel({data}){
         <table><thead><tr><th>Alumno</th><th>Asistencia</th><th>Promedio</th></tr></thead><tbody>${ninoRows||"<tr><td colspan='3' style='text-align:center;color:#AAA'>Sin alumnos</td></tr>"}</tbody></table>
       </div>
       ${ev?`<div class="section"><div class="section-title">⭐ Evaluación del Administrador</div><table><thead><tr><th>Criterio</th><th>Calificación</th><th>Puntos</th></tr></thead><tbody>${evalRows}</tbody></table>${(ev.observaciones||"").trim()?`<div style="padding:12px 16px;border-top:1px solid #DDD0F0"><div style="font-size:11px;font-weight:700;color:#5B2D8E;margin-bottom:6px">Observaciones</div><div style="font-size:13px;color:#2D1B4E;white-space:pre-wrap">${String(ev.observaciones||"").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`:""}</div>`:""}`+finanzasMiniSection();
-    generarPDF(`Informe de ${shortDisplayName(m.nombre)}`,html);
+    generarPDF(`Informe de ${displayMaestroNombre(m.nombre)}`,html);
   };
 
   // ── Report 4: Individual Student ──
@@ -3764,7 +3957,7 @@ function InformesPanel({data}){
     const html=`
       <div class="card">
         <div class="card-title" style="color:${claseColorHex(selClase)};font-size:18px">🏫 Clase ${selClase}</div>
-        <div class="card-sub">${claseMaestro?`Maestro: ${shortDisplayName(claseMaestro.nombre)}`:"Sin maestro asignado"} ${claseAux.length?`· Auxiliar(es): ${claseAux.map(a=>shortDisplayName(a.nombre)).join(", ")}`:""}
+        <div class="card-sub">${claseMaestro?`Maestro: ${displayMaestroNombre(claseMaestro.nombre)}`:"Sin maestro asignado"} ${claseAux.length?`· Auxiliar(es): ${claseAux.map(a=>displayMaestroNombre(a.nombre)).join(", ")}`:""}
         </div>
         <div class="grid2">
           <div class="stat"><div class="stat-val">${claseNinos.length}</div><div class="stat-lbl">Alumnos</div></div>
@@ -3831,8 +4024,8 @@ function InformesPanel({data}){
         const ses=cronograma.find(c=>c.id===m.sesionId)||{};
         const fecha=ses.fecha?formatFecha(ses.fecha):"—";
         const leccion=ses.leccion||"—";
-        const maestro=ses.maestro?shortDisplayName(ses.maestro):"—";
-        const aux=ses.auxiliar?shortDisplayName(ses.auxiliar):"—";
+        const maestro=ses.maestro?displayMaestroNombre(ses.maestro):"—";
+        const aux=ses.auxiliar?displayMaestroNombre(ses.auxiliar):"—";
         const merTxt=m.merienda?String(m.merienda):"";
         const merCost=parseFloat(m.meriendaCosto)||0;
         const tmTxt=m.trabajoManual?String(m.trabajoManual):"";
@@ -3858,7 +4051,7 @@ function InformesPanel({data}){
         if(ses.maestro)porMaestro[ses.maestro]=(porMaestro[ses.maestro]||0)+g;
       });
       const filasMaestros=Object.entries(porMaestro).sort((a,b)=>b[1]-a[1]).map(([nombre,total])=>{
-        const short=shortDisplayName(nombre);
+        const short=displayMaestroNombre(nombre);
         const info=maestros.find(x=>x.nombre===nombre);
         const cargo=info?.cargo||"MAESTRO";
         return `<tr>
@@ -3887,7 +4080,7 @@ function InformesPanel({data}){
     }).join("");
 
     const gastosComiteRows=(finanzas.gastos||[]).map(g=>{
-      const resp=g.responsable?shortDisplayName(g.responsable):"—";
+      const resp=g.responsable?displayMaestroNombre(g.responsable):"—";
       return `<tr>
         <td>${g.fecha||"—"}</td>
         <td><strong>${g.concepto||"—"}</strong></td>
@@ -3896,7 +4089,7 @@ function InformesPanel({data}){
       </tr>`;
     }).join("");
     const actividadesRows=(finanzas.actividades||[]).map(a=>{
-      const resp=a.responsable?shortDisplayName(a.responsable):"—";
+      const resp=a.responsable?displayMaestroNombre(a.responsable):"—";
       const ing=parseFloat(a.ingresos)||0;
       const gas=parseFloat(a.gastos)||0;
       const net=ing-gas;
@@ -3910,7 +4103,7 @@ function InformesPanel({data}){
       </tr>`;
     }).join("");
     const donativosRows=(finanzas.donativos||[]).map(d=>{
-      const resp=d.responsable?shortDisplayName(d.responsable):"—";
+      const resp=d.responsable?displayMaestroNombre(d.responsable):"—";
       return `<tr>
         <td>${d.fecha||"—"}</td>
         <td><strong>${d.concepto||"—"}</strong></td>
@@ -3974,11 +4167,11 @@ function InformesPanel({data}){
         <label style={S.label}>Seleccionar Maestro/Auxiliar</label>
         <select style={{...S.input,marginBottom:14}} value={selMaestro} onChange={e=>setSelMaestro(e.target.value)}>
           {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=>(
-            <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
+            <option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo} ({m.clase})</option>
           ))}
         </select>
         <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportMaestro}>
-          📥 Generar PDF — {selMaestro?shortDisplayName(selMaestro):"Selecciona uno"}
+          📥 Generar PDF — {selMaestro?displayMaestroNombre(selMaestro):"Selecciona uno"}
         </button>
       </div>
 
@@ -4200,7 +4393,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <input style={S.input} placeholder="€ Monto" value={gastoForm.monto} onChange={e=>setGastoForm(f=>({...f,monto:e.target.value}))}/>
           <select style={S.input} value={gastoForm.responsable} onChange={e=>setGastoForm(f=>({...f,responsable:e.target.value}))}>
             <option value="">Responsable</option>
-            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo}</option>)}
           </select>
         </div>
         <button style={{...S.btn("#E84F9B","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveGasto}>➕ Añadir gasto</button>
@@ -4209,7 +4402,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <div key={g.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#FDF5F7",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
             <div style={{fontSize:12,color:"#2D1B4E"}}>
               <div style={{fontWeight:700}}>{g.concepto}</div>
-              <div style={{fontSize:11,color:"#7B6B9A"}}>{g.fecha} · {g.responsable?shortDisplayName(g.responsable):"Sin responsable"}</div>
+              <div style={{fontSize:11,color:"#7B6B9A"}}>{g.fecha} · {g.responsable?displayMaestroNombre(g.responsable):"Sin responsable"}</div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontWeight:800,color:"#C62828",fontSize:13}}>€{(parseFloat(g.monto)||0).toFixed(2)}</span>
@@ -4230,7 +4423,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <input style={S.input} placeholder="€ Gastos" value={actForm.gastos} onChange={e=>setActForm(f=>({...f,gastos:e.target.value}))}/>
           <select style={S.input} value={actForm.responsable} onChange={e=>setActForm(f=>({...f,responsable:e.target.value}))}>
             <option value="">Responsable</option>
-            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo}</option>)}
           </select>
         </div>
         <button style={{...S.btn("#4BBCE0","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveActividad}>➕ Añadir actividad</button>
@@ -4245,7 +4438,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
             <div key={a.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#F0FAFF",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
               <div style={{fontSize:12,color:"#2D1B4E"}}>
                 <div style={{fontWeight:700}}>{a.nombre}</div>
-                <div style={{fontSize:11,color:"#7B6B9A"}}>{a.fecha} · {a.responsable?shortDisplayName(a.responsable):"Sin responsable"}</div>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>{a.fecha} · {a.responsable?displayMaestroNombre(a.responsable):"Sin responsable"}</div>
               </div>
               <div style={{textAlign:"right",fontSize:11}}>
                 <div style={{color:"#2E7D32",fontWeight:700}}>Efec.: €{ingEf.toFixed(2)} · TPV: €{ingTpv.toFixed(2)}</div>
@@ -4269,7 +4462,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <input style={S.input} placeholder="€ TPV" value={donForm.tpv} onChange={e=>setDonForm(f=>({...f,tpv:e.target.value}))}/>
           <select style={S.input} value={donForm.responsableMaestro} onChange={e=>setDonForm(f=>({...f,responsableMaestro:e.target.value,donante:e.target.value||f.donante}))}>
             <option value="">Responsable (maestro/aux)</option>
-            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo}</option>)}
           </select>
           <input style={S.input} placeholder="Otro donante (si aplica)" value={donForm.donante} onChange={e=>setDonForm(f=>({...f,donante:e.target.value}))}/>
         </div>
@@ -4304,7 +4497,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           <input style={S.input} placeholder="€ TPV" value={votoForm.tpv} onChange={e=>setVotoForm(f=>({...f,tpv:e.target.value}))}/>
           <select style={S.input} value={votoForm.responsable} onChange={e=>setVotoForm(f=>({...f,responsable:e.target.value}))}>
             <option value="">Responsable</option>
-            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo}</option>)}
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo}</option>)}
           </select>
           <input style={S.input} placeholder="Nombre si no es maestro" value={votoForm.otroNombre} onChange={e=>setVotoForm(f=>({...f,otroNombre:e.target.value}))}/>
         </div>
@@ -4318,7 +4511,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
             <div key={d.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#FFF9E6",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
               <div style={{fontSize:12,color:"#2D1B4E"}}>
                 <div style={{fontWeight:700}}>{d.concepto||"Voto"}</div>
-                <div style={{fontSize:11,color:"#7B6B9A"}}>{d.fecha} · Responsable: {d.responsable?shortDisplayName(d.responsable):"—"}</div>
+                <div style={{fontSize:11,color:"#7B6B9A"}}>{d.fecha} · Responsable: {d.responsable?displayMaestroNombre(d.responsable):"—"}</div>
               </div>
               <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,fontSize:11}}>
                 <span style={{fontWeight:700,color:"#2E7D32"}}>Efec.: €{ef.toFixed(2)} · TPV: €{tpv.toFixed(2)}</span>
@@ -4401,7 +4594,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
         {activeTab==="inicio"&&<AdminDashboard data={data} onUpdateData={onUpdateData}/>}
         {activeTab==="horario"&&<CronogramaPanel cronograma={data.cronograma} maestros={data.maestros} onUpdate={v=>onUpdateData("cronograma",v)}/>}
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
-        {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} maestros={data.maestros||[]}/>}
+        {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} onUpdateCronograma={v=>onUpdateData("cronograma",v)} maestros={data.maestros||[]}/>}
         {activeTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
         {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig}/>}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
@@ -4481,7 +4674,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
                   >
                     <option value="">— Selecciona —</option>
                     {[...data.maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=>(
-                      <option key={m.id} value={m.nombre}>{shortDisplayName(m.nombre)} — {m.cargo} ({m.clase})</option>
+                      <option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo} ({m.clase})</option>
                     ))}
                   </select>
                   <label style={S.label}>Nueva contraseña</label>
@@ -4566,7 +4759,31 @@ function App(){
     });
     return unsub;
   },[]);
-  const updateData=useCallback(async(key,val)=>{setData(d=>({...d,[key]:val}));return await saveData(key,val);},[]);
+  const saveMaestroSyncRef=useRef(null);
+  const updateData=useCallback(async(key,val)=>{
+    if(key==="maestros"&&Array.isArray(val)){
+      saveMaestroSyncRef.current=null;
+      setData(d=>{
+        const oldMaestros=d.maestros||[];
+        const replacements=[];
+        val.forEach(m=>{const old=oldMaestros.find(o=>o.id===m.id);if(old&&old.nombre!==m.nombre)replacements.push({from:old.nombre,to:m.nombre});});
+        let newCronograma=d.cronograma||[];
+        let newEval=d.evaluaciones||[];
+        replacements.forEach(({from,to})=>{
+          newCronograma=newCronograma.map(ent=>({...ent,maestro:ent.maestro===from?to:ent.maestro,auxiliar:ent.auxiliar===from?to:ent.auxiliar}));
+          newEval=newEval.map(e=>({...e,nombre:e.nombre===from?to:e.nombre}));
+        });
+        saveMaestroSyncRef.current=replacements.length?{cronograma:newCronograma,evaluaciones:newEval}:null;
+        return{...d,maestros:val,cronograma:newCronograma,evaluaciones:newEval};
+      });
+      await saveData("maestros",val);
+      const extra=saveMaestroSyncRef.current;
+      if(extra){await saveData("cronograma",extra.cronograma);await saveData("evaluaciones",extra.evaluaciones);}
+      return;
+    }
+    setData(d=>({...d,[key]:val}));
+    return await saveData(key,val);
+  },[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
 
   // Siempre ejecutar useMemo (mismo orden de hooks en cada render)
