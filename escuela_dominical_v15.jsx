@@ -1752,6 +1752,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
                 <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>👨‍👩‍👧 {members[0].familia||fullNameToApellidos(members[0].alumno)||key}</div>
                 <div style={{fontSize:11,color:"#7B6B9A"}}>{members.length} alumno{members.length!==1?"s":""}</div>
               </div>
+              {!readOnly&&<button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)}>📝 Encargar servicio</button>}
             </div>
             {/* Historial de encargos de servicio — siempre visible al entrar en la familia */}
             <div style={{background:"#FFFBF0",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #F5C84244"}}>
@@ -1987,11 +1988,12 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
         <label style={S.label}>Primer nombre</label>
         <input style={{...S.input,marginBottom:12}} placeholder="Ej: José" value={form.primerNombre} onChange={e=>setForm(f=>({...f,primerNombre:e.target.value}))}/>
         <label style={S.label}>Segundo nombre (opcional)</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Luis" value={form.segundoNombre} onChange={e=>setForm(f=>({...f,segundoNombre:e.target.value}))}/>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Luis — deja vacío si no aplica" value={form.segundoNombre} onChange={e=>setForm(f=>({...f,segundoNombre:e.target.value}))}/>
         <label style={S.label}>Primer apellido</label>
         <input style={{...S.input,marginBottom:12}} placeholder="Ej: Mogollón" value={form.primerApellido} onChange={e=>setForm(f=>({...f,primerApellido:e.target.value}))}/>
         <label style={S.label}>Segundo apellido (opcional)</label>
-        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Muñoz" value={form.segundoApellido} onChange={e=>setForm(f=>({...f,segundoApellido:e.target.value}))}/>
+        <input style={{...S.input,marginBottom:12}} placeholder="Ej: Muñoz — deja vacío si no aplica" value={form.segundoApellido} onChange={e=>setForm(f=>({...f,segundoApellido:e.target.value}))}/>
+        <div style={{marginBottom:12,fontSize:11,color:"#7B6B9A",background:"#F5F0FF",padding:"8px 10px",borderRadius:8}}>Las casillas opcionales pueden quedar vacías; no se corren. El nombre que se muestra será <strong>primer nombre + primer apellido</strong> (el disponible).</div>
         <div style={{marginBottom:12,fontSize:12,color:"#7B6B9A"}}>👨‍👩‍👧 Familia (se rellena solo): {buildFamiliaAlumno(form.primerApellido,form.segundoApellido)||"—"}</div>
         <label style={S.label}>Nombre del padre</label>
         <input style={{...S.input,marginBottom:12}} placeholder="Ej: José Mogollón" value={form.nombrePadre} onChange={e=>setForm(f=>({...f,nombrePadre:e.target.value}))}/>
