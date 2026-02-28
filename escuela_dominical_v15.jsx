@@ -1761,7 +1761,6 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
                   <div style={{fontWeight:800,color:"#7B5A00",fontSize:14}}>📝 Historial de encargos de servicio</div>
                   <div style={{fontSize:11,color:"#7B6B9A",marginTop:2}}>Encargos que tiene o ha tenido esta familia. Editar, calificar o eliminar; el registro se conserva.</div>
                 </div>
-                <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 12px",fontSize:12}} onClick={()=>abrirEncargo(key)}>📝 Encargar servicio</button>
               </div>
               {encargos.length===0?(
                 <div style={{fontSize:13,color:"#7B6B9A",fontStyle:"italic"}}>Aún no hay encargos. Usa el botón de arriba para asignar uno.</div>
@@ -1922,7 +1921,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
   const openEdit=(a)=>{
     const words=(a.nombre||"").trim().split(/\s+/).filter(Boolean);
     const primerNombre=words.length?words[0]:"";
-    const primerApellido=words.length>=2?words[words.length-1]:"";
+    const primerApellido=words.length>=2?(words.length===2?words[1]:words[words.length-2]):"";
     setForm({ primerNombre, segundoNombre: "", primerApellido, segundoApellido: "", nombrePadre: (a.padre||"").trim(), nombreMadre: (a.madre||"").trim(), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     setEditId(a.id);
     setModal(true);
@@ -4613,7 +4612,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
                 <button key={id} style={{...S.btn(masTab===id?"#5B2D8E":"#F5F0FF",masTab===id?"#FFFFFF":"#2D1B4E"),padding:"8px 14px",fontSize:13,flexShrink:0,borderRadius:20,whiteSpace:"nowrap"}} onClick={()=>setMasTab(id)}>{label}</button>
               ))}
             </div>
-            {masTab==="familias"&&<FamiliasPanel readOnly={useAlumnosSource} familias={data.familias} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)} clases={data.clases} onUpdateClases={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)}/>}
+            {masTab==="familias"&&<FamiliasPanel readOnly={useAlumnosSource} familias={data.familias} onUpdate={v=>onUpdateData("familias",v)} clases={data.clases} onUpdateClases={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)}/>}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={v=>onUpdateData("eventos",v)}/>}
             {masTab==="cumpleanos"&&<CumpleanosPanel maestros={data.maestros} familias={data.familias}/>}
             {masTab==="finanzas"&&<FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={data.maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>}
@@ -4734,12 +4733,13 @@ function App(){
     clasesConfig:DEFAULT_CLASES_CONFIG,
     videos:[],
     finanzas:DEFAULT_FINANZAS,
+    adminProfile:null,
   });
   useEffect(()=>{
     (async()=>{
       try{
         const loaded={};
-        for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas"]){
+        for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas","adminProfile"]){
           const v=await loadData(k);if(v!==null)loaded[k]=v;
         }
         const familias=loaded.familias??INITIAL_FAMILIAS;
@@ -4750,7 +4750,7 @@ function App(){
             saveData("alumnos",alumnos);
           }else alumnos=INITIAL_ALUMNOS;
         }
-        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS };
+        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
       }catch(e){
@@ -4794,7 +4794,7 @@ function App(){
   },[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
 
-  // Siempre ejecutar useMemo (mismo orden de hooks en cada render)
+  // Siempre ejecutar useMemo (mismo orden de hooks en cada render). Si hay alumnos, familias se deriva pero se fusionan encargosFamilia y fotoFamilia guardados para que no se pierdan.
   const dataWithDerived=useMemo(()=>{
     try {
       const d=data||{};
@@ -4804,7 +4804,13 @@ function App(){
       let familias=d.familias;
       if(alumnos&&Array.isArray(alumnos)&&alumnos.length>0){
         clases=deriveClases(alumnos,cfg);
-        familias=deriveFamilias(alumnos);
+        const derivedFam=deriveFamilias(alumnos);
+        const stored=Array.isArray(d.familias)?d.familias:[];
+        if(stored.length>0){
+          const byKey={};
+          stored.forEach(f=>{const k=f.familia||f.alumno;if(k&&!byKey[k])byKey[k]={encargosFamilia:f.encargosFamilia,fotoFamilia:f.fotoFamilia};});
+          familias=derivedFam.map(f=>{const k=f.familia||f.alumno;const x=byKey[k];return {...f,encargosFamilia:x?.encargosFamilia??f.encargosFamilia,fotoFamilia:x?.fotoFamilia??f.fotoFamilia};});
+        }else familias=derivedFam;
       }
       if(!clases||typeof clases!=="object")clases=INITIAL_CLASES;
       if(!Array.isArray(familias))familias=INITIAL_FAMILIAS;
