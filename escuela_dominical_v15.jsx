@@ -283,7 +283,7 @@ function deriveClases(alumnos,clasesConfig){
         cumpleanos=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
       }catch(e){}
     }
-    out[key].push({ id: a.id, nombre: a.nombre, edad, foto: a.foto||null, nacimiento: a.nacimiento, cumpleanos, bautizado: !!a.bautizado, sellado: !!a.sellado });
+    out[key].push({ id: a.id, nombre: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, foto: a.foto||null, nacimiento: a.nacimiento, cumpleanos, bautizado: !!a.bautizado, sellado: !!a.sellado });
   });
   return out;
 }
@@ -309,7 +309,7 @@ function deriveFamilias(alumnos){
           cumpleanos=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
         }catch(e){}
       }
-      derived.push({ id: a.id, num: numCounter, familia: first.familia||first.padre||first.madre||first.nombre||"", padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", alumno: a.nombre, edad, cumpleanos, nacimiento: a.nacimiento||"", clase: normalizarClase(a.clase), bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
+      derived.push({ id: a.id, num: numCounter, familia: first.familia||first.padre||first.madre||first.nombre||"", padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", alumno: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, cumpleanos, nacimiento: a.nacimiento||"", clase: normalizarClase(a.clase), bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     });
   });
   return derived;
@@ -428,7 +428,15 @@ function subscribeData(onChange){
   return ()=>unsub();
 }
 
-// Muestra solo primer nombre + primer apellido. Soporta nombres con o sin segundo nombre.
+// Muestra solo primer nombre + primer apellido. Si el registro tiene las 4 partes guardadas, las usa (así no se "ruedan" al editar).
+function displayNameAlumno(record){
+  if(!record)return "";
+  const pn=(record.primerNombre!=null&&record.primerNombre!=="")?String(record.primerNombre).trim():"";
+  const pa=(record.primerApellido!=null&&record.primerApellido!=="")?String(record.primerApellido).trim():"";
+  if(pn||pa)return [pn,pa].filter(Boolean).join(" ").trim();
+  const str=record.nombre||record.alumno||"";
+  return shortDisplayName(str);
+}
 function shortDisplayName(str){
   if(!str)return str;
   const p4=parseNombre4(str);
@@ -1510,7 +1518,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
         <div key={n.id||i} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
           <AvatarUpload photo={n.foto} onPhoto={readOnlyStudents?()=>{}:(f)=>updateFoto(i,f)} size={48} initials={getInitials(n.nombre)} color={color}/>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{shortDisplayName(n.nombre)}</div>
+            <div style={{fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayNameAlumno(n)}</div>
             {n.edad&&<div style={{fontSize:12,color:"#7B6B9A"}}>{n.edad} años</div>}
           </div>
           {(()=>{
@@ -1698,11 +1706,6 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
     setEncargoModal(false);
     setEncargoEditId(null);
   };
-  const todosEncargos=familias.filter(f=>((f.familia||f.alumno)&&(f.encargosFamilia||[]).length>0)).flatMap(f=>{
-    const key=f.familia||f.alumno;
-    const label=f.familia||fullNameToApellidos(f.alumno)||f.alumno;
-    return (f.encargosFamilia||[]).map(e=>({familyKey:key,familyLabel:label,encargo:e}));
-  }).sort((a,b)=>(b.encargo.fecha||"").localeCompare(a.encargo.fecha||""));
   const eliminarEncargo=(familyKey,encargoId)=>{
     if(!window.confirm("¿Eliminar este encargo del historial de la familia?"))return;
     onUpdate(familias.map(f=>(f.familia||f.alumno)===familyKey?{...f,encargosFamilia:(f.encargosFamilia||[]).filter(x=>x.id!==encargoId)}:f));
@@ -1718,24 +1721,6 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         {teacherMode&&!readOnly&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Edita teléfonos y datos</div>}
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      {todosEncargos.length>0&&(
-        <div style={{...S.card,marginBottom:16,borderLeft:"5px solid #F5C842",background:"linear-gradient(135deg,#F5C84208,#F5C84218)"}}>
-          <div style={{fontWeight:800,color:"#7B5A00",fontSize:14,marginBottom:8}}>📝 Servicios encargados — Revisar y calificar</div>
-          <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Lista de todos los servicios asignados a las familias. Usa «Calificar» para marcar estado y puntuación.</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {todosEncargos.map(({familyKey,familyLabel,encargo})=>(
-              <div key={encargo.id} style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",background:"#FFFFFF",borderRadius:10,padding:"10px 12px",border:"1px solid #DDD0F0"}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#5B2D8E"}}>{encargo.servicio}</div>
-                  <div style={{fontSize:11,color:"#7B6B9A"}}>👨‍👩‍👧 {familyLabel} · 📅 {encargo.fecha||"—"} · Estado: {encargo.estado||"—"}{encargo.calificacion!=null?` · ⭐ ${encargo.calificacion}/5`:""}</div>
-                </div>
-                <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 12px",fontSize:12}} onClick={()=>abrirEncargo(familyKey,encargo)}>✏️ Editar / Calificar</button>
-                <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"6px 10px",fontSize:12}} onClick={()=>eliminarEncargo(familyKey,encargo.id)} title="Eliminar encargo">🗑 Eliminar</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {Object.entries(grouped).sort(([,aMembers],[,bMembers])=>{
         const aAlumno=aMembers[0]?.alumno||"";
         const bAlumno=bMembers[0]?.alumno||"";
@@ -1824,7 +1809,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderTop:i>0?"1px solid #DDD0F0":"none"}}>
                 <AvatarUpload photo={m.foto||null} onPhoto={readOnly?()=>{}:(f)=>updateMemberFoto(m.id,f)} size={40} initials={getInitials(m.alumno)} color={CLASE_COLORS[m.clase]||"#4BBCE0"}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{shortDisplayName(m.alumno||"")}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{displayNameAlumno(m)}</div>
               <div style={{fontSize:12,color:"#7B6B9A"}}>
                 {m.edad}
                 {m.cumpleanos?" · 🎂 "+m.cumpleanos:""}
@@ -1884,7 +1869,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
           </>
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={save}>💾 Guardar</button>
-        {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+shortDisplayName(buildNombreFull(form.primerNombre,form.segundoNombre,form.primerApellido,form.segundoApellido)||form.alumno||"")+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
+        {editId&&!teacherMode&&<button style={{...S.btn("#FFF0F0","#EF5350"),padding:12,marginTop:10,border:"1.5px solid #EF535044"}} onClick={()=>{if(confirmDelete("¿Eliminar a "+displayNameAlumno(form)+"?")){onUpdate(familias.filter(f=>f.id!==editId));setModal(false);}}}>🗑 Eliminar Miembro</button>}
       </Modal>
       <Modal open={encargoModal} onClose={()=>{setEncargoModal(false);setEncargoEditId(null);}} title={encargoEditId?"Revisar / Calificar servicio":"Encargar servicio a la familia"}>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>
@@ -1941,11 +1926,11 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
 
   const openAdd=()=>{ setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
-    const words=(a.nombre||"").trim().split(/\s+/).filter(Boolean);
-    const primerNombre=words.length?words[0]:"";
-    const segundoNombre=words.length>=3?words[1]:"";
-    const primerApellido=words.length>=2?(words.length===2?words[1]:words[2]):"";
-    const segundoApellido=words.length>=4?words[3]:"";
+    const tienePartes=a.primerNombre!=null||a.primerApellido!=null;
+    const primerNombre=tienePartes?(a.primerNombre||""):((a.nombre||"").trim().split(/\s+/).filter(Boolean)[0]||"");
+    const segundoNombre=tienePartes?(a.segundoNombre||""):"";
+    const primerApellido=tienePartes?(a.primerApellido||""):(function(){const w=(a.nombre||"").trim().split(/\s+/).filter(Boolean);return w.length>=2?(w.length===2?w[1]:w[2]):"";}());
+    const segundoApellido=tienePartes?(a.segundoApellido||""):(function(){const w=(a.nombre||"").trim().split(/\s+/).filter(Boolean);return w.length>=4?w[3]:"";}());
     setForm({ primerNombre, segundoNombre, primerApellido, segundoApellido, nombrePadre: (a.padre||"").trim(), nombreMadre: (a.madre||"").trim(), clase: normalizarClase(a.clase), nacimiento: a.nacimiento||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     setEditId(a.id);
     setModal(true);
@@ -1964,13 +1949,13 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
     }
     const claseKey=normalizarClase(form.clase);
     const familia=buildFamiliaAlumno(form.primerApellido,form.segundoApellido);
-    const record={ id: editId||Date.now(), nombre, clase: claseKey, nacimiento: form.nacimiento||null, padre: (form.nombrePadre||"").trim(), madre: (form.nombreMadre||"").trim(), telPadre: (form.telPadre||"").trim(), telMadre: (form.telMadre||"").trim(), familia, bautizado: !!form.bautizado, sellado: !!form.sellado, foto: form.foto||null };
+    const record={ id: editId||Date.now(), nombre, clase: claseKey, nacimiento: form.nacimiento||null, padre: (form.nombrePadre||"").trim(), madre: (form.nombreMadre||"").trim(), telPadre: (form.telPadre||"").trim(), telMadre: (form.telMadre||"").trim(), familia, bautizado: !!form.bautizado, sellado: !!form.sellado, foto: form.foto||null, primerNombre: (form.primerNombre||"").trim(), segundoNombre: (form.segundoNombre||"").trim(), primerApellido: (form.primerApellido||"").trim(), segundoApellido: (form.segundoApellido||"").trim() };
     const updated=editId?(alumnos||[]).map(a=>a.id===editId?record:a):[...(alumnos||[]),record];
     const ok=await onUpdateAlumnos(updated);
     if(ok)setModal(false);else alert("No se pudo guardar (incl. foto). Revisa la conexión o la consola (F12).");
   };
   const deleteAlumno=(a)=>{
-    if(!confirmDelete("¿Eliminar a "+shortDisplayName(a.nombre)+"?"))return;
+    if(!confirmDelete("¿Eliminar a "+displayNameAlumno(a)+"?"))return;
     onUpdateAlumnos((alumnos||[]).filter(x=>x.id!==a.id));
     setModal(false);
   };
@@ -1993,12 +1978,12 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig}){
             <div key={a.id} style={{...S.card,display:"flex",alignItems:"center",gap:12,borderLeft:"4px solid "+color}}>
               <AvatarUpload photo={a.foto} onPhoto={()=>{}} size={44} initials={getInitials(a.nombre)} color={color}/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700}}>{shortDisplayName(a.nombre)}</div>
+                <div style={{fontWeight:700}}>{displayNameAlumno(a)}</div>
                 <div style={{fontSize:12,color:"#7B6B9A"}}>{(a.padre||a.madre)?"👨‍👩‍👧 Familia":"—"}</div>
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
-              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"8px 12px"}} onClick={()=>{if(!confirmDelete("¿Eliminar a "+shortDisplayName(a.nombre)+"?"))return;deleteAlumno(a);}} title="Eliminar">🗑</button>
+              <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"8px 12px"}} onClick={()=>{if(!confirmDelete("¿Eliminar a "+displayNameAlumno(a)+"?"))return;deleteAlumno(a);}} title="Eliminar">🗑</button>
             </div>
           );
         })
@@ -2091,7 +2076,7 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                 ?<img src={n.foto} alt="" style={{width:40,height:40,borderRadius:"50%",objectFit:"cover",border:`2px solid ${CLASE_COLORS[activeClase]}`,flexShrink:0}}/>
                 :<div style={{width:40,height:40,borderRadius:"50%",background:CLASE_COLORS[activeClase]+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:CLASE_COLORS[activeClase],flexShrink:0}}>{getInitials(n.nombre)}</div>
               }
-              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{shortDisplayName(n.nombre)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{entries.length} sesiones</div></div>
+              <div style={{flex:1}}><div style={{fontWeight:800,fontSize:14}}>{displayNameAlumno(n)}</div><div style={{fontSize:12,color:"#7B6B9A"}}>{entries.length} sesiones</div></div>
               {avg&&<div style={{background:scoreColor(avg)+"20",borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:scoreColor(avg)}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>prom.</div></div>}
             </div>
             {entries.length===0&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"#EF535012",borderRadius:10,marginBottom:8}}><span style={{fontSize:14}}>🔴</span><span style={{fontSize:13,color:"#EF5350",fontWeight:700}}>Ausente — Sin calificaciones registradas</span></div>}
@@ -2979,7 +2964,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
                   :<div style={{width:36,height:36,borderRadius:"50%",background:(asistio?(CLASE_COLORS[miClase]||"#5B2D8E"):"#CCC")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:12,color:asistio?(CLASE_COLORS[miClase]||"#5B2D8E"):"#999",flexShrink:0}}>{getInitials(n.nombre)}</div>
                 }
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:700,fontSize:13}}>{shortDisplayName(n.nombre)}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{displayNameAlumno(n)}</div>
                   {avg?<div style={{fontSize:12,color:scoreColor(avg),fontWeight:700}}>Prom: {avg}</div>:<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin calificar — ausente</div>}
                   {calif?.observacion&&<div style={{fontSize:11,color:"#7B6B9A"}}>💬 {calif.observacion.slice(0,50)}{calif.observacion.length>50?"...":""}</div>}
                 </div>
@@ -3280,7 +3265,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                       :<div style={{width:44,height:44,borderRadius:"50%",background:(CLASE_COLORS[miClase]||"#5B2D8E")+"33",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14,color:CLASE_COLORS[miClase]||"#5B2D8E",flexShrink:0}}>{getInitials(n.nombre)}</div>
                     }
                     <div style={{flex:1}}>
-                      <div style={{fontWeight:800}}>{shortDisplayName(n.nombre)}</div>
+                      <div style={{fontWeight:800}}>{displayNameAlumno(n)}</div>
                       <div style={{fontSize:12,color:"#7B6B9A"}}>
                         {n.edad?n.edad+" años · ":""}
                         {totalSesiones} sesiones asistidas
@@ -3769,11 +3754,11 @@ function InformesPanel({data}){
       const pct=totalSes>0?Math.round((asistencias/totalSes)*100):0;
       const scoreC=avg?scoreColorHex(avg):"#AAA";
       const obsCount=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===n.clase&&c.observacion).length;
-      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;border:2px solid ${claseColorHex(n.clase)}33">`:`<div style="width:28px;height:28px;border-radius:50%;background:${claseColorHex(n.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(n.clase)};margin-right:8px">${getInitials(n.nombre)}</div>`;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${displayNameAlumno(n)}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;border:2px solid ${claseColorHex(n.clase)}33">`:`<div style="width:28px;height:28px;border-radius:50%;background:${claseColorHex(n.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(n.clase)};margin-right:8px">${getInitials(n.nombre)}</div>`;
       const bautizado=fam?.bautizado?"Sí":"No";
       const sellado=fam?.sellado?"Sí":"No";
       return `<tr>
-        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${displayNameAlumno(n)}</strong></div></td>
         <td><span class="badge" style="background:${claseColorHex(n.clase)}22;color:${claseColorHex(n.clase)};border:1px solid ${claseColorHex(n.clase)}44">${n.clase}</span></td>
         <td>${n.edad||"—"}</td>
         <td>${fam?.cumpleanos||"—"}</td>
@@ -3829,9 +3814,9 @@ function InformesPanel({data}){
     const ninoRows=misNinos.map(n=>{
       const avg=ninoAvg(n.nombre,m.clase);
       const asist=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===m.clase).length;
-      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(m.clase)}33;vertical-align:middle">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(m.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(m.clase)};margin-right:6px;vertical-align:middle">${getInitials(n.nombre)}</div>`;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${displayNameAlumno(n)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(m.clase)}33;vertical-align:middle">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(m.clase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(m.clase)};margin-right:6px;vertical-align:middle">${getInitials(n.nombre)}</div>`;
       return`<tr>
-        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${displayNameAlumno(n)}</strong></div></td>
         <td>${asist} sesiones</td>
         <td style="color:${avg?scoreColorHex(avg):"#AAA"};font-weight:800">${avg||"Sin calificar"}</td>
       </tr>`;
@@ -3918,7 +3903,7 @@ function InformesPanel({data}){
     const madreRow=fam&&fam.madre&&fam.madre!=="(No registra)"?"<div style=\"font-size:12px;color:#7B6B9A\">👩 "+fam.madre+(fam.telMadre?" · 📞 "+fam.telMadre:"")+"</div>":"";
     const bautizadoSellado="<div style=\"margin-top:8px;font-size:12px\">"+(fam?.bautizado?"<span style=\"color:#2E7D32;font-weight:700\">🙏 Bautizado</span>":"<span style=\"color:#7B6B9A\">Bautizado: No</span>")+" &nbsp; "+(fam?.sellado?"<span style=\"color:#5B2D8E;font-weight:700\">✨ Sellado</span>":"<span style=\"color:#7B6B9A\">Sellado: No</span>")+"</div>";
     const avgBox=avg?"<div style=\"text-align:center;background:"+scoreC+"22;border-radius:12px;padding:10px 14px\"><div style=\"font-size:28px;font-weight:900;color:"+scoreC+"\">"+avg+"</div><div style=\"font-size:10px;color:#7B6B9A\">/10</div></div>":"";
-    const fotoHtml=n.foto?("<img src=\""+n.foto+"\" alt=\""+shortDisplayName(n.nombre)+"\" style=\"width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid "+claseColorHex(n.clase)+"33\">"):("<div style=\"width:52px;height:52px;border-radius:50%;background:"+claseColorHex(n.clase)+"33;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:"+claseColorHex(n.clase)+"\">"+getInitials(n.nombre)+"</div>");
+    const fotoHtml=n.foto?("<img src=\""+n.foto+"\" alt=\""+displayNameAlumno(n)+"\" style=\"width:52px;height:52px;border-radius:50%;object-fit:cover;border:3px solid "+claseColorHex(n.clase)+"33\">"):("<div style=\"width:52px;height:52px;border-radius:50%;background:"+claseColorHex(n.clase)+"33;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:"+claseColorHex(n.clase)+"\">"+getInitials(n.nombre)+"</div>");
     const historial=entries.length>0?
       "<div class=\"section\"><div class=\"section-title\">📊 Historial de Calificaciones ("+entries.length+" sesiones)</div>"+
       "<table><thead><tr><th>Fecha</th><th>Lección</th>"+crit.map(c=>"<th>"+c.logro+"</th>").join("")+"<th>Prom.</th><th>Observación</th></tr></thead>"+
@@ -3929,7 +3914,7 @@ function InformesPanel({data}){
       "<div class=\"card\" style=\"margin:0 20px 16px;border-left:4px solid "+claseColorHex(n.clase)+"\">"+
       "<div style=\"display:flex;gap:14px;align-items:center;margin-bottom:12px\">"+
       fotoHtml+
-      "<div style=\"flex:1\"><div style=\"font-size:20px;font-weight:900;color:#2D1B4E\">"+shortDisplayName(n.nombre)+"</div>"+
+      "<div style=\"flex:1\"><div style=\"font-size:20px;font-weight:900;color:#2D1B4E\">"+displayNameAlumno(n)+"</div>"+
       "<div style=\"font-size:12px;color:#7B6B9A\">Clase: <strong>"+n.clase+"</strong> · Edad: <strong>"+(n.edad||"—")+"</strong></div>"+
       padreRow+madreRow+bautizadoSellado+"</div>"+avgBox+"</div>"+
       "<div style=\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px\">"+
@@ -3937,7 +3922,7 @@ function InformesPanel({data}){
       "<div class=\"stat\"><div class=\"stat-val\">"+asistPct+"%</div><div class=\"stat-lbl\">Asistencia</div></div>"+
       "<div class=\"stat\"><div class=\"stat-val\" style=\"color:"+scoreC+"\">"+( avg||"—")+"</div><div class=\"stat-lbl\">Promedio general</div></div>"+
       "</div></div>"+historial+finanzasMiniSection();
-    generarPDF("Informe: "+shortDisplayName(n.nombre),html);
+    generarPDF("Informe: "+displayNameAlumno(n),html);
   };
 
   // ── Report 3: Class Summary ──
@@ -3969,9 +3954,9 @@ function InformesPanel({data}){
       const asist=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===selClase).length;
       const fam=familias.find(f=>f.alumno===n.nombre);
       const obsCount=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===selClase&&c.observacion).length;
-      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${shortDisplayName(n.nombre)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(selClase)}33">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(selClase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(selClase)};margin-right:6px">${getInitials(n.nombre)}</div>`;
+      const fotoHtml=n.foto?`<img src="${n.foto}" alt="${displayNameAlumno(n)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;margin-right:6px;border:2px solid ${claseColorHex(selClase)}33">`:`<div style="width:26px;height:26px;border-radius:50%;background:${claseColorHex(selClase)}33;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:${claseColorHex(selClase)};margin-right:6px">${getInitials(n.nombre)}</div>`;
       return`<tr>
-        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${shortDisplayName(n.nombre)}</strong></div></td>
+        <td><div style="display:flex;align-items:center">${fotoHtml}<strong>${displayNameAlumno(n)}</strong></div></td>
         <td>${n.edad||"—"}</td>
         <td>${fam?.cumpleanos||"—"}</td>
         <td>${fam?.bautizado?"Sí":"No"}</td>
@@ -4228,7 +4213,7 @@ function InformesPanel({data}){
         <label style={S.label}>Seleccionar Alumno</label>
         <select style={{...S.input,marginBottom:14}} value={selNino} onChange={e=>setSelNino(e.target.value)}>
           {ninos.sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(n=>(
-            <option key={n.nombre+n.clase} value={n.nombre}>{shortDisplayName(n.nombre)} — {n.clase}</option>
+            <option key={n.nombre+n.clase} value={n.nombre}>{displayNameAlumno(n)} — {n.clase}</option>
           ))}
         </select>
         <button style={{...S.btn("#4CAF50","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportNino}>
