@@ -229,14 +229,15 @@ const INITIAL_EVENTOS = [
   {id:19,fecha:"17/01/2027",tipo:"LOCAL",nombre:"Clausura y Grado de Escuela Dominical"},
 ];
 
+const EVAL_DEFAULT_5={dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5,cumplimientoClases:5};
 const EVAL_DEFAULT_3={dominioBiblico:3,habilidadEnsenar:3,claridadComunicarse:3,recursosVisuales:3,manejoGrupo:3,empatia:3,creatividad:3,preparacion:3,compromiso:3,aplicacionPractica:3,cumplimientoClases:3};
 const INITIAL_EVALUACIONES = [
-  {nombre:"Arboleda Diana",...EVAL_DEFAULT_3},{nombre:"Bohórquez Luz Mery",...EVAL_DEFAULT_3},{nombre:"Cano Ana",...EVAL_DEFAULT_3},
-  {nombre:"Castrillón Deisy",...EVAL_DEFAULT_3},{nombre:"Ceballos Yuliet",...EVAL_DEFAULT_3},{nombre:"Cedeño Mabel",...EVAL_DEFAULT_3},
-  {nombre:"Cruz Rosy",...EVAL_DEFAULT_3},{nombre:"Del Castillo Astrid",...EVAL_DEFAULT_3},{nombre:"Hernández Blanca",...EVAL_DEFAULT_3},
-  {nombre:"Hernández Ana María",...EVAL_DEFAULT_3},{nombre:"Mogollón José Luis",...EVAL_DEFAULT_3},{nombre:"Mora Lucy",...EVAL_DEFAULT_3},
-  {nombre:"Mora Ana",...EVAL_DEFAULT_3},{nombre:"Peralta Astrid",...EVAL_DEFAULT_3},{nombre:"Ocampo Alejandro",...EVAL_DEFAULT_3},
-  {nombre:"Rodríguez Michael",...EVAL_DEFAULT_3},{nombre:"Rodríguez Carlos",...EVAL_DEFAULT_3},{nombre:"Sepúlveda Andrés",...EVAL_DEFAULT_3},
+  {nombre:"Arboleda Diana",...EVAL_DEFAULT_5},{nombre:"Bohórquez Luz Mery",...EVAL_DEFAULT_5},{nombre:"Cano Ana",...EVAL_DEFAULT_5},
+  {nombre:"Castrillón Deisy",...EVAL_DEFAULT_5},{nombre:"Ceballos Yuliet",...EVAL_DEFAULT_5},{nombre:"Cedeño Mabel",...EVAL_DEFAULT_5},
+  {nombre:"Cruz Rosy",...EVAL_DEFAULT_5},{nombre:"Del Castillo Astrid",...EVAL_DEFAULT_5},{nombre:"Hernández Blanca",...EVAL_DEFAULT_5},
+  {nombre:"Hernández Ana María",...EVAL_DEFAULT_5},{nombre:"Mogollón José Luis",...EVAL_DEFAULT_5},{nombre:"Mora Lucy",...EVAL_DEFAULT_5},
+  {nombre:"Mora Ana",...EVAL_DEFAULT_5},{nombre:"Peralta Astrid",...EVAL_DEFAULT_5},{nombre:"Ocampo Alejandro",...EVAL_DEFAULT_5},
+  {nombre:"Rodríguez Michael",...EVAL_DEFAULT_5},{nombre:"Rodríguez Carlos",...EVAL_DEFAULT_5},{nombre:"Sepúlveda Andrés",...EVAL_DEFAULT_5},
 ];
 
 const CRITERIOS = [
@@ -251,7 +252,7 @@ const CRITERIOS = [
 
 const CLASES_LIST = ["CORDERITOS","VENCEDORES","CONQUISTADORES","ADOLESCENTES"];
 const CLASE_COLORS = {CORDERITOS:"#4BBCE0",VENCEDORES:"#F5C842",CONQUISTADORES:"#5B2D8E",ADOLESCENTES:"#E84F9B"};
-const DEFAULT_FINANZAS = { gastos:[], actividades:[], donativos:[] };
+const DEFAULT_FINANZAS = { gastos:[], actividades:[], donativos:[], ofrendaNinos:[] };
 
 // Maestros autorizados exclusivamente para la clase ADOLESCENTES (sin auxiliar): José Mogollón, Yuliet Ceballos, Martha Caro, Ana María Hernández, José Hernán Díaz
 const ADOLESCENTES_MAESTROS = [
@@ -283,22 +284,39 @@ function deriveClases(alumnos,clasesConfig){
         cumpleanos=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
       }catch(e){}
     }
-    out[key].push({ id: a.id, nombre: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, foto: a.foto||null, nacimiento: a.nacimiento, cumpleanos, bautizado: !!a.bautizado, sellado: !!a.sellado });
+    out[key].push({ id: a.id, nombre: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, foto: a.foto||null, nacimiento: a.nacimiento, cumpleanos, bautizado: !!a.bautizado, sellado: !!a.sellado, padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"" });
   });
   return out;
 }
+// Une en una sola familia a los alumnos que tengan los mismos apellidos y los mismos padres (padre y madre).
 function deriveFamilias(alumnos){
+  const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
+  const getApellidos=(a)=>{
+    if(a.familia&&norm(a.familia))return norm(a.familia);
+    if(a.primerApellido!=null||a.segundoApellido!=null)return norm(buildFamiliaAlumno(a.primerApellido||"",a.segundoApellido||""));
+    const p4=parseNombre4(a.nombre||"");return norm(buildFamiliaAlumno(p4.primerApellido,p4.segundoApellido));
+  };
   const groups={};
   (alumnos||[]).forEach(a=>{
-    const key=((a.padre||"").trim()+"|"+(a.madre||"").trim())||(a.familia||a.nombre)||"";
+    const padre=norm(a.padre);
+    const madre=norm(a.madre);
+    const tienePadreOMadre=!!padre||!!madre;
+    const apellidos=getApellidos(a);
+    let key;
+    if(!tienePadreOMadre)key="__solo__"+a.id;
+    else{key=padre+"|"+madre+"|"+apellidos;if(!key||key==="||")key="__solo__"+a.id;}
     if(!groups[key])groups[key]=[];
     groups[key].push(a);
   });
   let numCounter=0;
   const derived=[];
-  Object.values(groups).forEach(members=>{
+  Object.entries(groups).forEach(([key,members])=>{
+    // No conformar familia si no hay al menos un padre o madre; alumno solo no se considera familia
+    if(key.startsWith("__solo__"))return;
     numCounter++;
     const first=members[0];
+    const familiaLabel=norm(first.familia)||getApellidos(first)||displayNameAlumno(first)||first.nombre||"";
+    const familyKey=norm(first.padre)+"|"+norm(first.madre)+"|"+getApellidos(first);
     members.forEach(a=>{
       let edad=null,cumpleanos=null;
       if(a.nacimiento){
@@ -309,7 +327,7 @@ function deriveFamilias(alumnos){
           cumpleanos=`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
         }catch(e){}
       }
-      derived.push({ id: a.id, num: numCounter, familia: first.familia||first.padre||first.madre||first.nombre||"", padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", alumno: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, cumpleanos, nacimiento: a.nacimiento||"", clase: normalizarClase(a.clase), bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
+      derived.push({ id: a.id, num: numCounter, familyKey, familia: familiaLabel, padre: a.padre||"", madre: a.madre||"", telPadre: a.telPadre||"", telMadre: a.telMadre||"", alumno: a.nombre, primerNombre: a.primerNombre, segundoNombre: a.segundoNombre, primerApellido: a.primerApellido, segundoApellido: a.segundoApellido, edad, cumpleanos, nacimiento: a.nacimiento||"", clase: normalizarClase(a.clase), bautizado: !!a.bautizado, sellado: !!a.sellado, foto: a.foto||null });
     });
   });
   return derived;
@@ -675,31 +693,64 @@ function StatCard({icon,value,label,color="#5B2D8E",onClick}){
   );
 }
 
+// Un solo banner: los 2 cumpleaños más cercanos (alumno o maestro/auxiliar)
 function BirthdayBanner({maestros,familias}){
   const all=getBirthdays(maestros,familias);
-  const todayBirths=all.filter(b=>b.diff===0);
-  const next=all.find(b=>b.diff>0);
-  if(!todayBirths.length&&!next)return null;
+  const dosMasCercanos=all.slice(0,2);
+  if(!dosMasCercanos.length)return null;
   const thumb=(b,size=44)=>(b.foto?<img src={b.foto} alt="" style={{width:size,height:size,borderRadius:"50%",objectFit:"cover",border:"2px solid rgba(255,255,255,0.5)",flexShrink:0}}/>:<div style={{width:size,height:size,borderRadius:"50%",background:"rgba(255,255,255,0.3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:size*0.4,color:"#FFFFFF",flexShrink:0}}>{(b.iniciales||"?").slice(0,2)}</div>);
   return(
     <div style={{margin:"0 16px 14px"}}>
-      {todayBirths.map((b,i)=>(
-        <div key={i} style={{background:"linear-gradient(135deg,#E84F9B,#F27DB8)",borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 4px 16px rgba(232,79,155,0.3)"}}>
-          {thumb(b,48)}
-          <span style={{fontSize:32}}>🎂</span>
-          <div style={{flex:1}}><div style={{color:"#FFFFFF",fontWeight:900,fontSize:16}}>¡Cumpleaños hoy!</div><div style={{color:"rgba(255,255,255,0.9)",fontWeight:700,fontSize:14}}>{b.nombre}</div><div style={{color:"rgba(255,255,255,0.75)",fontSize:12}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""}</div></div>
-          <span style={{background:"rgba(255,255,255,0.25)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>Hoy</span>
-        </div>
+      {dosMasCercanos.map((b,i)=>(
+        b.diff===0 ? (
+          <div key={i} style={{background:"linear-gradient(135deg,#E84F9B,#F27DB8)",borderRadius:16,padding:"14px 16px",display:"flex",alignItems:"center",gap:12,marginBottom:i<dosMasCercanos.length-1?8:0,boxShadow:"0 4px 16px rgba(232,79,155,0.3)"}}>
+            {thumb(b,48)}
+            <span style={{fontSize:32}}>🎂</span>
+            <div style={{flex:1}}><div style={{color:"#FFFFFF",fontWeight:900,fontSize:16}}>¡Cumpleaños hoy!</div><div style={{color:"rgba(255,255,255,0.9)",fontWeight:700,fontSize:14}}>{b.nombre}</div><div style={{color:"rgba(255,255,255,0.75)",fontSize:12}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""}</div></div>
+            <span style={{background:"rgba(255,255,255,0.25)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>Hoy</span>
+          </div>
+        ) : (
+          <div key={i} style={{background:"linear-gradient(135deg,#5B2D8E,#7B4DB2)",borderRadius:16,padding:"0.75rem 1rem",display:"flex",alignItems:"center",gap:12,marginBottom:i<dosMasCercanos.length-1?8:0,boxShadow:"0 4px 16px rgba(91,45,142,0.2)"}}>
+            {thumb(b,40)}
+            <span style={{fontSize:26}}>🎉</span>
+            <div style={{flex:1}}><div style={{color:"#F5C842",fontWeight:800,fontSize:12}}>Próximo cumpleaños</div><div style={{color:"#FFFFFF",fontWeight:700,fontSize:14}}>{b.nombre}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{b.tipo}{b.clase&&b.categoria==="alumno"?" · "+b.clase:""} · {b.fecha}</div></div>
+            <span style={{background:"rgba(255,255,255,0.2)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>{labelDiasFaltan(b.diff)}</span>
+          </div>
+        )
       ))}
-      {next&&(
-        <div style={{background:"linear-gradient(135deg,#5B2D8E,#7B4DB2)",borderRadius:16,padding:"0.75rem 1rem",display:"flex",alignItems:"center",gap:12,boxShadow:"0 4px 16px rgba(91,45,142,0.2)"}}>
-          {thumb(next,40)}
-          <span style={{fontSize:26}}>🎉</span>
-          <div style={{flex:1}}><div style={{color:"#F5C842",fontWeight:800,fontSize:12}}>Próximo cumpleaños</div><div style={{color:"#FFFFFF",fontWeight:700,fontSize:14}}>{next.nombre}</div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12}}>{next.tipo}{next.clase&&next.categoria==="alumno"?" · "+next.clase:""} · {next.fecha}</div></div>
-          <span style={{background:"rgba(255,255,255,0.2)",color:"#FFFFFF",borderRadius:10,padding:"4px 10px",fontWeight:800,fontSize:13}}>{labelDiasFaltan(next.diff)}</span>
-        </div>
-      )}
     </div>
+  );
+}
+
+// Versículo bíblico diario — cambia cada día (índice por día del año)
+const VERSICULOS_DIARIOS = [
+  { ref: "Proverbios 22:6", texto: "Instruye al niño en su camino, Y aun cuando fuere viejo no se apartará de él.", url: "https://www.bible.com/bible/149/PRO.22.6" },
+  { ref: "Deuteronomio 6:7", texto: "Y las repetirás a tus hijos, y hablarás de ellas estando en tu casa, y andando por el camino.", url: "https://www.bible.com/bible/149/DEU.6.7" },
+  { ref: "Salmos 127:3", texto: "Herencia de Jehová son los hijos; cosa de estima el fruto del vientre.", url: "https://www.bible.com/bible/149/PSA.127.3" },
+  { ref: "Mateo 19:14", texto: "Dejad a los niños venir a mí, y no se lo impidáis; porque de los tales es el reino de los cielos.", url: "https://www.bible.com/bible/149/MAT.19.14" },
+  { ref: "Isaías 54:13", texto: "Y todos tus hijos serán enseñados por Jehová; y se multiplicará la paz de tus hijos.", url: "https://www.bible.com/bible/149/ISA.54.13" },
+  { ref: "2 Timoteo 3:15", texto: "Y que desde la niñez has sabido las Sagradas Escrituras, las cuales te pueden hacer sabio para la salvación.", url: "https://www.bible.com/bible/149/2TI.3.15" },
+  { ref: "Salmos 78:4", texto: "No las encubriremos a sus hijos, contando a la generación venidera las alabanzas de Jehová.", url: "https://www.bible.com/bible/149/PSA.78.4" },
+  { ref: "Efesios 6:4", texto: "Y vosotros, padres, no provoquéis a ira a vuestros hijos, sino criadlos en disciplina y amonestación del Señor.", url: "https://www.bible.com/bible/149/EPH.6.4" },
+  { ref: "Colosenses 3:21", texto: "Padres, no exasperéis a vuestros hijos, para que no se desalienten.", url: "https://www.bible.com/bible/149/COL.3.21" },
+  { ref: "Proverbios 29:17", texto: "Corrige a tu hijo, y te dará descanso, y dará alegría a tu alma.", url: "https://www.bible.com/bible/149/PRO.29.17" },
+];
+function getVersiculoDelDia(){
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const now = new Date();
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  const idx = dayOfYear % VERSICULOS_DIARIOS.length;
+  return VERSICULOS_DIARIOS[idx];
+}
+function VerseBannerMaestros(){
+  const { ref, texto, url } = getVersiculoDelDia();
+  return(
+    <a href={url} target="_blank" rel="noopener noreferrer" style={{textDecoration:"none",display:"block",margin:"0 16px 14px",minHeight:72}}>
+      <div style={{background:"linear-gradient(135deg,#E8F5E9,#C8E6C9)",borderRadius:16,padding:"14px 16px",boxShadow:"0 2px 12px rgba(129,199,132,0.2)",borderLeft:"5px solid #81C784",cursor:"pointer",transition:"box-shadow 0.2s",minHeight:72,boxSizing:"border-box"}} onMouseOver={e=>{e.currentTarget.style.boxShadow="0 4px 16px rgba(129,199,132,0.3)";}} onMouseOut={e=>{e.currentTarget.style.boxShadow="0 2px 12px rgba(129,199,132,0.2)";}}>
+        <div style={{color:"#2E7D32",fontSize:14,lineHeight:1.5,fontStyle:"italic",marginBottom:6}}>«{texto}»</div>
+        <div style={{color:"#558B2F",fontSize:12,fontWeight:700}}>📖 {ref}</div>
+      </div>
+    </a>
   );
 }
 
@@ -850,10 +901,11 @@ function AdminDashboard({data,onUpdateData,onGoToTab}){
     if(peticionEditId)onUpdateData("peticiones",(peticiones||[]).map(p=>p.id===peticionEditId?{...p,texto:peticionEditForm.texto,anonimo:peticionEditForm.anonimo}:p));
     setPeticionModal(false);
   };
-  const deletePeticion=()=>{if(peticionEditId&&confirm("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",(peticiones||[]).filter(p=>p.id!==peticionEditId));setPeticionModal(false);}};
+  const deletePeticion=()=>{if(peticionEditId&&!confirmDelete("¿Eliminar esta petición de oración?"))return;if(peticionEditId){onUpdateData("peticiones",(peticiones||[]).filter(p=>p.id!==peticionEditId));setPeticionModal(false);}};
   return(
     <div style={{paddingBottom:10}}>
       <BirthdayBanner maestros={maestros} familias={familias}/>
+      <VerseBannerMaestros/>
       <div style={{padding:"0 1rem 6.25rem"}}>
         <h2 style={S.title}>Panel General</h2>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
@@ -1656,14 +1708,14 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   const[openEncargosKey,setOpenEncargosKey]=useState(null);
   const[encargoForm,setEncargoForm]=useState({servicio:"",fecha:"",estado:"PENDIENTE",calificacion:"",nota:""});
   const empty={familia:"",padre:"",madre:"",telPadre:"",telMadre:"",alumno:"",edad:"",cumpleanos:"",nacimiento:"",clase:"CORDERITOS",bautizado:false,sellado:false};
+  const matchFamKey=(f,key)=>f.familyKey===key;
   const updateEncargoInline=(familyKey,encargoId,patch)=>{
-    onUpdate(familias.map(f=>(f.familia||f.alumno)===familyKey?{...f,encargosFamilia:(f.encargosFamilia||[]).map(e=>e.id===encargoId?{...e,...patch}:e)}:f));
+    onUpdate(familias.map(f=>matchFamKey(f,familyKey)?{...f,encargosFamilia:(f.encargosFamilia||[]).map(e=>e.id===encargoId?{...e,...patch}:e)}:f));
   };
-  const conAlMenosUnPadre=familias.filter(f=>((f.padre||"").trim())||((f.madre||"").trim()));
-  const filtered=conAlMenosUnPadre
+  const filtered=familias
     .filter(f=>{const q=search.toLowerCase();return!q||f.alumno?.toLowerCase().includes(q)||f.familia?.toLowerCase().includes(q)||f.padre?.toLowerCase().includes(q)||f.madre?.toLowerCase().includes(q);});
   const grouped={};
-  filtered.forEach(f=>{const k=f.familia||f.alumno;if(!grouped[k])grouped[k]=[];grouped[k].push(f);});
+  filtered.forEach(f=>{const k=f.familyKey;if(k==null||k==="")return;if(!grouped[k])grouped[k]=[];grouped[k].push(f);});
   const openEdit=(f)=>{if(!readOnly){setForm({...empty,...f});setEditId(f.id);setModal(true);}};
   const save=()=>{
     const toSave={...form};
@@ -1675,7 +1727,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
         toSave.edad=String(hoy.getFullYear()-d.getFullYear()-(hoy<new Date(hoy.getFullYear(),d.getMonth(),d.getDate())?1:0));
       }catch(e){}
     }
-    const newFamilias=familias.map(f=>f.id===editId?{...toSave,id:editId}:f);
+    const newFamilias=familias.map(f=>f.id===editId?{...toSave,id:editId,familyKey:f.familyKey}:f);
     onUpdate(newFamilias);
     // Sincronizar al alumno en Clases (mismo nombre y clase)
     const original=familias.find(f=>f.id===editId);
@@ -1699,7 +1751,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
     setModal(false);
   };
   const updateMemberFoto=(id,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>f.id===id?{...f,foto}:f)); };
-  const updateFamilyFoto=(key,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>(f.familia||f.alumno)===key?{...f,fotoFamilia:foto}:f)); };
+  const updateFamilyFoto=(key,foto)=>{ if(!readOnly)onUpdate(familias.map(f=>matchFamKey(f,key)?{...f,fotoFamilia:foto}:f)); };
   const abrirEncargo=(familyKey,encargoExisting=null)=>{
     const todayStr=new Date().toISOString().slice(0,10);
     setEncargoFamilyKey(familyKey);
@@ -1714,21 +1766,21 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   };
   const guardarEncargo=()=>{
     if(!encargoFamilyKey||!encargoForm.servicio.trim())return;
-    const baseMember=familias.find(f=>(f.familia||f.alumno)===encargoFamilyKey);
+    const baseMember=familias.find(f=>matchFamKey(f,encargoFamilyKey));
     const prev=(baseMember&&baseMember.encargosFamilia)||[];
     if(encargoEditId!=null){
       const next=prev.map(e=>e.id===encargoEditId?{...e,servicio:encargoForm.servicio.trim(),fecha:encargoForm.fecha||e.fecha,estado:encargoForm.estado||"PENDIENTE",calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,nota:encargoForm.nota||""}:e);
-      onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:next}:f));
+      onUpdate(familias.map(f=>matchFamKey(f,encargoFamilyKey)?{...f,encargosFamilia:next}:f));
     }else{
       const nuevo={id:Date.now(),servicio:encargoForm.servicio.trim(),fecha:encargoForm.fecha||new Date().toISOString().slice(0,10),estado:encargoForm.estado||"PENDIENTE",calificacion:encargoForm.calificacion?parseFloat(encargoForm.calificacion):null,nota:encargoForm.nota||""};
-      onUpdate(familias.map(f=>(f.familia||f.alumno)===encargoFamilyKey?{...f,encargosFamilia:prev.concat([nuevo])}:f));
+      onUpdate(familias.map(f=>matchFamKey(f,encargoFamilyKey)?{...f,encargosFamilia:prev.concat([nuevo])}:f));
     }
     setEncargoModal(false);
     setEncargoEditId(null);
   };
   const eliminarEncargo=(familyKey,encargoId)=>{
-    if(!window.confirm("¿Eliminar este encargo del historial de la familia?"))return;
-    onUpdate(familias.map(f=>(f.familia||f.alumno)===familyKey?{...f,encargosFamilia:(f.encargosFamilia||[]).filter(x=>x.id!==encargoId)}:f));
+    if(!confirmDelete("¿Eliminar este encargo del historial de la familia?"))return;
+    onUpdate(familias.map(f=>matchFamKey(f,familyKey)?{...f,encargosFamilia:(f.encargosFamilia||[]).filter(x=>x.id!==encargoId)}:f));
     setEncargoModal(false);
     setEncargoEditId(null);
   };
@@ -1742,12 +1794,12 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
       </div>
       <input style={{...S.input,marginBottom:14}} placeholder="🔍 Buscar..." value={search} onChange={e=>setSearch(e.target.value)}/>
       {Object.entries(grouped).sort(([,aMembers],[,bMembers])=>{
-        const aAlumno=aMembers[0]?.alumno||"";
-        const bAlumno=bMembers[0]?.alumno||"";
-        const pa=parseNombre4(aAlumno).primerApellido||"";
-        const pb=parseNombre4(bAlumno).primerApellido||"";
-        const cmp=pa.localeCompare(pb,"es");
-        return cmp!==0?cmp:aAlumno.localeCompare(bAlumno,"es");
+        const aFirst=aMembers[0];
+        const bFirst=bMembers[0];
+        const pa=(aFirst?.primerApellido!= null&&aFirst.primerApellido!=="")?aFirst.primerApellido:(parseNombre4(aFirst?.alumno||"").primerApellido||"");
+        const pb=(bFirst?.primerApellido!= null&&bFirst.primerApellido!=="")?bFirst.primerApellido:(parseNombre4(bFirst?.alumno||"").primerApellido||"");
+        const cmp=pa.localeCompare(pb,"es",{sensitivity:"base"});
+        return cmp!==0?cmp:(aFirst?.alumno||"").localeCompare(bFirst?.alumno||"","es");
       }).map(([key,membersRaw])=>{
         const members=[...membersRaw].sort((a,b)=>sortKeyFirstName(a.alumno||"").localeCompare(sortKeyFirstName(b.alumno||""),"es"));
         const fotoFam=members[0].fotoFamilia||null;
@@ -1756,9 +1808,9 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
           <div key={key} style={{...S.card,borderLeft:"5px solid #5B2D8E"}}>
             {/* Family header with group photo */}
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-              <AvatarUpload photo={fotoFam} onPhoto={readOnly?()=>{}:(f)=>updateFamilyFoto(key,f)} size={52} initials={(key||"?")[0].toUpperCase()+(key||"?")[1]?.toUpperCase()||"?"} color="#5B2D8E"/>
+              <AvatarUpload photo={fotoFam} onPhoto={readOnly?()=>{}:(f)=>updateFamilyFoto(key,f)} size={52} initials={getInitials(members[0].alumno)} color="#5B2D8E"/>
               <div style={{flex:1}}>
-                <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>👨‍👩‍👧 {members[0].familia||fullNameToApellidos(members[0].alumno)||key}</div>
+                <div style={{fontWeight:800,color:"#5B2D8E",fontSize:15}}>👨‍👩‍👧 {members[0].familia||displayNameAlumno(members[0])||key}</div>
                 <div style={{fontSize:11,color:"#7B6B9A"}}>{members.length} alumno{members.length!==1?"s":""}</div>
               </div>
               <button style={{...S.btn("#F5C842","#2D1B4E"),padding:"6px 10px",fontSize:11,flexShrink:0}} onClick={()=>abrirEncargo(key)} title="Asignar un servicio a esta familia">📝 Encargar servicio</button>
@@ -2078,6 +2130,11 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
     return{...c,tema:c.tema||cronEntry.tema||""};
   });
   const totalNinos=(clases[activeClase]||[]).length;
+  const resetCalifSesionAdmin=(sesionId)=>{
+    if(!confirmDelete("¿Resetear todas las calificaciones de esta sesión para la clase "+activeClase+"? Los alumnos quedarán como ausentes."))return;
+    const nuevas=calificaciones.filter(c=>!(c.clase===activeClase&&c.sesionId===sesionId));
+    onUpdate(nuevas);
+  };
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Calificaciones</h2>
@@ -2093,7 +2150,7 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
       {viewMode==="alumnos"&&(clases[activeClase]||[]).map(n=>{
         const entries=calificaciones.filter(c=>c.alumno===n.nombre&&c.clase===activeClase).sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
         const avg=rowAvg(entries);
-        const allObs=entries.filter(e=>e.observacion).map(e=>({texto:e.observacion,fecha:e.fecha,leccion:e.leccion}));
+        const allObs=entries.filter(e=>e.observacion).map(e=>({texto:e.observacion,fecha:e.fecha,leccion:e.leccion,quien:e.quienObservacion}));
         return(
           <div key={n.nombre||n.id} style={{...S.card,borderLeft:`5px solid ${CLASE_COLORS[activeClase]}`}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
@@ -2107,9 +2164,9 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
             {entries.length===0&&<div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",background:"#EF535012",borderRadius:10,marginBottom:8}}><span style={{fontSize:14}}>🔴</span><span style={{fontSize:13,color:"#EF5350",fontWeight:700}}>Ausente — Sin calificaciones registradas</span></div>}
             {entries.map((e)=>(
               <div key={e.id} style={{background:"#F5F0FF",borderRadius:12,padding:"12px 14px",marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,flexWrap:"wrap",gap:6}}>
                   <span style={S.badge("#5B2D8E")}>{e.leccion} · {formatFecha(e.fecha)}</span>
-
+                  {e.quienCalifico&&<span style={{fontSize:11,color:"#7B6B9A"}}>Calificado por {displayMaestroNombre(e.quienCalifico)}</span>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
                   {criterios.map(c=>(
@@ -2123,9 +2180,10 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                 <div style={{fontWeight:800,color:"#7B5A00",fontSize:13,marginBottom:10}}>💬 Registro de Observaciones</div>
                 {allObs.map((obs,i)=>(
                   <div key={i} style={{marginBottom:i<allObs.length-1?12:0,paddingBottom:i<allObs.length-1?12:0,borderBottom:i<allObs.length-1?"1px dashed #F5C84280":"none"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
                       <span style={S.badge("#5B2D8E")}>{obs.leccion}</span>
                       <span style={{fontSize:11,color:"#7B6B9A",fontWeight:600}}>📅 {formatFecha(obs.fecha)}</span>
+                      {obs.quien&&<span style={{fontSize:11,color:"#7B6B9A"}}>· por {displayMaestroNombre(obs.quien)}</span>}
                     </div>
                     <div style={{fontSize:13,color:"#2D1B4E",lineHeight:1.5,background:"#FFFFFF88",borderRadius:8,padding:"8px 10px"}}>{obs.texto}</div>
                   </div>
@@ -2143,6 +2201,10 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
             const avg=getSesAvgAll(ses.sesionId);
             const m=meriendas.find(x=>x.sesionId===ses.sesionId);
             const totalGasto=((parseFloat(m?.meriendaCosto)||0)+(parseFloat(m?.trabajoManualCosto)||0));
+            let gastoLabel="";
+            if(m?.merienda)gastoLabel+="🍎 Merienda"+(m.meriendaDonativo?" (donativo)":"");
+            if(m?.merienda&&m?.trabajoManual)gastoLabel+=" + ";
+            if(m?.trabajoManual)gastoLabel+="✂️ T.Manual"+(m.trabajoManualDonativo?" (donativo)":"");
             const asistentes=sesCalifs.length;
             const pct=totalNinos?Math.round((asistentes/totalNinos)*100):0;
             return(
@@ -2152,10 +2214,15 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                     <div style={{fontWeight:900,fontSize:15,color:"#2D1B4E"}}>{ses.leccion}</div>
                     <div style={{fontSize:12,color:"#7B6B9A"}}>{formatFecha(ses.fecha)} · {ses.tema||"Sin tema registrado"}</div>
                   </div>
-                  {avg&&<div style={{background:scoreColor(avg)+"25",borderRadius:12,padding:"8px 14px",textAlign:"center"}}>
-                    <div style={{fontSize:22,fontWeight:900,color:scoreColor(avg)}}>{avg}</div>
-                    <div style={{fontSize:10,color:"#7B6B9A"}}>prom. clase</div>
-                  </div>}
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {sesCalifs.length>0&&(
+                      <button style={{...S.btn("#FFF0E6","#C62828"),padding:"5px 10px",fontSize:11}} onClick={()=>resetCalifSesionAdmin(ses.sesionId)} title="Borrar todas las calificaciones de esta sesión">🔄 Resetear</button>
+                    )}
+                    {avg&&<div style={{background:scoreColor(avg)+"25",borderRadius:12,padding:"8px 14px",textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:900,color:scoreColor(avg)}}>{avg}</div>
+                      <div style={{fontSize:10,color:"#7B6B9A"}}>prom. clase</div>
+                    </div>}
+                  </div>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
                   <div style={{background:"#5B2D8E12",borderRadius:10,padding:"10px 12px"}}>
@@ -2170,7 +2237,7 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                     <div style={{fontSize:10,color:totalGasto>0?"#2E7D32":"#7B6B9A",fontWeight:800,marginBottom:4}}>GASTOS</div>
                     {totalGasto>0?<>
                       <div style={{fontWeight:900,fontSize:18,color:"#2E7D32"}}>€{totalGasto.toFixed(2)}</div>
-                      <div style={{fontSize:11,color:"#7B6B9A"}}>{m?.merienda?"🍎 Merienda":""}{m?.merienda&&m?.trabajoManual?" + ":""}{m?.trabajoManual?"✂️ T.Manual":""}</div>
+                      <div style={{fontSize:11,color:"#7B6B9A"}}>{gastoLabel}</div>
                     </>:<div style={{fontWeight:700,fontSize:13,color:"#CCC",marginTop:6}}>Sin gastos</div>}
                   </div>
                 </div>
@@ -2183,9 +2250,9 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                         const a=cnt?(t/cnt).toFixed(1):null;
                         const nino=(clases[activeClase]||[]).find(n=>n.nombre===e.alumno);
                         const colorClase=CLASE_COLORS[activeClase]||"#5B2D8E";
-                        return <div key={i} style={{background:a?scoreColor(a)+"20":"#F5F0FF",borderRadius:8,padding:"4px 10px",fontSize:12,border:`1.5px solid ${a?scoreColor(a)+"44":"#DDD0F0"}`,display:"inline-flex",alignItems:"center",gap:6}}>
+                        return <div key={i} style={{background:a?scoreColor(a)+"20":"#F5F0FF",borderRadius:8,padding:"4px 10px",fontSize:12,border:`1.5px solid ${a?scoreColor(a)+"44":"#DDD0F0"}`,display:"inline-flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                           {nino?.foto?<img src={nino.foto} alt="" style={{width:22,height:22,borderRadius:"50%",objectFit:"cover",border:`1.5px solid ${colorClase}44`}}/>:<div style={{width:22,height:22,borderRadius:"50%",background:colorClase+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:colorClase}}>{getInitials(e.alumno)}</div>}
-                          <span style={{fontWeight:700}}>{shortDisplayName(e.alumno)}</span>{a&&<span style={{color:scoreColor(a),fontWeight:800}}> {a}</span>}
+                          <span style={{fontWeight:700}}>{shortDisplayName(e.alumno)}</span>{a&&<span style={{color:scoreColor(a),fontWeight:800}}> {a}</span>}{e.quienCalifico&&<span style={{fontSize:10,color:"#7B6B9A"}}>· por {displayMaestroNombre(e.quienCalifico)}</span>}
                         </div>;
                       })}
                     </div>
@@ -2194,9 +2261,9 @@ function CalifAdminPanel({calificaciones,clases,criterios,onUpdate,cronograma=[]
                         <div style={{fontSize:11,fontWeight:800,color:"#7B5A00",marginBottom:6}}>💬 OBSERVACIONES</div>
                         {sesCalifs.filter(e=>e.observacion).map((e,i)=>{
                           const nino=(clases[activeClase]||[]).find(n=>n.nombre===e.alumno);const colorClase=CLASE_COLORS[activeClase]||"#5B2D8E";
-                          return <div key={i} style={{fontSize:12,color:"#2D1B4E",marginBottom:4,lineHeight:1.5,display:"flex",alignItems:"center",gap:6}}>
+                          return <div key={i} style={{fontSize:12,color:"#2D1B4E",marginBottom:4,lineHeight:1.5,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                             {nino?.foto?<img src={nino.foto} alt="" style={{width:20,height:20,borderRadius:"50%",objectFit:"cover",border:`1.5px solid ${colorClase}44`,flexShrink:0}}/>:<div style={{width:20,height:20,borderRadius:"50%",background:colorClase+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,color:colorClase,flexShrink:0}}>{getInitials(e.alumno)}</div>}
-                            <span><strong>{shortDisplayName(e.alumno)}:</strong> {e.observacion}</span>
+                            <span><strong>{shortDisplayName(e.alumno)}:</strong> {e.observacion}{e.quienObservacion?<span style={{fontSize:11,color:"#7B6B9A"}}> — por {displayMaestroNombre(e.quienObservacion)}</span>:""}</span>
                           </div>;
                         })}
                       </div>
@@ -2273,6 +2340,12 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
   );
 }
 
+// Formato corto para registro de quién calificó / observó (calificaciones de alumnos)
+function formatCalifFecha(iso){
+  if(!iso)return "";
+  try{const d=new Date(iso);return d.toLocaleDateString("es-ES",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});}catch(e){return iso;}
+}
+
 // ══════════ EVALUACIONES + VIDEOS UNIFICADO (admin) ══════════
 // Una sola pestaña: maestros ordenados por sesiones, icono si hay videos por calificar
 function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos,cronograma,onUpdateCronograma,maestros}){
@@ -2302,7 +2375,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
   const pendientesVideos=(nombre)=>sesionesConVideoPorMaestro(nombre).filter(s=>!getVideo(s.id,s.maestro));
 
   const openEdit=(ev,i,canonicalNombre)=>{setEditForm({...ev,...(canonicalNombre&&ev.nombre!==canonicalNombre?{nombre:canonicalNombre}:{})});setEditIdx(i);setEditModal(true);};
-  const openAdd=(nombre)=>{const default3=EVAL_KEYS.filter(k=>k!=="cumplimientoClases").reduce((o,k)=>({...o,[k]:3}),{});setEditForm({nombre,...default3,cumplimientoClases:null,observaciones:""});setEditIdx(-1);setEditModal(true);};
+  const openAdd=(nombre)=>{const default5=EVAL_KEYS.filter(k=>k!=="cumplimientoClases").reduce((o,k)=>({...o,[k]:5}),{});setEditForm({nombre,...default5,cumplimientoClases:5,observaciones:""});setEditIdx(-1);setEditModal(true);};
   const save=()=>{
     const cumplimientoAuto=cumplimientoClasesFromCronograma(editForm.nombre,cronograma);
     const toSave={...editForm,cumplimientoClases:cumplimientoAuto!=null?cumplimientoAuto:(editForm.cumplimientoClases??3)};
@@ -2427,7 +2500,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
           const conCalif=sesionesVideo.map(s=>{const v=videos.find(vid=>vid.sesionId===s.id&&vid.maestro===s.maestro);return {ses:s,v,score:v?videoScore(v):null};}).filter(x=>x.v);
           if(conCalif.length===0)return null;
           const openVideoEdit=(ses)=>{setVideoModalMaestro(editForm.nombre);openEditVideo(ses);setEditModal(false);};
-          const eliminarVideoCalif=(v)=>{if(!window.confirm("¿Eliminar esta calificación de video del historial? Se borrará el registro de esta sesión."))return;onUpdateVideos(videos.filter(vid=>!(vid.sesionId===v.sesionId&&vid.maestro===v.maestro)));};
+          const eliminarVideoCalif=(v)=>{if(!confirmDelete("¿Eliminar esta calificación de video del historial? Se borrará el registro de esta sesión."))return;onUpdateVideos(videos.filter(vid=>!(vid.sesionId===v.sesionId&&vid.maestro===v.maestro)));};
           return(
             <div style={{marginBottom:16,background:"#4BBCE008",borderRadius:12,padding:"12px 14px",border:"1.5px solid #4BBCE044"}}>
               <label style={{...S.label,color:"#4BBCE0",fontWeight:800}}>🎬 Historial de calificaciones (videos)</label>
@@ -2812,11 +2885,13 @@ function CumpleanosPanel({maestros,familias}){
 function MeriendaBadges({ses, meriendas, openSesModal}) {
   const m = meriendas.find(x => x.sesionId === ses.id);
   const totalSes = (parseFloat(m?.meriendaCosto) || 0) + (parseFloat(m?.trabajoManualCosto) || 0);
+  const merDonativo = m?.meriendaDonativo;
+  const tmDonativo = m?.trabajoManualDonativo;
   return (
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:6}}>
       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-        {m?.merienda && <span style={{...S.badge("#4BBCE0"),fontSize:11}}>🍎 Merienda{m.meriendaCosto?" · €"+m.meriendaCosto:""}</span>}
-        {m?.trabajoManual && <span style={{...S.badge("#E84F9B"),fontSize:11}}>✂️ T.Manual{m.trabajoManualCosto?" · €"+m.trabajoManualCosto:""}</span>}
+        {m?.merienda && <span style={{...S.badge("#4BBCE0"),fontSize:11}}>🍎 Merienda{m.meriendaCosto?" · €"+m.meriendaCosto:""}{merDonativo?" 🎁 donativo":""}</span>}
+        {m?.trabajoManual && <span style={{...S.badge("#E84F9B"),fontSize:11}}>✂️ T.Manual{m.trabajoManualCosto?" · €"+m.trabajoManualCosto:""}{tmDonativo?" 🎁 donativo":""}</span>}
         {totalSes>0 && <span style={{...S.badge("#4CAF50"),fontSize:11}}>💰 Total: €{totalSes.toFixed(2)}</span>}
       </div>
       <button style={{...S.btn("#2A96BC"),padding:"5px 12px",fontSize:12,flexShrink:0}} onClick={()=>openSesModal(ses)}>📋 {m?"Ver sesión":"Datos sesión"}</button>
@@ -2907,9 +2982,10 @@ function PrevObsSection({selNino, calificaciones, miClase, selSes}) {
       <div style={{fontWeight:800,color:"#7B5A00",fontSize:12,letterSpacing:0.5,marginBottom:8}}>💬 OBSERVACIONES ANTERIORES</div>
       {prevObs.map((obs,i) => (
         <div key={obs.id||i} style={{marginBottom:i<prevObs.length-1?10:0,paddingBottom:i<prevObs.length-1?10:0,borderBottom:i<prevObs.length-1?"1px dashed #F5C84255":"none"}}>
-          <div style={{display:"flex",gap:6,marginBottom:3}}>
+          <div style={{display:"flex",gap:6,marginBottom:3,flexWrap:"wrap"}}>
             <span style={{fontSize:11,fontWeight:800,color:"#5B2D8E",background:"#5B2D8E15",borderRadius:6,padding:"2px 6px"}}>{obs.leccion||"Sesión"}</span>
             <span style={{fontSize:11,color:"#7B6B9A"}}>📅 {formatFecha(obs.fecha)}</span>
+            {obs.quienObservacion&&<span style={{fontSize:11,color:"#7B6B9A"}}>· por {displayMaestroNombre(obs.quienObservacion)}</span>}
           </div>
           <div style={{fontSize:12,color:"#2D1B4E",lineHeight:1.5,background:"#FFFFFFAA",borderRadius:8,padding:"6px 10px"}}>{obs.observacion}</div>
         </div>
@@ -2935,13 +3011,31 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
     setForm({alumno:nino.nombre,clase:miClase,sesionId:ses.id,fecha:ses.fecha,grupo:ses.grupo,leccion:ses.leccion,
       valores:ex.valores||"",conocimiento:ex.conocimiento||"",oracion:ex.oracion||"",servicio:ex.servicio||"",
       respeto:ex.respeto||"",participacion:ex.participacion||"",comportamiento:ex.comportamiento||"",
-      merienda:ex.merienda||false,meriendaCosto:ex.meriendaCosto||"",trabajoManual:ex.trabajoManual||false,observacion:ex.observacion||""});
+      merienda:ex.merienda||false,meriendaCosto:ex.meriendaCosto||"",trabajoManual:ex.trabajoManual||false,observacion:ex.observacion||"",
+      quienCalifico:ex.quienCalifico||"",fechaCalificacion:ex.fechaCalificacion||"",quienObservacion:ex.quienObservacion||"",fechaObservacion:ex.fechaObservacion||""});
     setSelNino(nino);setSelSes(ses);setModal(true);
   };
-  const saveCalif=()=>{
+  const mergeOrCreate=(payload)=>{
     const ex=calificaciones.find(c=>c.alumno===form.alumno&&c.clase===miClase&&c.sesionId===form.sesionId);
-    onUpdateCalif(ex?calificaciones.map(c=>c.alumno===form.alumno&&c.clase===miClase&&c.sesionId===form.sesionId?{...c,...form}:c):[...calificaciones,{...form,id:Date.now()}]);
-    setModal(false);
+    const full={...(ex||{alumno:form.alumno,clase:miClase,sesionId:form.sesionId,fecha:form.fecha,grupo:form.grupo,leccion:form.leccion,id:Date.now()}),...payload};
+    onUpdateCalif(ex?calificaciones.map(c=>c.alumno===form.alumno&&c.clase===miClase&&c.sesionId===form.sesionId?full:c):[...calificaciones,full]);
+  };
+  const saveSoloCalificacion=()=>{
+    const ahora=new Date().toISOString();
+    const payload={
+      valores:form.valores,conocimiento:form.conocimiento,oracion:form.oracion,servicio:form.servicio,
+      respeto:form.respeto,participacion:form.participacion,comportamiento:form.comportamiento,
+      merienda:form.merienda,meriendaCosto:form.meriendaCosto||"",trabajoManual:form.trabajoManual,
+      quienCalifico:user.name,fechaCalificacion:ahora,
+    };
+    mergeOrCreate(payload);
+    setForm(f=>({...f,quienCalifico:user.name,fechaCalificacion:ahora}));
+  };
+  const saveSoloObservacion=()=>{
+    const ahora=new Date().toISOString();
+    const payload={observacion:(form.observacion||"").trim(),quienObservacion:user.name,fechaObservacion:ahora};
+    mergeOrCreate(payload);
+    setForm(f=>({...f,quienObservacion:user.name,fechaObservacion:ahora}));
   };
   // Session data (merienda/trabajo manual)
   const[sesModal,setSesModal]=useState(false);
@@ -2949,7 +3043,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
   const[sesSesId,setSesSesId]=useState(null);
   const openSesModal=(ses)=>{
     const ex=meriendas.find(m=>m.sesionId===ses.id)||{};
-    setSesData({merienda:ex.merienda||false,meriendaCosto:ex.meriendaCosto||"",meriendaFecha:ex.meriendaFecha||"",trabajoManual:ex.trabajoManual||false,trabajoManualCosto:ex.trabajoManualCosto||""});
+    setSesData({merienda:ex.merienda||false,meriendaCosto:ex.meriendaCosto||"",meriendaFecha:ex.meriendaFecha||"",meriendaDonativo:!!ex.meriendaDonativo,trabajoManual:ex.trabajoManual||false,trabajoManualCosto:ex.trabajoManualCosto||"",trabajoManualDonativo:!!ex.trabajoManualDonativo});
     setSesSesId(ses.id);
     setSesModal(true);
   };
@@ -2965,6 +3059,18 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
     const vals=criterios.map(c=>parseFloat(e[c.key])).filter(v=>!isNaN(v));
     return vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):null;
   };
+  const resetCalifSesion=(ses)=>{
+    if(!confirmDelete("¿Resetear todas las calificaciones de esta sesión? Los alumnos quedarán como ausentes y podrás volver a calificar."))return;
+    const nuevas=calificaciones.filter(c=>!(c.clase===miClase&&c.sesionId===ses.id));
+    onUpdateCalif(nuevas);
+  };
+  const borrarCalifAlumno=()=>{
+    if(!selNino||!selSes)return;
+    if(!confirmDelete("¿Borrar la calificación de "+shortDisplayName(selNino.nombre)+" en esta sesión? Quedará como ausente."))return;
+    const nuevas=calificaciones.filter(c=>!(c.alumno===selNino.nombre&&c.clase===miClase&&c.sesionId===selSes.id));
+    onUpdateCalif(nuevas);
+    setModal(false);
+  };
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>Calificaciones — {miClase}</h2>
@@ -2974,9 +3080,14 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
           <div style={{fontWeight:800,color:CLASE_COLORS[ses.grupo]||"#5B2D8E",marginBottom:4}}>{formatFecha(ses.fecha)} — {ses.leccion}</div>
           <div style={{fontSize:12,color:"#7B6B9A",marginBottom:6}}>{ses.tema}</div>
           <MeriendaBadges ses={ses} meriendas={meriendas} openSesModal={openSesModal}/>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:8}}>
             <div style={{fontSize:11,fontWeight:700,color:"#7B6B9A",letterSpacing:0.5}}>ASISTENCIA AUTOMÁTICA</div>
-            <div style={{fontSize:11,color:"#7B6B9A"}}>{calificaciones.filter(c=>c.clase===miClase&&c.sesionId===ses.id).length}/{misNinos.length} asistieron</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontSize:11,color:"#7B6B9A"}}>{calificaciones.filter(c=>c.clase===miClase&&c.sesionId===ses.id).length}/{misNinos.length} asistieron</span>
+              {calificaciones.some(c=>c.clase===miClase&&c.sesionId===ses.id)&&(
+                <button style={{...S.btn("#FFF0E6","#C62828"),padding:"5px 10px",fontSize:11}} onClick={()=>resetCalifSesion(ses)} title="Borrar todas las calificaciones de esta sesión para poder volver a calificar">🔄 Resetear</button>
+              )}
+            </div>
           </div>
           {misNinos.map(n=>{
             const avg=getSesAvg(n.nombre,ses.id);
@@ -3010,6 +3121,10 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
             <div style={{marginBottom:10}}>
               <label style={S.label}>💰 Costo merienda (€)</label>
               <input type="number" step="0.01" min="0" style={{...S.input,padding:"10px 12px"}} value={sesData.meriendaCosto||""} onChange={e=>setSesData(d=>({...d,meriendaCosto:e.target.value}))} placeholder="0.00"/>
+              <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginTop:8,fontSize:13,color:"#5B2D8E"}}>
+                <input type="checkbox" checked={!!sesData.meriendaDonativo} onChange={e=>setSesData(d=>({...d,meriendaDonativo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+                <span>🎁 Marcar como donativo</span>
+              </label>
             </div>
           )}
           <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",padding:"12px 14px",background:"#FFF0F8",borderRadius:12,marginBottom:10}}>
@@ -3020,6 +3135,10 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
             <div style={{marginBottom:6}}>
               <label style={S.label}>💰 Costo trabajo manual (€)</label>
               <input type="number" step="0.01" min="0" style={{...S.input,padding:"10px 12px"}} value={sesData.trabajoManualCosto||""} onChange={e=>setSesData(d=>({...d,trabajoManualCosto:e.target.value}))} placeholder="0.00"/>
+              <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginTop:8,fontSize:13,color:"#5B2D8E"}}>
+                <input type="checkbox" checked={!!sesData.trabajoManualDonativo} onChange={e=>setSesData(d=>({...d,trabajoManualDonativo:e.target.checked}))} style={{width:20,height:20,accentColor:"#5B2D8E"}}/>
+                <span>🎁 Marcar como donativo</span>
+              </label>
             </div>
           )}
           {(sesData.merienda||sesData.trabajoManual)&&(
@@ -3049,11 +3168,25 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
             </div>
           </div>
         ))}
+        {form.quienCalifico&&(
+          <div style={{fontSize:11,color:"#7B6B9A",marginBottom:12}}>Calificado por: <strong>{displayMaestroNombre(form.quienCalifico)}</strong> · {formatCalifFecha(form.fechaCalificacion)}</div>
+        )}
+        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:12,marginBottom:16}} onClick={saveSoloCalificacion}>💾 Guardar calificación</button>
+
         <div style={{marginBottom:16}}>
           <label style={S.label}>💬 Observación (opcional)</label>
           <textarea style={{...S.input,height:80,resize:"vertical"}} value={form.observacion||""} onChange={e=>setForm(f=>({...f,observacion:e.target.value}))} placeholder="Notas sobre el alumno..."/>
+          {form.quienObservacion&&(
+            <div style={{fontSize:11,color:"#7B6B9A",marginTop:6}}>Observación por: <strong>{displayMaestroNombre(form.quienObservacion)}</strong> · {formatCalifFecha(form.fechaObservacion)}</div>
+          )}
         </div>
-        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={saveCalif}>💾 Guardar</button>
+        <button style={{...S.btn("#4BBCE0","#FFFFFF",true),padding:12,marginBottom:16}} onClick={saveSoloObservacion}>💾 Guardar observación</button>
+
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {selNino&&selSes&&calificaciones.some(c=>c.alumno===selNino.nombre&&c.clase===miClase&&c.sesionId===selSes.id)&&(
+            <button style={{...S.btn("#FFF0F0","#EF5350"),padding:14,border:"1.5px solid #EF535044"}} onClick={borrarCalifAlumno}>🗑 Borrar calificación</button>
+          )}
+        </div>
       </Modal>
     </div>
   );
@@ -3104,6 +3237,8 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const miClase=teacherInfo.clase;
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
   const misClases=cronograma.filter(c=>c.maestro===user.name||c.auxiliar===user.name).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const todayTeacher=new Date();
+  const upcomingEventsTeacher=(Array.isArray(eventos)?eventos:[]).filter(e=>{try{const[d,m,y]=(e.fecha||"").split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-todayTeacher)/86400000);return diff>=0&&diff<=60;}catch(err){return false;}}).slice(0,5);
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
 
   const matchFamilia=(cNombre,fAlumno)=>{
@@ -3191,6 +3326,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
           <div style={{padding:"1rem 1rem 0"}}>
             <h2 style={S.title}>Hola, {displayMaestroNombre(user.name).split(" ")[0]} 👋</h2>
             <BirthdayBanner maestros={maestros} familias={familias}/>
+            <VerseBannerMaestros/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <StatCard icon="👧" value={misNinos.length} label="Mis alumnos" color={CLASE_COLORS[miClase]||"#5B2D8E"}/>
               <StatCard icon="📅" value={misClases.length} label="Clases asig." color="#4BBCE0"/>
@@ -3226,6 +3362,16 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 </div>
               ))}
               {misClases.length===0&&<div style={{color:"#7B6B9A",fontSize:13}}>Sin clases asignadas.</div>}
+            </div>
+            <div style={S.card}>
+              <h3 style={{color:"#4BBCE0",fontWeight:800,fontSize:15,marginBottom:12}}>📆 Próximos Eventos (60 días)</h3>
+              {upcomingEventsTeacher.length===0&&<div style={{color:"#7B6B9A"}}>Sin eventos próximos.</div>}
+              {upcomingEventsTeacher.map((e,i)=>(
+                <div key={e.id} style={{display:"flex",gap:10,marginBottom:10,paddingBottom:10,borderBottom:i<upcomingEventsTeacher.length-1?"1px solid #DDD0F0":"none"}}>
+                  <div style={{background:(e.tipo==="NACIONAL"?"#5B2D8E":"#4BBCE0")+"22",borderRadius:8,padding:"4px 8px",fontSize:11,fontWeight:800,color:e.tipo==="NACIONAL"?"#5B2D8E":"#2A96BC",flexShrink:0}}>{e.fecha}</div>
+                  <div style={{fontWeight:600,fontSize:13}}>{e.nombre}</div>
+                </div>
+              ))}
             </div>
             <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
               <div style={{fontWeight:800,color:"#E84F9B",fontSize:15,marginBottom:12}}>🙏 Peticiones de Oración</div>
@@ -3275,7 +3421,8 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
             <h2 style={S.title}>Mi Clase: {miClase}</h2>
             {misNinos.map((n,i)=>{
               const avg=getNinoGlobalAvg(n.nombre);
-              const p=getParents(n.nombre);
+              // Padres/teléfonos solo desde la tarjeta del alumno (n), nunca desde familias u otra fuente
+              const p=(n.padre!==undefined||n.madre!==undefined)?{ padre: n.padre||"", madre: n.madre||"", telPadre: n.telPadre||"", telMadre: n.telMadre||"", bautizado: !!n.bautizado, sellado: !!n.sellado }:getParents(n.nombre);
               // All observations for this student across all sessions
               const obsHistorial=calificaciones
                 .filter(c=>c.alumno===n.nombre&&c.clase===miClase&&c.observacion)
@@ -3326,7 +3473,6 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                         <div style={{fontSize:11,fontWeight:800,color:"#7B6B9A",letterSpacing:1}}>PADRES / TUTORES</div>
                         {!alumnosSource&&<button style={{...S.btn("#F5C842","#3D1B6B"),padding:"4px 10px",fontSize:11}} onClick={()=>openPhoneEdit(p)}>✏️ Editar Tel.</button>}
-                        {alumnosSource&&<span style={{fontSize:10,color:"#7B6B9A"}}>Editar en Admin → Alumnos</span>}
                       </div>
                       {p.padre&&p.padre!=="(No registra)"&&(
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:p.madre?8:0}}>
@@ -3351,7 +3497,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                     </div>
                   )}
                   {!p&&alumnosSource&&(
-                    <div style={{background:"#F5F0FF",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#7B6B9A"}}>Editar en Admin → Alumnos</div>
+                    <div style={{background:"#F5F0FF",borderRadius:10,padding:"10px 14px",fontSize:12,color:"#7B6B9A"}}>Sin datos de familia registrados</div>
                   )}
                   {p&&!(p.padre&&p.padre!=="(No registra)")&&!(p.madre&&p.madre!=="(No registra)")&&!alumnosSource&&(
                     <div style={{background:"#FFF0E6",borderRadius:10,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
@@ -3828,12 +3974,16 @@ function InformesPanel({data}){
     const sesRows=sesiones.map(s=>{
       const mer=meriendas.find(x=>x.sesionId===s.id);
       const gastos=(parseFloat(mer?.meriendaCosto)||0)+(parseFloat(mer?.trabajoManualCosto)||0);
+      const donativoParts=[];
+      if(mer?.meriendaDonativo)donativoParts.push("merienda");
+      if(mer?.trabajoManualDonativo)donativoParts.push("t. manual");
+      const donativoNote=donativoParts.length>0?" <small style=\"color:#7B6B9A\">("+donativoParts.join(", ")+" donativo)</small>":"";
       return `<tr>
       <td>${formatFecha(s.fecha)}</td>
       <td><strong>${s.leccion||"—"}</strong></td>
       <td>${s.tema||"—"}</td>
       <td><span class="${s.maestro===m.nombre?"presente":"ausente"}">${s.maestro===m.nombre?"🎓 Maestro":"🤝 Auxiliar"}</span></td>
-      <td>${gastos>0?"€"+gastos.toFixed(2):"—"}</td>
+      <td>${gastos>0?"€"+gastos.toFixed(2):"—"}${donativoNote}</td>
     </tr>`;
     }).join("");
     const ninoRows=misNinos.map(n=>{
@@ -3964,6 +4114,10 @@ function InformesPanel({data}){
       let t=0,cnt=0;sesCalifs.forEach(e=>{ckeys.forEach(k=>{const v=parseFloat(e[k]);if(!isNaN(v)){t+=v;cnt++;}});});
       const avg2=cnt?(t/cnt).toFixed(1):null;
       const gasto=((parseFloat(m2?.meriendaCosto)||0)+(parseFloat(m2?.trabajoManualCosto)||0));
+      const donativoParts2=[];
+      if(m2?.meriendaDonativo)donativoParts2.push("merienda");
+      if(m2?.trabajoManualDonativo)donativoParts2.push("t. manual");
+      const donativoNote2=donativoParts2.length>0?" <small style=\"color:#7B6B9A\">("+donativoParts2.join(", ")+" donativo)</small>":"";
       const pct2=claseNinos.length?Math.round((sesCalifs.length/claseNinos.length)*100):0;
       return`<tr>
         <td>${formatFecha(s.fecha)}</td>
@@ -3971,7 +4125,7 @@ function InformesPanel({data}){
         <td>${s.tema||"—"}</td>
         <td><div class="bar-wrap"><div class="bar-fill" style="width:${pct2}%;background:${pct2>=80?"#4CAF50":pct2>=60?"#F5A623":"#EF5350"}"></div></div><small>${sesCalifs.length}/${claseNinos.length} (${pct2}%)</small></td>
         <td style="color:${avg2?scoreColorHex(avg2):"#AAA"};font-weight:800">${avg2||"—"}</td>
-        <td style="color:${gasto>0?"#2E7D32":"#AAA"}">${gasto>0?"€"+gasto.toFixed(2):"—"}</td>
+        <td style="color:${gasto>0?"#2E7D32":"#AAA"}">${gasto>0?"€"+gasto.toFixed(2):"—"}${donativoNote2}</td>
       </tr>`;
     }).join("");
     const ninoRows2=claseNinos.map(n=>{
@@ -4025,7 +4179,14 @@ function InformesPanel({data}){
 
   // ── Report 5: Economic Summary ──
   const reportEconomico=()=>{
-    const gastosMeriendasTotal=meriendas.reduce((s,m)=>s+gastoTotal(m),0);
+    const gastosMeriendasBruto=meriendas.reduce((s,m)=>s+gastoTotal(m),0);
+    const donativosMeriendasTotal=meriendas.reduce((s,m)=>{
+      let d=0;
+      if(m.meriendaDonativo)d+=parseFloat(m.meriendaCosto)||0;
+      if(m.trabajoManualDonativo)d+=parseFloat(m.trabajoManualCosto)||0;
+      return s+d;
+    },0);
+    const gastosMeriendasNeto=gastosMeriendasBruto-donativosMeriendasTotal;
     const gastosComite=(finanzas.gastos||[]).reduce((s,g)=>s+(parseFloat(g.monto)||0),0);
     const gastosActividades=(finanzas.actividades||[]).reduce((s,a)=>s+(parseFloat(a.gastos)||0),0);
     const ingresosActividades=(finanzas.actividades||[]).reduce((s,a)=>{
@@ -4033,27 +4194,39 @@ function InformesPanel({data}){
       const tpv=parseFloat(a.ingresoTPV||0)||0;
       return s+ef+tpv;
     },0);
-    const donativosTotal=(finanzas.donativos||[]).reduce((s,d)=>{
-      const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
-      const tpv=parseFloat(d.tpv||0)||0;
-      return s+ef+tpv;
-    },0);
-    const totalGastos=gastosMeriendasTotal+gastosComite+gastosActividades;
-    const totalIngresos=ingresosActividades+donativosTotal;
-    if(totalGastos===0&&totalIngresos===0){
+    const donativosRawList=finanzas.donativos||[];
+    const votosTotal=donativosRawList.filter(d=>d.tipo==="VOTO").reduce((s,d)=>{const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;const tpv=parseFloat(d.tpv||0)||0;return s+ef+tpv;},0);
+    const donativosSoloTotal=donativosRawList.filter(d=>d.tipo!=="VOTO").reduce((s,d)=>{const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;const tpv=parseFloat(d.tpv||0)||0;return s+ef+tpv;},0);
+    const ofrendaNinosTotal=(finanzas.ofrendaNinos||[]).reduce((s,o)=>s+(parseFloat(o.monto)||0),0);
+    const totalRecaudado=ingresosActividades+votosTotal+donativosSoloTotal+ofrendaNinosTotal;
+    const totalGastos=gastosMeriendasNeto+gastosComite+gastosActividades;
+    const balanceTotal=totalRecaudado-totalGastos;
+    if(totalGastos===0&&totalRecaudado===0){
       const html=`<div class="section"><div class="section-title">📊 Informe Económico</div><p style="padding:20px;font-size:13px;color:#7B6B9A;font-style:italic">No hay movimientos económicos registrados todavía.</p></div>`;
       generarPDF("Informe Económico",html);
       return;
     }
-    const netoGlobal=totalIngresos-totalGastos;
     const resumenGlobal=`
       <div class="section">
         <div class="section-title">💰 Resumen Económico General</div>
-        <div style="padding:12px 18px;font-size:13px;color:#2D1B4E;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap">
-          <div><div style="font-size:12px;color:#7B6B9A">Total de gastos (clases + comité)</div><div style="font-size:20px;font-weight:900;color:#C62828">€${totalGastos.toFixed(2)}</div></div>
-          <div><div style="font-size:12px;color:#7B6B9A">Total de ingresos (actividades + donativos)</div><div style="font-size:20px;font-weight:900;color:#2E7D32">€${totalIngresos.toFixed(2)}</div></div>
-          <div><div style="font-size:12px;color:#7B6B9A">Resultado neto</div><div style="font-size:20px;font-weight:900;color:${netoGlobal>=0?"#2E7D32":"#C62828"}">€${netoGlobal.toFixed(2)}</div></div>
-          <div><div style="font-size:12px;color:#7B6B9A">Clases con gastos</div><div style="font-size:18px;font-weight:800;color:#5B2D8E">${CLASES_LIST.filter(cl=>meriendas.some(m=>m.clase===cl)).length}/${CLASES_LIST.length}</div></div>
+        <div style="padding:12px 18px;font-size:13px;color:#2D1B4E;">
+          <div style="font-weight:800;margin-bottom:12px;color:#5B2D8E">📥 Total recaudado</div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px 24px;margin-bottom:8px">
+            <span>Actividades: <strong style="color:#2E7D32">€${ingresosActividades.toFixed(2)}</strong></span>
+            <span>Votos: <strong style="color:#2E7D32">€${votosTotal.toFixed(2)}</strong></span>
+            <span>Donativos: <strong style="color:#2E7D32">€${donativosSoloTotal.toFixed(2)}</strong></span>
+            <span>Ofrenda niños E.D.: <strong style="color:#2E7D32">€${ofrendaNinosTotal.toFixed(2)}</strong></span>
+          </div>
+          <div style="font-size:18px;font-weight:900;color:#2E7D32;margin-bottom:16px;border-top:1px solid #DDD0F0;padding-top:10px">Total recaudado: €${totalRecaudado.toFixed(2)}</div>
+          <div style="font-weight:800;margin-bottom:12px;color:#5B2D8E">📤 Total gastado (restando donativos de meriendas/t. manual)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:16px 24px;margin-bottom:8px">
+            <span>Clases (neto): <strong style="color:#C62828">€${gastosMeriendasNeto.toFixed(2)}</strong>${donativosMeriendasTotal>0?` <small style="color:#7B6B9A">(donativos descontados: €${donativosMeriendasTotal.toFixed(2)})</small>`:""}</span>
+            <span>Comité: <strong style="color:#C62828">€${gastosComite.toFixed(2)}</strong></span>
+            <span>Actividades: <strong style="color:#C62828">€${gastosActividades.toFixed(2)}</strong></span>
+          </div>
+          <div style="font-size:18px;font-weight:900;color:#C62828;margin-bottom:16px;border-top:1px solid #DDD0F0;padding-top:10px">Total gastado: €${totalGastos.toFixed(2)}</div>
+          <div style="font-weight:800;font-size:20px;color:${balanceTotal>=0?"#2E7D32":"#C62828"};border:2px solid ${balanceTotal>=0?"#2E7D32":"#C62828"};border-radius:12px;padding:14px;text-align:center">Balance total: €${balanceTotal.toFixed(2)}</div>
+          <div style="font-size:11px;color:#7B6B9A;margin-top:8px">Clases con gastos: ${CLASES_LIST.filter(cl=>meriendas.some(m=>m.clase===cl)).length}/${CLASES_LIST.length}</div>
         </div>
       </div>`;
 
@@ -4072,13 +4245,15 @@ function InformesPanel({data}){
         const tmTxt=m.trabajoManual?String(m.trabajoManual):"";
         const tmCost=parseFloat(m.trabajoManualCosto)||0;
         const total=merCost+tmCost;
+        const merDonativo=m.meriendaDonativo?" <small style=\"color:#7B6B9A\">(donativo)</small>":"";
+        const tmDonativo=m.trabajoManualDonativo?" <small style=\"color:#7B6B9A\">(donativo)</small>":"";
         return `<tr>
           <td>${fecha}</td>
           <td><strong>${leccion}</strong></td>
           <td>${maestro}</td>
           <td>${aux}</td>
-          <td>${merTxt||merCost>0?"🍎 "+(merTxt||"Merienda"):"—"}${merCost>0?" · €"+merCost.toFixed(2):""}</td>
-          <td>${tmTxt||tmCost>0?"✂️ "+(tmTxt||"T. manual"):"—"}${tmCost>0?" · €"+tmCost.toFixed(2):""}</td>
+          <td>${merTxt||merCost>0?"🍎 "+(merTxt||"Merienda"):"—"}${merCost>0?" · €"+merCost.toFixed(2):""}${merDonativo}</td>
+          <td>${tmTxt||tmCost>0?"✂️ "+(tmTxt||"T. manual"):"—"}${tmCost>0?" · €"+tmCost.toFixed(2):""}${tmDonativo}</td>
           <td style="font-weight:700;color:${total>0?"#2E7D32":"#7B6B9A"}">${total>0?"€"+total.toFixed(2):"—"}</td>
         </tr>`;
       }).join("");
@@ -4131,13 +4306,17 @@ function InformesPanel({data}){
     }).join("");
     const actividadesRows=(finanzas.actividades||[]).map(a=>{
       const resp=a.responsable?displayMaestroNombre(a.responsable):"—";
-      const ing=parseFloat(a.ingresos)||0;
+      const ingEf=parseFloat(a.ingresoEfectivo!=null?a.ingresoEfectivo:a.ingresos)||0;
+      const ingTpv=parseFloat(a.ingresoTPV||0)||0;
+      const ing=ingEf+ingTpv;
       const gas=parseFloat(a.gastos)||0;
       const net=ing-gas;
       return `<tr>
         <td>${a.fecha||"—"}</td>
         <td><strong>${a.nombre||"—"}</strong></td>
         <td>${resp}</td>
+        <td style="color:#2E7D32">€${ingEf.toFixed(2)}</td>
+        <td style="color:#2E7D32">€${ingTpv.toFixed(2)}</td>
         <td style="color:#2E7D32">€${ing.toFixed(2)}</td>
         <td style="color:#C62828">€${gas.toFixed(2)}</td>
         <td style="font-weight:700;color:${net>=0?"#2E7D32":"#C62828"}">€${net.toFixed(2)}</td>
@@ -4145,12 +4324,26 @@ function InformesPanel({data}){
     }).join("");
     const donativosRows=(finanzas.donativos||[]).map(d=>{
       const resp=d.responsable?displayMaestroNombre(d.responsable):"—";
+      const ef=parseFloat(d.efectivo!=null?d.efectivo:d.monto)||0;
+      const tpv=parseFloat(d.tpv||0)||0;
+      const total=ef+tpv;
       return `<tr>
         <td>${d.fecha||"—"}</td>
         <td><strong>${d.concepto||"—"}</strong></td>
         <td>${d.tipo||"DONATIVO"}</td>
         <td>${resp}</td>
-        <td style="font-weight:700;color:#2E7D32">€${(parseFloat(d.monto)||0).toFixed(2)}</td>
+        <td style="color:#2E7D32">€${ef.toFixed(2)}</td>
+        <td style="color:#2E7D32">€${tpv.toFixed(2)}</td>
+        <td style="font-weight:700;color:#2E7D32">€${total.toFixed(2)}</td>
+      </tr>`;
+    }).join("");
+
+    const ofrendaNinosRows=(finanzas.ofrendaNinos||[]).slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(o=>{
+      const resp=o.responsable?displayMaestroNombre(o.responsable):"—";
+      return `<tr>
+        <td>${o.fecha||"—"}</td>
+        <td style="font-weight:700;color:#2E7D32">€${(parseFloat(o.monto)||0).toFixed(2)}</td>
+        <td>${resp}</td>
       </tr>`;
     }).join("");
 
@@ -4181,7 +4374,16 @@ function InformesPanel({data}){
         </table>
       </div>`;
 
-    const html=resumenGlobal+seccionesClases+seccionComite+seccionActividades+seccionDonativos;
+    const seccionOfrendaNinos=`
+      <div class="section">
+        <div class="section-title">👧 Ofrenda de niños Escuela Dominical</div>
+        <table>
+          <thead><tr><th>Fecha</th><th>Monto</th><th>Registrado por</th></tr></thead>
+          <tbody>${ofrendaNinosRows||"<tr><td colspan='3' style='text-align:center;color:#AAA'>Sin ofrendas registradas</td></tr>"}</tbody>
+        </table>
+      </div>`;
+
+    const html=resumenGlobal+seccionesClases+seccionComite+seccionActividades+seccionDonativos+seccionOfrendaNinos;
     generarPDF("Informe Económico",html);
   };
 
@@ -4334,15 +4536,17 @@ function PeticionesPanel({peticiones,user,onUpdate,isAdmin=false}){
 
 // ══════════ FINANZAS PANEL (ADMIN) ══════════
 function FinanzasPanel({finanzas,maestros,onUpdate}){
-  const todayStr=new Date().toISOString().slice(0,10);
-  const[gastoForm,setGastoForm]=useState({fecha:todayStr,concepto:"",monto:"",responsable:""});
-  const[actForm,setActForm]=useState({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""});
-  const[donForm,setDonForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:"",responsableMaestro:""});
-  const[votoForm,setVotoForm]=useState({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:"",otroNombre:""});
+  const getTodayStr=()=>new Date().toISOString().slice(0,10);
+  const[gastoForm,setGastoForm]=useState(()=>({fecha:getTodayStr(),concepto:"",monto:"",responsable:""}));
+  const[actForm,setActForm]=useState(()=>({fecha:getTodayStr(),nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:""}));
+  const[donForm,setDonForm]=useState(()=>({fecha:getTodayStr(),concepto:"",efectivo:"",tpv:"",donante:"",responsableMaestro:""}));
+  const[votoForm,setVotoForm]=useState(()=>({fecha:getTodayStr(),concepto:"",efectivo:"",tpv:"",responsable:"",otroNombre:""}));
+  const[ofrendaForm,setOfrendaForm]=useState(()=>({fecha:getTodayStr(),monto:"",responsable:""}));
 
   const gastos=Array.isArray(finanzas?.gastos)?finanzas.gastos:[];
   const actividades=Array.isArray(finanzas?.actividades)?finanzas.actividades:[];
   const donativosRaw=Array.isArray(finanzas?.donativos)?finanzas.donativos:[];
+  const ofrendaNinos=Array.isArray(finanzas?.ofrendaNinos)?finanzas.ofrendaNinos:[];
   const votos=donativosRaw.filter(d=>d.tipo==="VOTO");
   const donativos=donativosRaw.filter(d=>d.tipo!=="VOTO");
 
@@ -4351,7 +4555,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
     const m=parseFloat(gastoForm.monto.replace(",","."));
     const nuevo={id:Date.now()+"-g",fecha:gastoForm.fecha||new Date().toISOString().slice(0,10),concepto:gastoForm.concepto.trim(),monto:isNaN(m)?0:m,responsable:gastoForm.responsable||""};
     onUpdate({...finanzas,gastos:[...gastos,nuevo]});
-    setGastoForm({fecha:todayStr,concepto:"",monto:"",responsable:gastoForm.responsable});
+    setGastoForm({fecha:getTodayStr(),concepto:"",monto:"",responsable:gastoForm.responsable});
   };
   const deleteGasto=id=>{
     if(!confirmDelete("¿Eliminar este gasto del comité?"))return;
@@ -4373,7 +4577,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable:actForm.responsable||"",
     };
     onUpdate({...finanzas,actividades:[...actividades,nueva]});
-    setActForm({fecha:todayStr,nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
+    setActForm({fecha:getTodayStr(),nombre:"",ingresoEfectivo:"",ingresoTPV:"",gastos:"",responsable:actForm.responsable});
   };
   const deleteActividad=id=>{
     if(!confirmDelete("¿Eliminar esta actividad del comité?"))return;
@@ -4395,7 +4599,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable,
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setDonForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",donante:donForm.donante,responsableMaestro:donForm.responsableMaestro});
+    setDonForm({fecha:getTodayStr(),concepto:"",efectivo:"",tpv:"",donante:donForm.donante,responsableMaestro:donForm.responsableMaestro});
   };
   const saveVoto=()=>{
     if(!votoForm.efectivo && !votoForm.tpv)return;
@@ -4412,11 +4616,23 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
       responsable,
     };
     onUpdate({...finanzas,donativos:[...donativosRaw,nuevo]});
-    setVotoForm({fecha:todayStr,concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable,otroNombre:votoForm.otroNombre});
+    setVotoForm({fecha:getTodayStr(),concepto:"",efectivo:"",tpv:"",responsable:votoForm.responsable,otroNombre:votoForm.otroNombre});
   };
   const deleteDonativo=id=>{
     if(!confirmDelete("¿Eliminar este registro de donativo/voto?"))return;
     onUpdate({...finanzas,donativos:donativosRaw.filter(d=>d.id!==id)});
+  };
+
+  const saveOfrendaNinos=()=>{
+    const m=parseFloat(ofrendaForm.monto.replace(",","."));
+    if(isNaN(m)||m<=0)return;
+    const nuevo={id:Date.now()+"-o",fecha:ofrendaForm.fecha||getTodayStr(),monto:m,responsable:ofrendaForm.responsable||""};
+    onUpdate({...finanzas,ofrendaNinos:[...ofrendaNinos,nuevo]});
+    setOfrendaForm({fecha:getTodayStr(),monto:"",responsable:ofrendaForm.responsable});
+  };
+  const deleteOfrendaNinos=id=>{
+    if(!confirmDelete("¿Eliminar este registro de ofrenda?"))return;
+    onUpdate({...finanzas,ofrendaNinos:ofrendaNinos.filter(o=>o.id!==id)});
   };
 
   const maestrosOpts=[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
@@ -4424,6 +4640,30 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>💰 Finanzas del Comité</h2>
+
+      <div style={{...S.card,borderLeft:"5px solid #5B2D8E",marginBottom:14}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#5B2D8E",marginBottom:4}}>👧 Ofrenda de niños Escuela Dominical</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registro de las ofrendas que entran cada domingo. Indica la fecha y quién la registró (maestro/auxiliar).</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:10}}>
+          <input type="date" style={S.input} value={ofrendaForm.fecha} onChange={e=>setOfrendaForm(f=>({...f,fecha:e.target.value}))}/>
+          <input style={S.input} placeholder="€ Monto" value={ofrendaForm.monto} onChange={e=>setOfrendaForm(f=>({...f,monto:e.target.value}))}/>
+          <select style={S.input} value={ofrendaForm.responsable} onChange={e=>setOfrendaForm(f=>({...f,responsable:e.target.value}))}>
+            <option value="">Quién registró</option>
+            {maestrosOpts.map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} — {m.cargo}</option>)}
+          </select>
+        </div>
+        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:10,fontSize:13,marginBottom:10}} onClick={saveOfrendaNinos}>➕ Añadir ofrenda</button>
+        {ofrendaNinos.length===0&&<div style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin ofrendas registradas.</div>}
+        {ofrendaNinos.slice().sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||"")).map(o=>(
+          <div key={o.id} style={{marginTop:8,padding:"8px 10px",borderRadius:10,background:"#F5F0FF",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+            <div style={{fontSize:12,color:"#2D1B4E"}}>
+              <div style={{fontWeight:700}}>€{(parseFloat(o.monto)||0).toFixed(2)}</div>
+              <div style={{fontSize:11,color:"#7B6B9A"}}>{o.fecha} · Registrado por: {o.responsable?displayMaestroNombre(o.responsable):"—"}</div>
+            </div>
+            <button style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:11}} onClick={()=>deleteOfrendaNinos(o.id)}>🗑</button>
+          </div>
+        ))}
+      </div>
 
       <div style={{...S.card,borderLeft:"5px solid #E84F9B",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#E84F9B",marginBottom:4}}>🏛️ Gastos del Comité</div>
@@ -4528,6 +4768,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
           );
         })}
       </div>
+
       <div style={{...S.card,borderLeft:"5px solid #F5C842"}}>
         <div style={{fontWeight:800,fontSize:15,color:"#B69100",marginBottom:4}}>📝 Votos</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Registra votos u otras promesas asignadas a un maestro/auxiliar, con su desglose entre efectivo y TPV.</div>
@@ -4842,9 +5083,9 @@ function App(){
         const derivedFam=deriveFamilias(alumnos);
         const stored=Array.isArray(d.familias)?d.familias:[];
         if(stored.length>0){
-          const byKey={};
-          stored.forEach(f=>{const k=f.familia||f.alumno;if(k&&!byKey[k])byKey[k]={encargosFamilia:f.encargosFamilia,fotoFamilia:f.fotoFamilia};});
-          familias=derivedFam.map(f=>{const k=f.familia||f.alumno;const x=byKey[k];return {...f,encargosFamilia:x?.encargosFamilia??f.encargosFamilia,fotoFamilia:x?.fotoFamilia??f.fotoFamilia};});
+          const byFamilyKey={};
+          stored.forEach(f=>{const k=f.familyKey||f.familia||f.alumno;if(k&&!byFamilyKey[k])byFamilyKey[k]={encargosFamilia:f.encargosFamilia,fotoFamilia:f.fotoFamilia};});
+          familias=derivedFam.map(f=>{const x=byFamilyKey[f.familyKey];return {...f,encargosFamilia:x?.encargosFamilia??f.encargosFamilia,fotoFamilia:x?.fotoFamilia??f.fotoFamilia};});
         }else familias=derivedFam;
       }
       if(!clases||typeof clases!=="object")clases=INITIAL_CLASES;
