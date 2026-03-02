@@ -910,7 +910,7 @@ function AdminDashboard({data,onUpdateData,onGoToTab}){
   const ninos=Object.values(clases).flat();
   const go=(tabId,masSub)=>{if(onGoToTab)onGoToTab(tabId,masSub);};
   const today=new Date();
-  const upcomingEvents=eventos.filter(e=>{try{const[d,m,y]=e.fecha.split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-today)/86400000);return diff>=0&&diff<=60;}catch(e){return false;}}).slice(0,5);
+  const upcomingEvents=eventos.filter(e=>{try{const[d,m,y]=e.fecha.split("/");const dt=new Date(parseInt(y),parseInt(m)-1,parseInt(d));const diff=Math.floor((dt-today)/86400000);return diff>=0&&diff<=60;}catch(e){return false;}}).sort((a,b)=>{try{const[da,ma,ya]=a.fecha.split("/");const[db,mb,yb]=b.fecha.split("/");return new Date(parseInt(ya),parseInt(ma)-1,parseInt(da))-new Date(parseInt(yb),parseInt(mb)-1,parseInt(db));}catch(e){return 0;}}).slice(0,5);
   const[sortedPeticiones,setSortedPeticiones]=useState([]);
   const[peticionForm,setPeticionForm]=useState({texto:"",anonimo:false});
   const[peticionModal,setPeticionModal]=useState(false);
@@ -3309,7 +3309,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
   const misClases=cronograma.filter(c=>sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const todayTeacher=new Date();
-  const upcomingEventsTeacher=(Array.isArray(eventos)?eventos:[]).filter(e=>{try{const[d,m,y]=(e.fecha||"").split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-todayTeacher)/86400000);return diff>=0&&diff<=60;}catch(err){return false;}}).slice(0,5);
+  const upcomingEventsTeacher=(Array.isArray(eventos)?eventos:[]).filter(e=>{try{const[d,m,y]=(e.fecha||"").split("/");const dt=new Date(parseInt(y),parseInt(m)-1,parseInt(d));const diff=Math.floor((dt-todayTeacher)/86400000);return diff>=0&&diff<=60;}catch(err){return false;}}).sort((a,b)=>{try{const[da,ma,ya]=(a.fecha||"").split("/");const[db,mb,yb]=(b.fecha||"").split("/");return new Date(parseInt(ya),parseInt(ma)-1,parseInt(da))-new Date(parseInt(yb),parseInt(mb)-1,parseInt(db));}catch(e){return 0;}}).slice(0,5);
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
 
   const matchFamilia=(cNombre,fAlumno)=>{
@@ -3888,6 +3888,45 @@ function generarPDF(titulo, htmlContent){
   setTimeout(()=>URL.revokeObjectURL(url),10000);
 }
 
+function generarPDFLandscape(titulo, htmlContent){
+  const estilos=`
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+      @page{size:landscape;}
+      *{margin:0;padding:0;box-sizing:border-box;}
+      body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a2e;font-size:12px;line-height:1.4;}
+      .header{background:linear-gradient(135deg,#3D1B6B,#5B2D8E);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:16px;margin-bottom:12px;}
+      .header h1{font-size:16px;font-weight:900;}
+      .header .sub{font-size:11px;opacity:0.75;margin-top:2px;}
+      .cal-grid{width:100%;border-collapse:collapse;table-layout:fixed;}
+      .cal-grid th{background:#5B2D8E;color:#fff;padding:6px 4px;font-size:10px;font-weight:800;text-align:center;}
+      .cal-grid td{border:1px solid #DDD0F0;padding:4px;vertical-align:top;min-height:70px;}
+      .cal-day{font-weight:800;color:#5B2D8E;font-size:11px;margin-bottom:4px;}
+      .cal-entry{font-size:9px;background:#F5F0FF;border-radius:4px;padding:3px 5px;margin-bottom:3px;border-left:3px solid #5B2D8E;}
+      .cal-entry.grupo{font-weight:700;color:#2D1B4E;}
+      .footer{text-align:center;padding:10px;font-size:10px;color:#AAA;border-top:1px solid #EEE8FF;}
+      .print-btn{display:block;margin:12px auto;padding:10px 24px;background:#5B2D8E;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;}
+      @media print{.print-btn{display:none!important;}body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
+    </style>`;
+  const fecha=new Date().toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"});
+  const full=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">${estilos}<title>${titulo}</title></head><body>
+    <div class="header">
+      <div><h1>📅 ${titulo}</h1><div class="sub">Escuela Dominical IPUE · Villanueva del Pardillo · ${fecha}</div></div>
+    </div>
+    ${htmlContent}
+    <div class="footer">Generado por Sistema Escuela Dominical IPUE · ${fecha}</div>
+    <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+  </body></html>`;
+  const blob=new Blob([full],{type:"text/html;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.target="_blank";
+  a.rel="noopener noreferrer";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+
 function scoreColorHex(v){const n=parseFloat(v);if(isNaN(n))return"#AAA";if(n>=4)return"#4CAF50";if(n>=3)return"#F5A623";return"#EF5350";}
 function claseColorHex(cl){return CLASE_COLORS[cl]||"#5B2D8E";}
 
@@ -4052,6 +4091,7 @@ function InformesPanel({data}){
   // ── Report states (hooks must be at top level) ──
   const[selMaestro,setSelMaestro]=useState(maestros[0]?.nombre||"");
   const[selNino,setSelNino]=useState(ninos[0]?.nombre||"");
+  const[calendarYearMonth,setCalendarYearMonth]=useState(()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;});
 
   // ── Report 2: Individual Teacher ──
   const reportMaestro=()=>{
@@ -4478,6 +4518,42 @@ function InformesPanel({data}){
     generarPDF("Informe Económico",html);
   };
 
+  // ── Report 6: Calendario mensual (horizontal) con programaciones y maestros ──
+  const reportCalendarioMensual=()=>{
+    const year=parseInt(calendarYearMonth.slice(0,4),10);
+    const month=parseInt(calendarYearMonth.slice(5,7),10);
+    const daysInMonth=new Date(year,month,0).getDate();
+    const firstDay=new Date(year,month-1,1).getDay();
+    const startPad=(firstDay+6)%7;
+    const monthNames=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const monthLabel=monthNames[month-1]+" "+year;
+    const getEntriesForDay=(day)=>{
+      const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      return (cronograma||[]).filter(c=>c.fecha===dateStr);
+    };
+    const weekDays=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+    let cells=[];
+    for(let i=0;i<startPad;i++)cells.push({empty:true});
+    for(let d=1;d<=daysInMonth;d++)cells.push({day:d,entries:getEntriesForDay(d)});
+    const rows=[];
+    for(let r=0;r<cells.length;r+=7){
+      const rowCells=cells.slice(r,r+7);
+      const rowHtml=rowCells.map((cell,i)=>{
+        if(cell.empty)return "<td></td>";
+        const entriesHtml=cell.entries.map(e=>{
+          const color=CLASE_COLORS[e.grupo]||"#5B2D8E";
+          const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
+          const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"";
+          return `<div class="cal-entry" style="border-left-color:${color}"><span class="grupo">${e.grupo}</span> · ${e.leccion||"—"}<br/><small>🎓 ${maestro}${aux?" · 🤝 "+aux:""}</small></div>`;
+        }).join("");
+        return `<td><div class="cal-day">${cell.day}</div>${entriesHtml}</td>`;
+      }).join("");
+      rows.push("<tr>"+rowHtml+"</tr>");
+    }
+    const html=`<table class="cal-grid"><thead><tr>${weekDays.map(w=>"<th>"+w+"</th>").join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
+    generarPDFLandscape("Calendario "+monthLabel,html);
+  };
+
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <h2 style={S.title}>📄 Generar Informes PDF</h2>
@@ -4539,11 +4615,22 @@ function InformesPanel({data}){
         </button>
       </div>
       {/* Report 5 - Economic Summary */}
-      <div style={{...S.card,borderLeft:"5px solid #F5C842"}}>
+      <div style={{...S.card,borderLeft:"5px solid #F5C842",marginBottom:14}}>
         <div style={{fontWeight:800,fontSize:15,color:"#B69100",marginBottom:4}}>💰 Informe Económico General</div>
         <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Resumen de gastos de clases, gastos del comité, actividades y donativos.</div>
         <button style={{...S.btn("#F5C842","#3D1B6B",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportEconomico}>
           📥 Generar Informe Económico
+        </button>
+      </div>
+
+      {/* Report 6 - Calendario mensual (horizontal) */}
+      <div style={{...S.card,borderLeft:"5px solid #7E57C2"}}>
+        <div style={{fontWeight:800,fontSize:15,color:"#5E35B1",marginBottom:4}}>📅 Calendario mensual</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>PDF en horizontal con el mes elegido: programaciones de clases y maestros/auxiliares encargados por día.</div>
+        <label style={S.label}>Elegir mes</label>
+        <input type="month" style={{...S.input,marginBottom:14}} value={calendarYearMonth} onChange={e=>setCalendarYearMonth(e.target.value)}/>
+        <button style={{...S.btn("#7E57C2","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportCalendarioMensual}>
+          📥 Generar PDF — Calendario {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
         </button>
       </div>
     </div>
