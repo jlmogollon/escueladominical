@@ -1427,7 +1427,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
 // ══════════ CLASES PANEL (Admin, editable) ══════════
 const COLORES_PRESET=["#4BBCE0","#F5C842","#5B2D8E","#E84F9B","#4CAF50","#FF7043","#7E57C2","#26A69A","#EF5350","#78909C"];
 
-function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,calificaciones=[],familias=[],onUpdateFamilias=()=>{},readOnlyStudents=false}){
+function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,calificaciones=[],familias=[],onUpdateFamilias=()=>{},readOnlyStudents=false,allowManageConfig=true}){
   const cfg=getCfgList(clasesConfig);
   const[activeClase,setActiveClase]=useState(cfg[0]?.key||"CORDERITOS");
   const[modal,setModal]=useState(false);       // add/edit alumno
@@ -1437,6 +1437,13 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
   const[claseForm,setClaseForm]=useState(null); // editing a class config: {key,nombre,color,isNew}
   const ninos=clases[activeClase]||[];
   const color=getCfgColor(activeClase,clasesConfig);
+
+  const getFamForAlumno=(n)=>{
+    const claseNorm=(c)=>(c||"").trim().toUpperCase();
+    let fam=familias.find(f=>samePersonName(f.alumno,n.nombre)&&claseNorm(f.clase)===claseNorm(activeClase));
+    if(!fam) fam=familias.find(f=>samePersonName(f.alumno,n.nombre));
+    return fam||null;
+  };
 
   // Promedio general del alumno en esta clase (usado solo para mostrar, no editar)
   const getNinoGlobalAvg=(alumno)=>{
@@ -1527,6 +1534,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
 
   // ── Gestión de Clases ──
   const saveClase=()=>{
+    if(!allowManageConfig)return;
     if(!claseForm?.nombre?.trim())return;
     let newCfg=[...cfg];
     if(claseForm.isNew){
@@ -1543,6 +1551,7 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
     setClaseForm(null);
   };
   const deleteClase=(key)=>{
+    if(!allowManageConfig)return;
     const count=(clases[key]||[]).length;
     if(count>0){alert(`No se puede eliminar: la clase tiene ${count} alumno${count!==1?"s":""}. Elimina los alumnos primero en la pestaña Alumnos.`);return;}
     if(!confirmDelete("¿Eliminar la clase "+key+"? Esta acción no se puede deshacer."))return;
@@ -1557,12 +1566,18 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <h2 style={S.title}>Clases</h2>
-        <div style={{display:"flex",gap:8}}>
-          <button style={{...S.btn("#F5F0FF","#5B2D8E"),padding:"9px 13px",fontSize:13,border:"1.5px solid #DDD0F0"}} onClick={()=>setMgrModal(true)}>⚙️ Gestionar</button>
-          {!readOnlyStudents&&<button style={{...S.btn(color),padding:"10px 16px",fontSize:14}} onClick={openAdd}>+ Niño</button>}
-        </div>
+        {allowManageConfig&&(
+          <div style={{display:"flex",gap:8}}>
+            <button style={{...S.btn("#F5F0FF","#5B2D8E"),padding:"9px 13px",fontSize:13,border:"1.5px solid #DDD0F0"}} onClick={()=>setMgrModal(true)}>⚙️ Gestionar</button>
+            {!readOnlyStudents&&<button style={{...S.btn(color),padding:"10px 16px",fontSize:14}} onClick={openAdd}>+ Niño</button>}
+          </div>
+        )}
       </div>
-      {readOnlyStudents&&<div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>Los alumnos se editan en la pestaña <strong>Alumnos</strong>.</div>}
+      {readOnlyStudents&&allowManageConfig&&(
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:10}}>
+          Los alumnos se editan en la pestaña <strong>Alumnos</strong>.
+        </div>
+      )}
 
       {/* Class tabs */}
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:14}}>
@@ -1586,26 +1601,55 @@ function ClasesPanel({clases,onUpdate,clasesConfig,onUpdateClasesConfig,califica
           <span style={{fontSize:12,opacity:0.7}}>{readOnlyStudents?"Agrega alumnos en la pestaña Alumnos.":"Usa el botón \"+ Niño\" para agregar."}</span>
         </div>
       )}
-      {ninos.map((n,i)=>(
-        <div key={n.id||i} style={{...S.card,display:"flex",alignItems:"center",gap:12}}>
-          <AvatarUpload photo={n.foto} onPhoto={readOnlyStudents?()=>{}:(f)=>updateFoto(i,f)} size={48} initials={getInitials(n.nombre)} color={color}/>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayNameAlumno(n)}</div>
-            {n.edad&&<div style={{fontSize:12,color:"#7B6B9A"}}>{n.edad} años</div>}
-          </div>
-          {(()=>{
-            const avg=getNinoGlobalAvg(n.nombre);
-            if(!avg)return <div style={{fontSize:11,color:"#7B6B9A"}}>Sin calificación</div>;
-            return(
-              <div style={{background:scoreColor(avg)+"20",borderRadius:10,padding:"6px 10px",textAlign:"center",minWidth:56}}>
-                <div style={{fontWeight:900,color:scoreColor(avg),fontSize:16}}>{avg}</div>
-                <div style={{fontSize:9,color:"#7B6B9A"}}>prom.</div>
+      {ninos.map((n,i)=>{
+        const fam=getFamForAlumno(n);
+        return(
+          <div key={n.id||i} style={{...S.card,display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <AvatarUpload photo={n.foto} onPhoto={readOnlyStudents?()=>{}:(f)=>updateFoto(i,f)} size={48} initials={getInitials(n.nombre)} color={color}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{displayNameAlumno(n)}</div>
+                {n.edad&&<div style={{fontSize:12,color:"#7B6B9A"}}>{n.edad} años</div>}
               </div>
-            );
-          })()}
-          {!readOnlyStudents&&<button style={{...S.btn("#4BBCE0"),padding:"8px 10px",fontSize:13,flexShrink:0}} onClick={()=>openEdit(n,i)} title="Editar alumno">✏️</button>}
-        </div>
-      ))}
+              {(()=>{
+                const avg=getNinoGlobalAvg(n.nombre);
+                if(!avg)return <div style={{fontSize:11,color:"#7B6B9A"}}>Sin calificación</div>;
+                return(
+                  <div style={{background:scoreColor(avg)+"20",borderRadius:10,padding:"6px 10px",textAlign:"center",minWidth:56}}>
+                    <div style={{fontWeight:900,color:scoreColor(avg),fontSize:16}}>{avg}</div>
+                    <div style={{fontSize:9,color:"#7B6B9A"}}>prom.</div>
+                  </div>
+                );
+              })()}
+              {!readOnlyStudents&&<button style={{...S.btn("#4BBCE0"),padding:"8px 10px",fontSize:13,flexShrink:0}} onClick={()=>openEdit(n,i)} title="Editar alumno">✏️</button>}
+            </div>
+            {fam&&(fam.padre||fam.madre)&&(
+              <div style={{marginTop:2,fontSize:11,color:"#7B6B9A"}}>
+                {fam.padre&&fam.padre!=="(No registra)"&&(
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:fam.madre?4:0}}>
+                    <span>👨</span>
+                    <span style={{fontWeight:600,flex:1}}>{fam.padre}</span>
+                    {fam.telPadre
+                      ?<a href={`tel:${fam.telPadre}`} style={{background:"#4BBCE0",color:"#FFFFFF",borderRadius:10,padding:"4px 8px",fontSize:11,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap"}}>📞 {fam.telPadre}</a>
+                      :<span style={{fontSize:10,color:"#EF5350",fontStyle:"italic"}}>Sin tel.</span>
+                    }
+                  </div>
+                )}
+                {fam.madre&&fam.madre!=="(No registra)"&&(
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span>👩</span>
+                    <span style={{fontWeight:600,flex:1}}>{fam.madre}</span>
+                    {fam.telMadre
+                      ?<a href={`tel:${fam.telMadre}`} style={{background:"#E84F9B",color:"#FFFFFF",borderRadius:10,padding:"4px 8px",fontSize:11,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap"}}>📞 {fam.telMadre}</a>
+                      :<span style={{fontSize:10,color:"#EF5350",fontStyle:"italic"}}>Sin tel.</span>
+                    }
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Modal: Agregar/Editar alumno */}
       <Modal open={modal} onClose={()=>setModal(false)} title={editIdx!=null?"Editar Alumno":`Agregar a ${activeClase}`}>
@@ -3306,7 +3350,14 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   };
   const deletePeticionT=()=>{if(peticionEditIdT&&confirmDelete("¿Eliminar esta petición de oración?")){onUpdateData("peticiones",peticiones.filter(p=>p.id!==peticionEditIdT));setPeticionModalT(false);}};
 
-  const tabs=[{id:"inicio",label:"Inicio",icon:"🏠"},{id:"cronograma",label:"Horario",icon:"📅"},{id:"calificaciones",label:"Calific.",icon:"📊"},{id:"clase",label:"Clase",icon:"👧"},{id:"mas",label:"Más",icon:"☰"}];
+  const tabs=[
+    {id:"inicio",label:"Inicio",icon:"🏠"},
+    {id:"cronograma",label:"Horario",icon:"📅"},
+    {id:"calificaciones",label:"Calific.",icon:"📊"},
+    {id:"clase",label:"Mi clase",icon:"👧"},
+    {id:"clases",label:"Clases",icon:"🧒"},
+    {id:"mas",label:"Más",icon:"☰"},
+  ];
 
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
@@ -3509,6 +3560,19 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
               );
             })}
           </div>
+        )}
+        {activeTab==="clases"&&(
+          <ClasesPanel
+            readOnlyStudents
+            allowManageConfig={false}
+            clases={data.clases}
+            onUpdate={()=>{}}
+            clasesConfig={data.clasesConfig}
+            onUpdateClasesConfig={()=>{}}
+            calificaciones={data.calificaciones}
+            familias={data.familias}
+            onUpdateFamilias={()=>{}}
+          />
         )}
         <Modal open={phoneModal} onClose={()=>setPhoneModal(false)} title="Editar Teléfonos de Padres">
           <div style={{background:"#F5F0FF",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#7B6B9A"}}>Agrega o actualiza los teléfonos de contacto</div>
