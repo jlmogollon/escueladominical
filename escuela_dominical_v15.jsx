@@ -1402,21 +1402,104 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
         <label style={S.label}>🎓 Maestro</label>
         <select style={{...S.input,marginBottom:12}} value={form.maestro} onChange={e=>setForm(f=>({...f,maestro:e.target.value}))}>
           <option value="">— Sin asignar —</option>
-          <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-          <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+          {form.grupo==="ADOLESCENTES"
+            ? ADOLESCENTES_MAESTROS.slice().sort((a,b)=>sortKeyFirstName(a).localeCompare(sortKeyFirstName(b),"es")).map(nombre=>(
+                <option key={nombre} value={nombre}>
+                  {(()=>{const p=(nombre||"").trim().split(/\s+/).filter(Boolean);return p.length>=2?p.slice(1).join(" ")+" "+p[0]:nombre;})()}
+                </option>
+              ))
+            : (
+              <>
+                <optgroup label="MAESTROS">
+                  {maestros
+                    .filter(m=>m.cargo==="MAESTRO")
+                    .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                    .map(m=>(
+                      <option key={m.id} value={m.nombre}>
+                        {displayMaestroNombre(m.nombre)} · {m.clase}
+                      </option>
+                    ))}
+                </optgroup>
+                <optgroup label="AUXILIARES (como maestro)">
+                  {maestros
+                    .filter(m=>m.cargo==="AUXILIAR")
+                    .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                    .map(m=>(
+                      <option key={m.id} value={m.nombre}>
+                        {displayMaestroNombre(m.nombre)} · {m.clase}
+                      </option>
+                    ))}
+                </optgroup>
+              </>
+            )
+          }
         </select>
-        {/* Auxiliar */}
-        <>
-          <label style={S.label}>🤝 Auxiliar</label>
-          <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
-            <option value="">— Sin asignar —</option>
-            <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-            <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-            <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-            <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-          </select>
-        </>
-        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={()=>{onUpdate([...cronograma,{...form,auxiliar:form.auxiliar,id:Date.now()}]);setAddModal(false);setForm({fecha:"",grupo:"CORDERITOS",leccion:"",tema:"",maestro:"",auxiliar:""});}}>💾 Guardar Clase</button>
+        {/* Auxiliar (no aplica para ADOLESCENTES) */}
+        {form.grupo!=="ADOLESCENTES"&&(
+          <>
+            <label style={S.label}>🤝 Auxiliar</label>
+            <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
+              <option value="">— Sin asignar —</option>
+              <optgroup label="MAESTROS">
+                {maestros
+                  .filter(m=>m.cargo==="MAESTRO")
+                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                  .map(m=>(
+                    <option key={m.id} value={m.nombre}>
+                      {displayMaestroNombre(m.nombre)} · {m.clase}
+                    </option>
+                  ))}
+              </optgroup>
+              <optgroup label="AUXILIARES (como maestro)">
+                {maestros
+                  .filter(m=>m.cargo==="AUXILIAR")
+                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                  .map(m=>(
+                    <option key={m.id} value={m.nombre}>
+                      {displayMaestroNombre(m.nombre)} · {m.clase}
+                    </option>
+                  ))}
+              </optgroup>
+              <optgroup label="AUXILIARES">
+                {maestros
+                  .filter(m=>m.cargo==="AUXILIAR")
+                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                  .map(m=>(
+                    <option key={m.id} value={m.nombre}>
+                      {displayMaestroNombre(m.nombre)} · {m.clase}
+                    </option>
+                  ))}
+              </optgroup>
+              <optgroup label="MAESTROS (como auxiliar)">
+                {maestros
+                  .filter(m=>m.cargo==="MAESTRO")
+                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
+                  .map(m=>(
+                    <option key={m.id} value={m.nombre}>
+                      {displayMaestroNombre(m.nombre)} · {m.clase}
+                    </option>
+                  ))}
+              </optgroup>
+            </select>
+          </>
+        )}
+        <button
+          style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}}
+          onClick={()=>{
+            onUpdate([
+              ...cronograma,
+              {
+                ...form,
+                auxiliar:form.grupo==="ADOLESCENTES"?null:form.auxiliar,
+                id:Date.now(),
+              },
+            ]);
+            setAddModal(false);
+            setForm({fecha:"",grupo:"CORDERITOS",leccion:"",tema:"",maestro:"",auxiliar:""});
+          }}
+        >
+          💾 Guardar Clase
+        </button>
       </Modal>
       {/* ── Modal editar/eliminar entrada del cronograma ── */}
       <Modal open={!!editEntryId} onClose={()=>setEditEntryId(null)} title="✏️ Editar Programación">
