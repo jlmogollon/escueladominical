@@ -208,16 +208,28 @@ function normalizeNamePart(s){
   return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 }
 
-// Compara dos nombres de maestro ignorando orden/apariencia, usando primer nombre + primer apellido
+// Compara dos nombres de maestro ignorando orden/apariencia.
+// Estrategia: normalizar a tokens (sin tildes, en minúsculas) y considerar que
+// son la misma persona si comparten al menos 2 palabras significativas (nombre/apellido).
 function sameTeacherName(a,b){
   if(!a||!b)return false;
-  const pa=parseNombre4(a),pb=parseNombre4(b);
-  const na=normalizeNamePart(pa.primerNombre);
-  const nb=normalizeNamePart(pb.primerNombre);
-  const aa=normalizeNamePart(pa.primerApellido);
-  const ab=normalizeNamePart(pb.primerApellido);
-  if(!na||!aa||!nb||!ab)return false;
-  return na===nb&&aa===ab;
+  const normTokens=s=>{
+    return (s||"")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g,"")
+      .split(/\s+/)
+      .filter(w=>w && w.length>2);
+  };
+  const wa=normTokens(a);
+  const wb=normTokens(b);
+  if(!wa.length||!wb.length)return false;
+  const setA=new Set(wa);
+  let matches=0;
+  wb.forEach(w=>{if(setA.has(w))matches++;});
+  if(matches>=2)return true;
+  // Caso extremo: nombres muy cortos, al menos 1 palabra igual
+  return matches===1 && (wa.length===1 || wb.length===1);
 }
 // Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
 function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
