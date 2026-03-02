@@ -202,6 +202,23 @@ function parseNombreCompleto(s){const t=(s||"").trim().split(/\s+/).filter(Boole
 // Estructura: primer nombre, [segundo nombre], primer apellido, [segundo apellido]. Segundo nombre y segundo apellido pueden estar vacíos.
 // Parsea nombre en orden "P1 [P2] A1 [A2]". No rellena segundo nombre ni segundo apellido si no hay: 2 partes P1 A1; 3 partes P1 P2 A1 (segundo apellido en blanco); 4 partes P1 P2 A1 A2.
 function parseNombre4(s){const p=(s||"").trim().split(/\s+/).filter(Boolean);if(p.length>=4)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:p[3]||""};if(p.length===3)return{primerNombre:p[0]||"",segundoNombre:p[1]||"",primerApellido:p[2]||"",segundoApellido:""};if(p.length===2)return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:p[1]||"",segundoApellido:""};return{primerNombre:p[0]||"",segundoNombre:"",primerApellido:"",segundoApellido:""};}
+
+// Normaliza nombres/apellidos para comparaciones (minúsculas, sin tildes)
+function normalizeNamePart(s){
+  return (s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+}
+
+// Compara dos nombres de maestro ignorando orden/apariencia, usando primer nombre + primer apellido
+function sameTeacherName(a,b){
+  if(!a||!b)return false;
+  const pa=parseNombre4(a),pb=parseNombre4(b);
+  const na=normalizeNamePart(pa.primerNombre);
+  const nb=normalizeNamePart(pb.primerNombre);
+  const aa=normalizeNamePart(pa.primerApellido);
+  const ab=normalizeNamePart(pb.primerApellido);
+  if(!na||!aa||!nb||!ab)return false;
+  return na===nb&&aa===ab;
+}
 // Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
 function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 // Familia del alumno = primer y segundo apellido del alumno
@@ -498,9 +515,19 @@ function fullNameToApellidos(str){
   const p4=parseNombre4(str);
   return [p4.primerApellido||"",p4.segundoApellido||""].filter(Boolean).join(" ").trim();
 }
-// Una sola base: maestros/auxiliares. Mostrar siempre "Primer nombre + Primer apellido". Asume almacenamiento "Nombre(s) Apellido(s)" (parseNombre4).
+// Una sola base: maestros/auxiliares. Mostrar siempre "Primer nombre + Primer apellido".
+// Caso especial: algunos maestros de ADOLESCENTES están almacenados como "Apellido Nombre(s)".
+// Para ellos, mostramos "Nombre Apellido" para que no parezcan personas distintas.
 function displayMaestroNombre(str){
   if(!str)return"";
+  if(Array.isArray(ADOLESCENTES_MAESTROS)&&ADOLESCENTES_MAESTROS.includes(str)){
+    const parts=(str||"").trim().split(/\s+/).filter(Boolean);
+    if(parts.length>=2){
+      const apellido=parts[0];
+      const primerNombre=parts[1];
+      return [primerNombre,apellido].join(" ").trim();
+    }
+  }
   return shortDisplayName(str);
 }
 // Parsea para el formulario asumiendo "Apellido Nombre(s)": así al guardar con buildNombreFull queda "Nombre(s) Apellido(s)" y se unifica la base.
@@ -1152,8 +1179,8 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
 
   // ── Participation stats ──
   const getMaestroStats=(nombre)=>{
-    const asMaestro=cronograma.filter(c=>c.maestro===nombre).length;
-    const asAux=cronograma.filter(c=>c.auxiliar===nombre).length;
+    const asMaestro=cronograma.filter(c=>sameTeacherName(c.maestro,nombre)).length;
+    const asAux=cronograma.filter(c=>sameTeacherName(c.auxiliar,nombre)).length;
     const total=asMaestro+asAux;
     // Detect rescheduling: entries where teacher appears but class is "NO HAY CLASE"
     const noClass=cronograma.filter(c=>(c.maestro===nombre||c.auxiliar===nombre)&&(c.leccion==="NO HAY CLASE"||c.leccion==="DIA DEL PADRE")).length;
@@ -2947,9 +2974,9 @@ function TeacherFinanzasPanel({user,data}){
   const meriendas=data.meriendas||[];
   const cronograma=data.cronograma||[];
   const maestros=data.maestros||[];
-  const miMaestro=maestros.find(m=>m.nombre===user.name)||{};
+  const miMaestro=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
   const miClase=miMaestro.clase;
-  const registros=meriendas.filter(m=>m.clase===miClase&&m.maestro===user.name);
+  const registros=meriendas.filter(m=>m.clase===miClase&&sameTeacherName(m.maestro,user.name));
   const totalClase=registros.reduce((s,m)=>
     s+(parseFloat(m.meriendaCosto)||0)+(parseFloat(m.trabajoManualCosto)||0)
   ,0);
@@ -3042,10 +3069,10 @@ function PrevObsSection({selNino, calificaciones, miClase, selSes}) {
 function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
   const{calificaciones,cronograma,clases,maestros,meriendas=[]}=data;
   const criterios=data.criterios||CRITERIOS;
-  const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
+  const teacherInfo=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
   const miClase=teacherInfo.clase;
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
-  const misSesiones=cronograma.filter(c=>(c.maestro===user.name||c.auxiliar===user.name)&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
+  const misSesiones=cronograma.filter(c=>(sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name))&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
   const[selNino,setSelNino]=useState(null);
@@ -3277,10 +3304,10 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   };
   const{maestros,cronograma,clases,calificaciones,eventos,familias,evaluaciones,alumnos}=data;
   const alumnosSource=alumnos&&Array.isArray(alumnos)&&alumnos.length>0;
-  const teacherInfo=maestros.find(m=>m.nombre===user.name)||{};
+  const teacherInfo=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
   const miClase=teacherInfo.clase;
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
-  const misClases=cronograma.filter(c=>c.maestro===user.name||c.auxiliar===user.name).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const misClases=cronograma.filter(c=>sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const todayTeacher=new Date();
   const upcomingEventsTeacher=(Array.isArray(eventos)?eventos:[]).filter(e=>{try{const[d,m,y]=(e.fecha||"").split("/");const dt=new Date(y,m-1,d);const diff=Math.floor((dt-todayTeacher)/86400000);return diff>=0&&diff<=60;}catch(err){return false;}}).slice(0,5);
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
@@ -3409,7 +3436,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                   <div style={{fontWeight:800,color:CLASE_COLORS[c.grupo]||"#5B2D8E",fontSize:12}}>{formatFecha(c.fecha)} · {c.grupo}</div>
                   <div style={{fontSize:15,fontWeight:700,margin:"4px 0 2px"}}>{c.leccion}</div>
                   <div style={{fontSize:12,color:"#7B6B9A"}}>{c.tema}</div>
-                  <div style={{marginTop:6}}><span style={S.badge(c.maestro===user.name?"#5B2D8E":"#4BBCE0")}>{c.maestro===user.name?"🎓 Maestro":"🤝 Auxiliar"}</span></div>
+                  <div style={{marginTop:6}}><span style={S.badge(sameTeacherName(c.maestro,user.name)?"#5B2D8E":"#4BBCE0")}>{sameTeacherName(c.maestro,user.name)?"🎓 Maestro":"🤝 Auxiliar"}</span></div>
                 </div>
               ))}
               {misClases.length===0&&<div style={{color:"#7B6B9A",fontSize:13}}>Sin clases asignadas.</div>}
@@ -3459,7 +3486,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                 <div style={{fontSize:17,fontWeight:900,margin:"6px 0 4px"}}>{c.leccion}</div>
                 <div style={{fontSize:13,color:"#7B6B9A",marginBottom:8}}>{c.tema}</div>
                 <div style={{display:"flex",gap:10}}>
-                  <span style={S.badge(c.maestro===user.name?"#5B2D8E":"#4BBCE0")}>{c.maestro===user.name?"🎓 Maestro":"🤝 Auxiliar"}</span>
+                  <span style={S.badge(sameTeacherName(c.maestro,user.name)?"#5B2D8E":"#4BBCE0")}>{sameTeacherName(c.maestro,user.name)?"🎓 Maestro":"🤝 Auxiliar"}</span>
                   <span style={{fontSize:12,color:"#7B6B9A"}}>Aux: {c.auxiliar?displayMaestroNombre(c.auxiliar):"—"}</span>
                 </div>
               </div>
@@ -3645,9 +3672,9 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                     ))}
                     {(()=>{
                       const crono=data.cronograma||[];
-                      const fallasReg=crono.filter(e=>e.fallaMaestro===user.name||e.fallaAuxiliar===user.name);
+                      const fallasReg=crono.filter(e=>sameTeacherName(e.fallaMaestro,user.name)||sameTeacherName(e.fallaAuxiliar,user.name));
                       const videos=data.videos||[];
-                      const sesionesVideo=crono.filter(s=>s.maestro===user.name&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE").sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+                      const sesionesVideo=crono.filter(s=>sameTeacherName(s.maestro,user.name)&&VIDEO_CLASES.includes(s.grupo)&&s.leccion&&s.leccion!=="NO HAY CLASE").sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
                       const rowsVideo=sesionesVideo.map(s=>{
                         const v=videos.find(x=>x.sesionId===s.id&&x.maestro===s.maestro);
                         const score=v?videoScore(v):null;
