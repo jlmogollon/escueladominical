@@ -4635,53 +4635,47 @@ function InformesPanel({data}){
       return;
     }
 
-    const rowsHtml=[];
-    dates.forEach(fecha=>{
+    const sections=dates.map(fecha=>{
       const [y,m,d]=fecha.split("-").map(Number);
       const dt=new Date(y,m-1,d);
       const dayName=weekdayNamesLong[dt.getDay()];
       const dateStr=`${dayName} ${String(d).padStart(2,"0")} de ${monthNamesLower[m-1]} de ${y}`;
-      byDate[fecha]
+      const rows=byDate[fecha]
         .slice()
         .sort((a,b)=>a.grupo.localeCompare(b.grupo,"es"))
-        .forEach(e=>{
+        .map(e=>{
           const color=claseColorHex(e.grupo);
           const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
           const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"—";
           const tema=(e.tema||"").trim();
           const temaStr=tema||"—";
-          rowsHtml.push(`
-            <tr>
-              <td>${dateStr}</td>
-              <td><span class="badge" style="background:${color}15;color:${color};border:1px solid ${color}55">${e.grupo}</span></td>
-              <td><strong>${e.leccion||"—"}</strong></td>
-              <td>${temaStr}</td>
-              <td>${maestro}</td>
-              <td>${aux}</td>
-            </tr>`);
-        });
-    });
+          return `<tr>
+            <td><span class="badge" style="background:${color}15;color:${color};border:1px solid ${color}55">${e.grupo}</span></td>
+            <td><strong>${e.leccion||"—"}</strong></td>
+            <td>${temaStr}</td>
+            <td>${maestro}</td>
+            <td>${aux}</td>
+          </tr>`;
+        }).join("");
+      return `
+        <div class="section">
+          <div class="section-title">📅 ${dateStr}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Lección</th>
+                <th>Tema</th>
+                <th>Maestro</th>
+                <th>Auxiliar</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }).join("");
 
-    const html=`
-      <div class="section">
-        <div class="section-title">📅 Programación del mes — ${monthLabel}</div>
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Grupo</th>
-              <th>Lección</th>
-              <th>Tema</th>
-              <th>Maestro</th>
-              <th>Auxiliar</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml.join("")}
-          </tbody>
-        </table>
-      </div>`;
-
+    const html=`<div class="section"><div class="section-title">📅 Programación del mes — ${monthLabel}</div></div>${sections}`;
     generarPDF("Programación "+monthLabel,html,{firmas:false});
   };
 
@@ -4757,9 +4751,18 @@ function InformesPanel({data}){
       {/* Report 6 - Programación mensual (PDF detallado por día y clase) */}
       <div style={{...S.card,borderLeft:"5px solid #7E57C2"}}>
         <div style={{fontWeight:800,fontSize:15,color:"#5E35B1",marginBottom:4}}>📅 Programación del mes</div>
-        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Informe PDF con las fechas que tienen programación: fecha completa (ej. Domingo 08 de marzo), grupo, lección, tema, maestro y auxiliar. Organizado en secciones por día para un cronograma claro y atractivo.</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Informe PDF por día: fecha como título y tabla Grupo, Lección, Tema, Maestro y Auxiliar.</div>
         <label style={S.label}>Elegir mes</label>
-        <input type="month" style={{...S.input,marginBottom:14}} value={calendarYearMonth} onChange={e=>setCalendarYearMonth(e.target.value)}/>
+        <div style={{display:"flex",gap:10,marginBottom:14}}>
+          <select style={{...S.input,marginBottom:0,flex:1}} value={calendarYearMonth?calendarYearMonth.slice(5,7):""} onChange={e=>setCalendarYearMonth(prev=>{const m=e.target.value;const y=prev?prev.slice(0,4):new Date().getFullYear();return y&&m?`${y}-${m}`:prev;})}>
+            {["01","02","03","04","05","06","07","08","09","10","11","12"].map(m=>(
+              <option key={m} value={m}>{["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"][parseInt(m,10)-1]}</option>
+            ))}
+          </select>
+          <select style={{...S.input,marginBottom:0,flex:1}} value={calendarYearMonth?calendarYearMonth.slice(0,4):""} onChange={e=>setCalendarYearMonth(prev=>{const y=e.target.value;const m=prev?prev.slice(5,7):String(new Date().getMonth()+1).padStart(2,"0");return y&&m?`${y}-${m}`:prev;})}>
+            {Array.from({length:8},(_,i)=>new Date().getFullYear()-2+i).map(y=>(<option key={y} value={String(y)}>{y}</option>))}
+          </select>
+        </div>
         <button style={{...S.btn("#7E57C2","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportCalendarioMensual}>
           📥 Generar PDF — {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
         </button>
