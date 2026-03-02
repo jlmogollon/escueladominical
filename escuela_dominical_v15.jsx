@@ -1159,26 +1159,35 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
     const lastAuxiliar=lastEntries[0]?.auxiliar||"";
     const countMap={};
     cronograma.forEach(c=>{
+      if(c.grupo!==grupo)return;
       if(c.maestro)countMap[c.maestro]=(countMap[c.maestro]||0)+1;
       if(c.auxiliar)countMap[c.auxiliar]=(countMap[c.auxiliar]||0)+1;
     });
     const isAdolescentes=grupo==="ADOLESCENTES";
-    let eligiblePool=isAdolescentes
-      ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre))
-      : maestros;
-    if(isAdolescentes&&eligiblePool.length===0)
-      eligiblePool=ADOLESCENTES_MAESTROS.map(nombre=>({nombre,clase:"ADOLESCENTES"}));
     const sortByRotation=(a,b)=>{
       const sameClassA=a.clase===grupo?1:0;
       const sameClassB=b.clase===grupo?1:0;
       if(sameClassB!==sameClassA)return sameClassA-sameClassB;
       return (countMap[a.nombre]||0)-(countMap[b.nombre]||0);
     };
-    const maestroPool=[...eligiblePool].sort(sortByRotation);
+    let maestroPool=[];
+    let auxPool=[];
+    if(isAdolescentes){
+      let adolMaestros=maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre)&&m.clase===grupo);
+      if(adolMaestros.length===0){
+        adolMaestros=ADOLESCENTES_MAESTROS.map(nombre=>({nombre,clase:"ADOLESCENTES"}));
+      }
+      maestroPool=[...adolMaestros].sort(sortByRotation);
+    }else{
+      const maestrosGrupo=maestros.filter(m=>m.cargo==="MAESTRO"&&m.clase===grupo);
+      const auxiliaresGrupo=maestros.filter(m=>m.cargo==="AUXILIAR"&&m.clase===grupo);
+      maestroPool=[...maestrosGrupo].sort(sortByRotation);
+      auxPool=[...auxiliaresGrupo].sort(sortByRotation);
+    }
     const sugMaestro=maestroPool.find(m=>m.nombre!==lastMaestro)?.nombre||maestroPool[0]?.nombre||"";
     const sugAux=isAdolescentes
       ? ""
-      : maestroPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro)?.nombre||"";
+      : auxPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro)?.nombre||auxPool[0]?.nombre||"";
     const usedDates=new Set(cronograma.map(c=>c.fecha));
     const sundays=nextSundays(12);
     const sugFecha=sundays.find(s=>!usedDates.has(s))||sundays[0]||"";
@@ -3901,7 +3910,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
 }
 
 // ══════════ PDF REPORTS ══════════
-function generarPDF(titulo, htmlContent){
+function generarPDF(titulo, htmlContent, options={}){
   const estilos=`
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
@@ -3941,11 +3950,12 @@ function generarPDF(titulo, htmlContent){
       @media print{.print-btn{display:none!important;}body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}
     </style>`;
   const fecha=new Date().toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"});
-  const firmasHtml=`
+  const {firmas=true}=options||{};
+  const firmasHtml=firmas?`
     <div class="firmas">
       <div class="firma-item"><div class="firma-linea"></div><div class="firma-nombre">José Hernán Díaz</div><div class="firma-cargo">Pastor</div></div>
       <div class="firma-item"><div class="firma-linea"></div><div class="firma-nombre">Cindy Vanessa Muñoz</div><div class="firma-cargo">Directora de Escuela Dominical</div></div>
-    </div>`;
+    </div>`:"";
   const full=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">${estilos}<title>${titulo}</title></head><body>
     <div class="header">
       <div>
@@ -4625,58 +4635,54 @@ function InformesPanel({data}){
       return;
     }
 
-    const sections=dates.map(fecha=>{
+    const rowsHtml=[];
+    dates.forEach(fecha=>{
       const [y,m,d]=fecha.split("-").map(Number);
       const dt=new Date(y,m-1,d);
       const dayName=weekdayNamesLong[dt.getDay()];
       const dateStr=`${dayName} ${String(d).padStart(2,"0")} de ${monthNamesLower[m-1]} de ${y}`;
-      const rows=byDate[fecha]
+      byDate[fecha]
         .slice()
         .sort((a,b)=>a.grupo.localeCompare(b.grupo,"es"))
-        .map(e=>{
+        .forEach(e=>{
           const color=claseColorHex(e.grupo);
           const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
           const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"—";
           const tema=(e.tema||"").trim();
           const temaStr=tema||"—";
-          return `<tr>
-            <td><span class="badge" style="background:${color}15;color:${color};border:1px solid ${color}55">${e.grupo}</span></td>
-            <td><strong>${e.leccion||"—"}</strong></td>
-            <td>${temaStr}</td>
-            <td>${maestro}</td>
-            <td>${aux}</td>
-          </tr>`;
-        }).join("");
-      return `
-        <div class="section">
-          <div class="section-title">📅 ${dateStr}</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Grupo</th>
-                <th>Lección</th>
-                <th>Tema</th>
-                <th>Maestro</th>
-                <th>Auxiliar</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        </div>`;
-    }).join("");
+          rowsHtml.push(`
+            <tr>
+              <td>${dateStr}</td>
+              <td><span class="badge" style="background:${color}15;color:${color};border:1px solid ${color}55">${e.grupo}</span></td>
+              <td><strong>${e.leccion||"—"}</strong></td>
+              <td>${temaStr}</td>
+              <td>${maestro}</td>
+              <td>${aux}</td>
+            </tr>`);
+        });
+    });
 
-    const intro=`
+    const html=`
       <div class="section">
         <div class="section-title">📅 Programación del mes — ${monthLabel}</div>
-        <div style="padding:10px 16px;font-size:12px;color:#2D1B4E">
-          Resumen detallado de las clases programadas para cada domingo del mes. Incluye grupo, lección, tema y responsables (maestro y auxiliar).
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Grupo</th>
+              <th>Lección</th>
+              <th>Tema</th>
+              <th>Maestro</th>
+              <th>Auxiliar</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml.join("")}
+          </tbody>
+        </table>
       </div>`;
 
-    const html=intro+sections;
-    generarPDF("Programación "+monthLabel,html);
+    generarPDF("Programación "+monthLabel,html,{firmas:false});
   };
 
   return(
