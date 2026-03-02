@@ -4596,95 +4596,85 @@ function InformesPanel({data}){
     generarPDF("Informe Económico",html);
   };
 
-  // ── Report 6: Programación mensual como imagen JPEG vertical (para WhatsApp) ──
+  // ── Report 6: Programación mensual en PDF (cronograma detallado por día y clase) ──
   const reportCalendarioMensual=()=>{
     const year=parseInt(calendarYearMonth.slice(0,4),10);
     const month=parseInt(calendarYearMonth.slice(5,7),10);
-    const monthNames=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-    const monthLabel=monthNames[month-1]+" "+year;
-    const prefix=`${year}-${String(month).padStart(2,"0")}-`;
-    const entriesByDate={};
-    (cronograma||[]).forEach(c=>{
-      if(c.fecha&&c.fecha.startsWith(prefix)){
-        const d=c.fecha;
-        if(!entriesByDate[d])entriesByDate[d]=[];
-        entriesByDate[d].push(c);
-      }
-    });
-    const dates=Object.keys(entriesByDate).sort();
-    if(dates.length===0){
-      alert("No hay programación para "+monthLabel+".");
+    if(!year||!month||month<1||month>12){
+      alert("Selecciona un mes válido.");
       return;
     }
-    const weekdayNames=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
-    const pad=(n)=>String(n).padStart(2,"0");
-    const lines=[];
-    lines.push({type:"title",text:"📅 Programación del mes"});
-    lines.push({type:"subtitle",text:monthLabel});
-    lines.push({type:"subtitle",text:"Escuela Dominical IPUE · Villanueva del Pardillo"});
-    lines.push({type:"space"});
-    dates.forEach(fecha=>{
+    const monthNames=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const monthNamesLower=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    const weekdayNamesLong=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+    const monthLabel=monthNames[month-1]+" "+year;
+    const prefix=`${year}-${String(month).padStart(2,"0")}-`;
+
+    const byDate={};
+    (cronograma||[]).forEach(c=>{
+      if(!c.fecha||!c.fecha.startsWith(prefix))return;
+      if(!c.leccion||c.leccion==="NO HAY CLASE")return;
+      if(!byDate[c.fecha])byDate[c.fecha]=[];
+      byDate[c.fecha].push(c);
+    });
+    const dates=Object.keys(byDate).sort();
+    if(dates.length===0){
+      alert("No hay programación con clase para "+monthLabel+".");
+      return;
+    }
+
+    const sections=dates.map(fecha=>{
       const [y,m,d]=fecha.split("-").map(Number);
       const dt=new Date(y,m-1,d);
-      const dayName=weekdayNames[dt.getDay()];
-      const dateStr=`${dayName} ${pad(d)}/${pad(m)}`;
-      lines.push({type:"date",text:dateStr});
-      entriesByDate[fecha].forEach(e=>{
-        const color=CLASE_COLORS[e.grupo]||"#5B2D8E";
-        const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
-        const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"";
-        const temaStr=e.tema?(e.tema.length>55?e.tema.slice(0,52)+"...":e.tema):"";
-        lines.push({type:"grupo",text:e.grupo,color});
-        lines.push({type:"entry",text:`${e.leccion||"—"}${temaStr?" · "+temaStr:""}`});
-        lines.push({type:"entry",text:`🎓 ${maestro}${aux?" · 🤝 "+aux:""}`});
-        lines.push({type:"space"});
-      });
-    });
-    const W=1080;
-    const lineH=32;
-    const titleH=46;
-    const subH=28;
-    const dateH=38;
-    const spaceH=14;
-    let totalH=0;
-    lines.forEach(l=>{
-      if(l.type==="title")totalH+=titleH+10;
-      else if(l.type==="subtitle")totalH+=subH+4;
-      else if(l.type==="date")totalH+=dateH+6;
-      else if(l.type==="grupo")totalH+=lineH+4;
-      else if(l.type==="entry")totalH+=lineH;
-      else totalH+=spaceH;
-    });
-    totalH+=40;
-    const canvas=document.createElement("canvas");
-    canvas.width=W;
-    canvas.height=totalH;
-    const ctx=canvas.getContext("2d");
-    ctx.fillStyle="#FFFFFF";
-    ctx.fillRect(0,0,W,totalH);
-    let y=30;
-    const draw=(text,font,color,align)=>{
-      ctx.font=font;
-      ctx.fillStyle=color||"#2D1B4E";
-      ctx.textAlign=align||"left";
-      const x=align==="center"?W/2:40;
-      ctx.fillText(text,x,y);
-    };
-    lines.forEach(l=>{
-      if(l.type==="title"){draw(l.text,"bold 34px Inter,sans-serif","#5B2D8E","center");y+=titleH+10;}
-      else if(l.type==="subtitle"){draw(l.text,"bold 20px Inter,sans-serif","#7B6B9A","center");y+=subH+4;}
-      else if(l.type==="date"){draw(l.text,"bold 24px Inter,sans-serif","#5B2D8E");y+=dateH+6;}
-      else if(l.type==="grupo"){draw(l.text,"bold 22px Inter,sans-serif",l.color||"#5B2D8E");y+=lineH+4;}
-      else if(l.type==="entry"){draw(l.text,"18px Inter,sans-serif","#2D1B4E");y+=lineH;}
-      else y+=spaceH;
-    });
-    const dataUrl=canvas.toDataURL("image/jpeg",0.92);
-    const a=document.createElement("a");
-    a.href=dataUrl;
-    a.download="Programacion_"+monthLabel.replace(/\s+/g,"_")+".jpg";
-    a.target="_blank";
-    const w=window.open("","_blank");
-    if(w){w.document.write(`<html><body style="margin:0;background:#2D1B4E;display:flex;justify-content:center;align-items:center;min-height:100vh"><img src="${dataUrl}" style="max-width:100%;height:auto;display:block"/><p style="color:#fff;font-family:sans-serif;text-align:center;padding:16px">Guarda la imagen (mantén pulsado) para compartir por WhatsApp</p></body></html>`);w.document.close();}
+      const dayName=weekdayNamesLong[dt.getDay()];
+      const dateStr=`${dayName} ${String(d).padStart(2,"0")} de ${monthNamesLower[m-1]} de ${y}`;
+      const rows=byDate[fecha]
+        .slice()
+        .sort((a,b)=>a.grupo.localeCompare(b.grupo,"es"))
+        .map(e=>{
+          const color=claseColorHex(e.grupo);
+          const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
+          const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"—";
+          const tema=(e.tema||"").trim();
+          const temaStr=tema||"—";
+          return `<tr>
+            <td><span class="badge" style="background:${color}15;color:${color};border:1px solid ${color}55">${e.grupo}</span></td>
+            <td><strong>${e.leccion||"—"}</strong></td>
+            <td>${temaStr}</td>
+            <td>${maestro}</td>
+            <td>${aux}</td>
+          </tr>`;
+        }).join("");
+      return `
+        <div class="section">
+          <div class="section-title">📅 ${dateStr}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th>Lección</th>
+                <th>Tema</th>
+                <th>Maestro</th>
+                <th>Auxiliar</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>`;
+    }).join("");
+
+    const intro=`
+      <div class="section">
+        <div class="section-title">📅 Programación del mes — ${monthLabel}</div>
+        <div style="padding:10px 16px;font-size:12px;color:#2D1B4E">
+          Resumen detallado de las clases programadas para cada domingo del mes. Incluye grupo, lección, tema y responsables (maestro y auxiliar).
+        </div>
+      </div>`;
+
+    const html=intro+sections;
+    generarPDF("Programación "+monthLabel,html);
   };
 
   return(
@@ -4756,14 +4746,14 @@ function InformesPanel({data}){
         </button>
       </div>
 
-      {/* Report 6 - Programación mensual (imagen JPEG para WhatsApp) */}
+      {/* Report 6 - Programación mensual (PDF detallado por día y clase) */}
       <div style={{...S.card,borderLeft:"5px solid #7E57C2"}}>
         <div style={{fontWeight:800,fontSize:15,color:"#5E35B1",marginBottom:4}}>📅 Programación del mes</div>
-        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Imagen vertical con las fechas que tienen programación: grupo, lección, tema, maestro y auxiliar. Ideal para compartir por WhatsApp con buen tamaño en móvil.</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Informe PDF con las fechas que tienen programación: fecha completa (ej. Domingo 08 de marzo), grupo, lección, tema, maestro y auxiliar. Organizado en secciones por día para un cronograma claro y atractivo.</div>
         <label style={S.label}>Elegir mes</label>
         <input type="month" style={{...S.input,marginBottom:14}} value={calendarYearMonth} onChange={e=>setCalendarYearMonth(e.target.value)}/>
         <button style={{...S.btn("#7E57C2","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportCalendarioMensual}>
-          📷 Generar imagen — {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
+          📥 Generar PDF — {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
         </button>
       </div>
     </div>
