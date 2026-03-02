@@ -572,7 +572,7 @@ function videoScore(v){
 // Promedio de videos de un maestro (0-5). Maestros de ADOLESCENTES no tienen evaluación de videos.
 function videoAvgForMaestro(maestroNombre,videos,maestros){
   const m=maestros&&maestros.find(x=>x.nombre===maestroNombre);
-  if(m&&(m.clase==="ADOLESCENTES"||ADOLESCENTES_MAESTROS.includes(maestroNombre)))return null;
+  if(m&&m.clase==="ADOLESCENTES")return null;
   const vs=(videos||[]).filter(v=>v.maestro===maestroNombre);
   if(!vs.length)return null;
   const scored=vs.map(videoScore);
@@ -1165,11 +1165,10 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
       if(c.auxiliar)countMap[c.auxiliar]=(countMap[c.auxiliar]||0)+1;
     });
     // suggest maestro: different from last, sorted by fewest participations
-    const isAdolescentes=grupo==="ADOLESCENTES";
-    const eligiblePool=maestros.filter(m=>isAdolescentes?ADOLESCENTES_MAESTROS.includes(m.nombre):true);
+    const eligiblePool=maestros;
     const maestroPool=[...eligiblePool].sort((a,b)=>(countMap[a.nombre]||0)-(countMap[b.nombre]||0));
     const sugMaestro=maestroPool.find(m=>m.nombre!==lastMaestro)?.nombre||maestroPool[0]?.nombre||"";
-    const sugAux=isAdolescentes?"":maestroPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro&&m.cargo==="AUXILIAR")?.nombre||maestroPool.find(m=>m.cargo==="AUXILIAR"&&m.nombre!==sugMaestro)?.nombre||"";
+    const sugAux=maestroPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro&&m.cargo==="AUXILIAR")?.nombre||maestroPool.find(m=>m.cargo==="AUXILIAR"&&m.nombre!==sugMaestro)?.nombre||"";
     // suggest next unscheduled sunday
     const usedDates=new Set(cronograma.map(c=>c.fecha));
     const sundays=nextSundays(12);
@@ -1203,10 +1202,7 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
     const currentEntry=entryId?cronograma.find(c=>c.id===entryId):null;
     const entryDate=currentEntry?.fecha||activeDate;
     const assigned=cronograma.filter(c=>c.fecha===entryDate&&c.id!==entryId).flatMap(c=>[c.maestro,c.auxiliar]).filter(Boolean);
-    const isAdolescentes=grupo==="ADOLESCENTES";
-    const pool=isAdolescentes
-      ? ADOLESCENTES_MAESTROS.filter(n=>!unavailable.includes(n)&&!assigned.includes(n)).map(n=>maestros.find(m=>m.nombre===n)||{id:n,nombre:n,cargo:"MAESTRO",clase:"ADOLESCENTES"})
-      : maestros.filter(m=>!unavailable.includes(m.nombre)&&!assigned.includes(m.nombre));
+    const pool=maestros.filter(m=>!unavailable.includes(m.nombre)&&!assigned.includes(m.nombre));
     return pool.sort((a,b)=>{
       if(a.clase===grupo&&b.clase!==grupo)return -1;
       if(b.clase===grupo&&a.clase!==grupo)return 1;
@@ -1402,38 +1398,25 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             {!form.maestro&&!form.auxiliar&&<span style={{fontSize:12,color:"#7B6B9A",fontStyle:"italic"}}>Sin equipo sugerido aún</span>}
           </div>
         </div>
-        {/* ADOLESCENTES: solo maestros autorizados, sin auxiliar */}
-        {form.grupo==="ADOLESCENTES"&&(
-          <div style={{background:"linear-gradient(135deg,#E84F9B15,#E84F9B25)",border:"1.5px solid #E84F9B55",borderRadius:12,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#9C1B5B",fontWeight:600}}>
-            ⚠️ Clase ADOLESCENTES: solo maestros autorizados. No requiere auxiliar.
-          </div>
-        )}
         {/* Maestro */}
         <label style={S.label}>🎓 Maestro</label>
         <select style={{...S.input,marginBottom:12}} value={form.maestro} onChange={e=>setForm(f=>({...f,maestro:e.target.value}))}>
           <option value="">— Sin asignar —</option>
-          {form.grupo==="ADOLESCENTES"
-            ? ADOLESCENTES_MAESTROS.slice().sort((a,b)=>sortKeyFirstName(a).localeCompare(sortKeyFirstName(b),"es")).map(nombre=><option key={nombre} value={nombre}>{(()=>{const p=(nombre||"").trim().split(/\s+/).filter(Boolean);return p.length>=2?p.slice(1).join(" ")+" "+p[0]:nombre;})()}</option>)
-            : <>
-                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-              </>
-          }
+          <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+          <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
         </select>
-        {/* Auxiliar: oculto para ADOLESCENTES */}
-        {form.grupo!=="ADOLESCENTES"&&(
-          <>
-            <label style={S.label}>🤝 Auxiliar</label>
-            <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
-              <option value="">— Sin asignar —</option>
-                <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-                <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-              <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
-            </select>
-          </>
-        )}
-        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={()=>{onUpdate([...cronograma,{...form,auxiliar:form.grupo==="ADOLESCENTES"?null:form.auxiliar,id:Date.now()}]);setAddModal(false);setForm({fecha:"",grupo:"CORDERITOS",leccion:"",tema:"",maestro:"",auxiliar:""});}}>💾 Guardar Clase</button>
+        {/* Auxiliar */}
+        <>
+          <label style={S.label}>🤝 Auxiliar</label>
+          <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
+            <option value="">— Sin asignar —</option>
+            <optgroup label="MAESTROS">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+            <optgroup label="AUXILIARES (como maestro)">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+            <optgroup label="AUXILIARES">{maestros.filter(m=>m.cargo==="AUXILIAR").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+            <optgroup label="MAESTROS (como auxiliar)">{maestros.filter(m=>m.cargo==="MAESTRO").sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>)}</optgroup>
+          </select>
+        </>
+        <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14}} onClick={()=>{onUpdate([...cronograma,{...form,auxiliar:form.auxiliar,id:Date.now()}]);setAddModal(false);setForm({fecha:"",grupo:"CORDERITOS",leccion:"",tema:"",maestro:"",auxiliar:""});}}>💾 Guardar Clase</button>
       </Modal>
       {/* ── Modal editar/eliminar entrada del cronograma ── */}
       <Modal open={!!editEntryId} onClose={()=>setEditEntryId(null)} title="✏️ Editar Programación">
@@ -4530,40 +4513,95 @@ function InformesPanel({data}){
     generarPDF("Informe Económico",html);
   };
 
-  // ── Report 6: Calendario mensual (horizontal) con programaciones y maestros ──
+  // ── Report 6: Programación mensual como imagen JPEG vertical (para WhatsApp) ──
   const reportCalendarioMensual=()=>{
     const year=parseInt(calendarYearMonth.slice(0,4),10);
     const month=parseInt(calendarYearMonth.slice(5,7),10);
-    const daysInMonth=new Date(year,month,0).getDate();
-    const firstDay=new Date(year,month-1,1).getDay();
-    const startPad=(firstDay+6)%7;
     const monthNames=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
     const monthLabel=monthNames[month-1]+" "+year;
-    const getEntriesForDay=(day)=>{
-      const dateStr=`${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      return (cronograma||[]).filter(c=>c.fecha===dateStr);
-    };
-    const weekDays=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
-    let cells=[];
-    for(let i=0;i<startPad;i++)cells.push({empty:true});
-    for(let d=1;d<=daysInMonth;d++)cells.push({day:d,entries:getEntriesForDay(d)});
-    const rows=[];
-    for(let r=0;r<cells.length;r+=7){
-      const rowCells=cells.slice(r,r+7);
-      const rowHtml=rowCells.map((cell,i)=>{
-        if(cell.empty)return "<td></td>";
-        const entriesHtml=cell.entries.map(e=>{
-          const color=CLASE_COLORS[e.grupo]||"#5B2D8E";
-          const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
-          const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"";
-          return `<div class="cal-entry" style="border-left-color:${color}"><span class="grupo">${e.grupo}</span> · ${e.leccion||"—"}<br/><small>🎓 ${maestro}${aux?" · 🤝 "+aux:""}</small></div>`;
-        }).join("");
-        return `<td><div class="cal-day">${cell.day}</div>${entriesHtml}</td>`;
-      }).join("");
-      rows.push("<tr>"+rowHtml+"</tr>");
+    const prefix=`${year}-${String(month).padStart(2,"0")}-`;
+    const entriesByDate={};
+    (cronograma||[]).forEach(c=>{
+      if(c.fecha&&c.fecha.startsWith(prefix)){
+        const d=c.fecha;
+        if(!entriesByDate[d])entriesByDate[d]=[];
+        entriesByDate[d].push(c);
+      }
+    });
+    const dates=Object.keys(entriesByDate).sort();
+    if(dates.length===0){
+      alert("No hay programación para "+monthLabel+".");
+      return;
     }
-    const html=`<table class="cal-grid"><thead><tr>${weekDays.map(w=>"<th>"+w+"</th>").join("")}</tr></thead><tbody>${rows.join("")}</tbody></table>`;
-    generarPDFLandscape("Calendario "+monthLabel,html);
+    const weekdayNames=["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+    const pad=(n)=>String(n).padStart(2,"0");
+    const lines=[];
+    lines.push({type:"title",text:"📅 Programación del mes"});
+    lines.push({type:"subtitle",text:monthLabel});
+    lines.push({type:"subtitle",text:"Escuela Dominical IPUE · Villanueva del Pardillo"});
+    lines.push({type:"space"});
+    dates.forEach(fecha=>{
+      const [y,m,d]=fecha.split("-").map(Number);
+      const dt=new Date(y,m-1,d);
+      const dayName=weekdayNames[dt.getDay()];
+      const dateStr=`${dayName} ${pad(d)}/${pad(m)}`;
+      lines.push({type:"date",text:dateStr});
+      entriesByDate[fecha].forEach(e=>{
+        const color=CLASE_COLORS[e.grupo]||"#5B2D8E";
+        const maestro=e.maestro?displayMaestroNombre(e.maestro):"—";
+        const aux=e.auxiliar?displayMaestroNombre(e.auxiliar):"";
+        const temaStr=e.tema?(e.tema.length>55?e.tema.slice(0,52)+"...":e.tema):"";
+        lines.push({type:"grupo",text:e.grupo,color});
+        lines.push({type:"entry",text:`${e.leccion||"—"}${temaStr?" · "+temaStr:""}`});
+        lines.push({type:"entry",text:`🎓 ${maestro}${aux?" · 🤝 "+aux:""}`});
+        lines.push({type:"space"});
+      });
+    });
+    const W=1080;
+    const lineH=32;
+    const titleH=46;
+    const subH=28;
+    const dateH=38;
+    const spaceH=14;
+    let totalH=0;
+    lines.forEach(l=>{
+      if(l.type==="title")totalH+=titleH+10;
+      else if(l.type==="subtitle")totalH+=subH+4;
+      else if(l.type==="date")totalH+=dateH+6;
+      else if(l.type==="grupo")totalH+=lineH+4;
+      else if(l.type==="entry")totalH+=lineH;
+      else totalH+=spaceH;
+    });
+    totalH+=40;
+    const canvas=document.createElement("canvas");
+    canvas.width=W;
+    canvas.height=totalH;
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle="#FFFFFF";
+    ctx.fillRect(0,0,W,totalH);
+    let y=30;
+    const draw=(text,font,color,align)=>{
+      ctx.font=font;
+      ctx.fillStyle=color||"#2D1B4E";
+      ctx.textAlign=align||"left";
+      const x=align==="center"?W/2:40;
+      ctx.fillText(text,x,y);
+    };
+    lines.forEach(l=>{
+      if(l.type==="title"){draw(l.text,"bold 34px Inter,sans-serif","#5B2D8E","center");y+=titleH+10;}
+      else if(l.type==="subtitle"){draw(l.text,"bold 20px Inter,sans-serif","#7B6B9A","center");y+=subH+4;}
+      else if(l.type==="date"){draw(l.text,"bold 24px Inter,sans-serif","#5B2D8E");y+=dateH+6;}
+      else if(l.type==="grupo"){draw(l.text,"bold 22px Inter,sans-serif",l.color||"#5B2D8E");y+=lineH+4;}
+      else if(l.type==="entry"){draw(l.text,"18px Inter,sans-serif","#2D1B4E");y+=lineH;}
+      else y+=spaceH;
+    });
+    const dataUrl=canvas.toDataURL("image/jpeg",0.92);
+    const a=document.createElement("a");
+    a.href=dataUrl;
+    a.download="Programacion_"+monthLabel.replace(/\s+/g,"_")+".jpg";
+    a.target="_blank";
+    const w=window.open("","_blank");
+    if(w){w.document.write(`<html><body style="margin:0;background:#2D1B4E;display:flex;justify-content:center;align-items:center;min-height:100vh"><img src="${dataUrl}" style="max-width:100%;height:auto;display:block"/><p style="color:#fff;font-family:sans-serif;text-align:center;padding:16px">Guarda la imagen (mantén pulsado) para compartir por WhatsApp</p></body></html>`);w.document.close();}
   };
 
   return(
@@ -4635,14 +4673,14 @@ function InformesPanel({data}){
         </button>
       </div>
 
-      {/* Report 6 - Calendario mensual (horizontal) */}
+      {/* Report 6 - Programación mensual (imagen JPEG para WhatsApp) */}
       <div style={{...S.card,borderLeft:"5px solid #7E57C2"}}>
-        <div style={{fontWeight:800,fontSize:15,color:"#5E35B1",marginBottom:4}}>📅 Calendario mensual</div>
-        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>PDF en horizontal con el mes elegido: programaciones de clases y maestros/auxiliares encargados por día.</div>
+        <div style={{fontWeight:800,fontSize:15,color:"#5E35B1",marginBottom:4}}>📅 Programación del mes</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginBottom:12}}>Imagen vertical con las fechas que tienen programación: grupo, lección, tema, maestro y auxiliar. Ideal para compartir por WhatsApp con buen tamaño en móvil.</div>
         <label style={S.label}>Elegir mes</label>
         <input type="month" style={{...S.input,marginBottom:14}} value={calendarYearMonth} onChange={e=>setCalendarYearMonth(e.target.value)}/>
         <button style={{...S.btn("#7E57C2","#FFFFFF",true),padding:"12px 20px",borderRadius:12,fontSize:14,width:"100%"}} onClick={reportCalendarioMensual}>
-          📥 Generar PDF — Calendario {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
+          📷 Generar imagen — {calendarYearMonth?calendarYearMonth.replace("-","/")+"":""}
         </button>
       </div>
     </div>
