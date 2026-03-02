@@ -1154,26 +1154,34 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
     return res;
   };
   const getRotationSuggestion=(grupo)=>{
-    // find last entry for this grupo
     const lastEntries=cronograma.filter(c=>c.grupo===grupo).sort((a,b)=>b.fecha.localeCompare(a.fecha));
     const lastMaestro=lastEntries[0]?.maestro||"";
     const lastAuxiliar=lastEntries[0]?.auxiliar||"";
-    // count participations per person
     const countMap={};
     cronograma.forEach(c=>{
       if(c.maestro)countMap[c.maestro]=(countMap[c.maestro]||0)+1;
       if(c.auxiliar)countMap[c.auxiliar]=(countMap[c.auxiliar]||0)+1;
     });
-    // suggest maestro: different from last, sorted by fewest participations
-    const eligiblePool=maestros;
-    const maestroPool=[...eligiblePool].sort((a,b)=>(countMap[a.nombre]||0)-(countMap[b.nombre]||0));
+    const isAdolescentes=grupo==="ADOLESCENTES";
+    let eligiblePool=isAdolescentes
+      ? maestros.filter(m=>ADOLESCENTES_MAESTROS.includes(m.nombre))
+      : maestros;
+    if(isAdolescentes&&eligiblePool.length===0)
+      eligiblePool=ADOLESCENTES_MAESTROS.map(nombre=>({nombre,clase:"ADOLESCENTES"}));
+    const sortByRotation=(a,b)=>{
+      const sameClassA=a.clase===grupo?1:0;
+      const sameClassB=b.clase===grupo?1:0;
+      if(sameClassB!==sameClassA)return sameClassA-sameClassB;
+      return (countMap[a.nombre]||0)-(countMap[b.nombre]||0);
+    };
+    const maestroPool=[...eligiblePool].sort(sortByRotation);
     const sugMaestro=maestroPool.find(m=>m.nombre!==lastMaestro)?.nombre||maestroPool[0]?.nombre||"";
-    const sugAux=maestroPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro&&m.cargo==="AUXILIAR")?.nombre||maestroPool.find(m=>m.cargo==="AUXILIAR"&&m.nombre!==sugMaestro)?.nombre||"";
-    // suggest next unscheduled sunday
+    const sugAux=isAdolescentes
+      ? ""
+      : maestroPool.find(m=>m.nombre!==lastAuxiliar&&m.nombre!==sugMaestro)?.nombre||"";
     const usedDates=new Set(cronograma.map(c=>c.fecha));
     const sundays=nextSundays(12);
     const sugFecha=sundays.find(s=>!usedDates.has(s))||sundays[0]||"";
-    // suggest leccion number
     const lastNum=lastEntries[0]?.leccion?.match(/\d+/)?.[0];
     const sugLeccion=lastNum?`Lección ${parseInt(lastNum)+1}`:"Lección 1";
     return{maestro:sugMaestro,auxiliar:sugAux,fecha:sugFecha,leccion:sugLeccion};
@@ -1408,30 +1416,35 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
                   {(()=>{const p=(nombre||"").trim().split(/\s+/).filter(Boolean);return p.length>=2?p.slice(1).join(" ")+" "+p[0]:nombre;})()}
                 </option>
               ))
-            : (
-              <>
-                <optgroup label="MAESTROS">
-                  {maestros
-                    .filter(m=>m.cargo==="MAESTRO")
-                    .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                    .map(m=>(
-                      <option key={m.id} value={m.nombre}>
-                        {displayMaestroNombre(m.nombre)} · {m.clase}
-                      </option>
-                    ))}
-                </optgroup>
-                <optgroup label="AUXILIARES (como maestro)">
-                  {maestros
-                    .filter(m=>m.cargo==="AUXILIAR")
-                    .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                    .map(m=>(
-                      <option key={m.id} value={m.nombre}>
-                        {displayMaestroNombre(m.nombre)} · {m.clase}
-                      </option>
-                    ))}
-                </optgroup>
-              </>
-            )
+            : (()=>{
+                const g=form.grupo||"";
+                const sortMaestro=(a,b)=>{
+                  if(!g)return sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es");
+                  if((a.clase===g?1:0)!==(b.clase===g?1:0))return (a.clase===g?0:1)-(b.clase===g?0:1);
+                  return sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es");
+                };
+                const maestrosList=maestros.filter(m=>m.cargo==="MAESTRO").sort(sortMaestro);
+                const auxComoMaestro=maestros.filter(m=>m.cargo==="AUXILIAR").sort(sortMaestro);
+                if(!g) return (
+                  <>
+                    <optgroup label="MAESTROS">{maestrosList.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}</optgroup>
+                    <optgroup label="AUXILIARES (como maestro)">{auxComoMaestro.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}</optgroup>
+                  </>
+                );
+                return (
+                  <>
+                    <optgroup label={"De "+g}>
+                      {maestrosList.filter(m=>m.clase===g).map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                    <optgroup label="MAESTROS (otras clases)">
+                      {maestrosList.filter(m=>m.clase!==g).map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                    <optgroup label="AUXILIARES (como maestro)">
+                      {auxComoMaestro.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                  </>
+                );
+              })()
           }
         </select>
         {/* Auxiliar (no aplica para ADOLESCENTES) */}
@@ -1440,46 +1453,35 @@ function CronogramaPanel({cronograma,maestros,onUpdate}){
             <label style={S.label}>🤝 Auxiliar</label>
             <select style={{...S.input,marginBottom:20}} value={form.auxiliar} onChange={e=>setForm(f=>({...f,auxiliar:e.target.value}))}>
               <option value="">— Sin asignar —</option>
-              <optgroup label="MAESTROS">
-                {maestros
-                  .filter(m=>m.cargo==="MAESTRO")
-                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                  .map(m=>(
-                    <option key={m.id} value={m.nombre}>
-                      {displayMaestroNombre(m.nombre)} · {m.clase}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="AUXILIARES (como maestro)">
-                {maestros
-                  .filter(m=>m.cargo==="AUXILIAR")
-                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                  .map(m=>(
-                    <option key={m.id} value={m.nombre}>
-                      {displayMaestroNombre(m.nombre)} · {m.clase}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="AUXILIARES">
-                {maestros
-                  .filter(m=>m.cargo==="AUXILIAR")
-                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                  .map(m=>(
-                    <option key={m.id} value={m.nombre}>
-                      {displayMaestroNombre(m.nombre)} · {m.clase}
-                    </option>
-                  ))}
-              </optgroup>
-              <optgroup label="MAESTROS (como auxiliar)">
-                {maestros
-                  .filter(m=>m.cargo==="MAESTRO")
-                  .sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"))
-                  .map(m=>(
-                    <option key={m.id} value={m.nombre}>
-                      {displayMaestroNombre(m.nombre)} · {m.clase}
-                    </option>
-                  ))}
-              </optgroup>
+              {(()=>{
+                const g=form.grupo||"";
+                const sortByClase=(a,b)=>{
+                  if(!g)return sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es");
+                  if((a.clase===g?1:0)!==(b.clase===g?1:0))return (a.clase===g?0:1)-(b.clase===g?0:1);
+                  return sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es");
+                };
+                const auxList=maestros.filter(m=>m.cargo==="AUXILIAR").sort(sortByClase);
+                const maestrosList=maestros.filter(m=>m.cargo==="MAESTRO").sort(sortByClase);
+                if(!g) return (
+                  <>
+                    <optgroup label="AUXILIARES">{auxList.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}</optgroup>
+                    <optgroup label="MAESTROS (como auxiliar)">{maestrosList.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}</optgroup>
+                  </>
+                );
+                return (
+                  <>
+                    <optgroup label={"De "+g}>
+                      {auxList.filter(m=>m.clase===g).map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                    <optgroup label="AUXILIARES (otras clases)">
+                      {auxList.filter(m=>m.clase!==g).map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                    <optgroup label="MAESTROS (como auxiliar)">
+                      {maestrosList.map(m=>(<option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} · {m.clase}</option>))}
+                    </optgroup>
+                  </>
+                );
+              })()}
             </select>
           </>
         )}
