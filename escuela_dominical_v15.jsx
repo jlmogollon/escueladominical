@@ -4675,7 +4675,7 @@ function InformesPanel({data}){
         </div>`;
     }).join("");
 
-    const html=`<div class="section"><div class="section-title">📅 Programación del mes — ${monthLabel}</div></div>${sections}`;
+    const html=sections;
     generarPDF("Programación "+monthLabel,html,{firmas:false});
   };
 
