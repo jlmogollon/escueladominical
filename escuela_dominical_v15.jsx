@@ -972,11 +972,18 @@ function LoginScreen({onLogin}){
   const [maestros,setMaestros]=useState(INITIAL_MAESTROS);
   const [passwords,setPasswords]=useState({});
   const [adminProfile,setAdminProfile]=useState(null);
+  const adminPwRef=useRef(null);
+  const teacherPwRef=useRef(null);
   useEffect(()=>{
     loadData("maestros").then(d=>{if(d)setMaestros(d);});
     loadData("teacherPasswords").then(d=>{if(d)setPasswords(d);});
     loadData("adminProfile").then(d=>{if(d)setAdminProfile(d);});
   },[]);
+  useEffect(()=>{
+    if(mode==="admin"){ const t=setTimeout(()=>{adminPwRef.current?.focus();},0); return ()=>clearTimeout(t); }
+    if(mode==="teacher"){ const t=setTimeout(()=>{teacherPwRef.current?.focus();},0); return ()=>clearTimeout(t); }
+  },[mode]);
+  useEffect(()=>{ if(mode==="teacher"&&teacherName){ const t=setTimeout(()=>{teacherPwRef.current?.focus();},0); return ()=>clearTimeout(t); } },[mode,teacherName]);
   const handleTeacher=()=>{
     if(!teacherName){setError("Selecciona tu nombre");return;}
     if(teacherPw!==(passwords[teacherName]||DEFAULT_TEACHER_PASSWORD)){setError("Contraseña incorrecta");return;}
@@ -1001,6 +1008,7 @@ function LoginScreen({onLogin}){
             <h3 style={{textAlign:"center",color:"#5B2D8E",fontWeight:800,marginBottom:20,fontSize:18}}>Acceso Administrador</h3>
             <label style={S.label}>Contraseña</label>
             <input
+              ref={adminPwRef}
               type="password"
               style={{...S.input,marginBottom:16}}
               value={adminPw}
@@ -1038,7 +1046,7 @@ function LoginScreen({onLogin}){
               {[...maestros].sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es")).map(m=><option key={m.id} value={m.nombre}>{displayMaestroNombre(m.nombre)} ({m.cargo})</option>)}
             </select>
             <label style={S.label}>Contraseña</label>
-            <input type="password" style={{...S.input,marginBottom:16}} value={teacherPw} onChange={e=>setTeacherPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} placeholder="••••"/>
+            <input ref={teacherPwRef} type="password" style={{...S.input,marginBottom:16}} value={teacherPw} onChange={e=>setTeacherPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleTeacher()} placeholder="••••"/>
             {error&&<div style={{color:"#EF5350",fontSize:13,marginBottom:12,textAlign:"center",fontWeight:700}}>{error}</div>}
             <button style={{...S.btn("#4BBCE0","#FFFFFF",true),padding:"14px",marginBottom:10}} onClick={handleTeacher}>Entrar</button>
             <button style={{...S.btn("transparent","#7B6B9A",true),padding:"10px"}} onClick={()=>{setMode("select");setError("");}}>← Volver</button>
@@ -2093,10 +2101,9 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
       {Object.entries(grouped).sort(([,aMembers],[,bMembers])=>{
         const aFirst=aMembers[0];
         const bFirst=bMembers[0];
-        const pa=(aFirst?.primerApellido!= null&&aFirst.primerApellido!=="")?aFirst.primerApellido:(parseNombre4(aFirst?.alumno||"").primerApellido||"");
-        const pb=(bFirst?.primerApellido!= null&&bFirst.primerApellido!=="")?bFirst.primerApellido:(parseNombre4(bFirst?.alumno||"").primerApellido||"");
-        const cmp=pa.localeCompare(pb,"es",{sensitivity:"base"});
-        return cmp!==0?cmp:(aFirst?.alumno||"").localeCompare(bFirst?.alumno||"","es");
+        const nombreA=(aFirst?.familia||"").trim()||displayNameAlumno(aFirst)||(aFirst?.alumno||"").trim();
+        const nombreB=(bFirst?.familia||"").trim()||displayNameAlumno(bFirst)||(bFirst?.alumno||"").trim();
+        return nombreA.localeCompare(nombreB,"es",{sensitivity:"base"});
       }).map(([key,membersRaw])=>{
         const members=[...membersRaw].sort((a,b)=>sortKeyFirstName(a.alumno||"").localeCompare(sortKeyFirstName(b.alumno||""),"es"));
         const fotoFam=members[0].fotoFamilia||null;
@@ -2675,6 +2682,8 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
   const[editIdx,setEditIdx]=useState(null);
   const[videoModalMaestro,setVideoModalMaestro]=useState(null);
   const[editVideo,setEditVideo]=useState(null);
+  const observacionesRef=useRef(null);
+  useEffect(()=>{ if(editModal){ const t=setTimeout(()=>{observacionesRef.current?.focus();},100); return ()=>clearTimeout(t); } },[editModal]);
 
   const sesiones=cronograma
     .filter(c=>c.maestro&&c.leccion&&c.leccion!=="NO HAY CLASE")
@@ -2850,7 +2859,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
         {editForm&&(
           <div style={{marginBottom:16}}>
             <label style={S.label}>Observaciones</label>
-            <textarea style={{...S.input,minHeight:80,resize:"vertical"}} placeholder="Comentarios sobre el maestro para el informe" value={editForm.observaciones||""} onChange={e=>setEditForm(f=>({...f,observaciones:e.target.value}))}/>
+            <textarea ref={observacionesRef} style={{...S.input,minHeight:80,resize:"vertical"}} placeholder="Comentarios sobre el maestro para el informe" value={editForm.observaciones||""} onChange={e=>setEditForm(f=>({...f,observaciones:e.target.value}))}/>
           </div>
         )}
         <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:14,marginTop:8}} onClick={save}>💾 Guardar</button>
@@ -3336,6 +3345,8 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
   const[form,setForm]=useState({});
   const[selNino,setSelNino]=useState(null);
   const[selSes,setSelSes]=useState(null);
+  const observacionRef=useRef(null);
+  useEffect(()=>{ if(modal){ const t=setTimeout(()=>{observacionRef.current?.focus();},100); return ()=>clearTimeout(t); } },[modal]);
   const open=(nino,ses)=>{
     const ex=calificaciones.find(c=>c.alumno===nino.nombre&&c.clase===miClase&&c.sesionId===ses.id)||{};
     setForm({alumno:nino.nombre,clase:miClase,sesionId:ses.id,fecha:ses.fecha,grupo:ses.grupo,leccion:ses.leccion,
@@ -3505,7 +3516,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
 
         <div style={{marginBottom:16}}>
           <label style={S.label}>💬 Observación (opcional)</label>
-          <textarea style={{...S.input,height:80,resize:"vertical"}} value={form.observacion||""} onChange={e=>setForm(f=>({...f,observacion:e.target.value}))} placeholder="Notas sobre el alumno..."/>
+          <textarea ref={observacionRef} style={{...S.input,height:80,resize:"vertical"}} value={form.observacion||""} onChange={e=>setForm(f=>({...f,observacion:e.target.value}))} placeholder="Notas sobre el alumno..."/>
           {form.quienObservacion&&(
             <div style={{fontSize:11,color:"#7B6B9A",marginTop:6}}>Observación por: <strong>{displayMaestroNombre(form.quienObservacion)}</strong> · {formatCalifFecha(form.fechaObservacion)}</div>
           )}
@@ -3665,8 +3676,8 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
             <BirthdayBanner maestros={maestros} familias={familias}/>
             <VerseBannerMaestros/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-              <StatCard icon="👧" value={misNinos.length} label="Mis alumnos" color={CLASE_COLORS[miClase]||"#5B2D8E"}/>
-              <StatCard icon="📅" value={misClases.length} label="Clases asig." color="#4BBCE0"/>
+              <StatCard icon="👧" value={misNinos.length} label="Mis alumnos" color={CLASE_COLORS[miClase]||"#5B2D8E"} onClick={()=>setActiveTab("clase")}/>
+              <StatCard icon="📅" value={misClases.length} label="Clases asig." color="#4BBCE0" onClick={()=>setActiveTab("cronograma")}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
               <a href="https://drive.google.com/drive/folders/1PW00hDNw0POgEPW4LiANMH7PgByvX8A5?usp=sharing" target="_blank" rel="noopener noreferrer" style={{textDecoration:"none"}}>
