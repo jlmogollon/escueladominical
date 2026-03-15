@@ -389,6 +389,18 @@ function restoreFotosFromClases(alumnos,loadedClases){
   return changed;
 }
 
+// Restaura foto en alumnos desde la lista de familias guardada (cada f tiene alumno y foto). Modifica alumnos in-place y devuelve true si hubo cambios.
+function restoreFotosFromFamilias(alumnos,loadedFamilias){
+  if(!loadedFamilias||!Array.isArray(loadedFamilias)||!alumnos||!alumnos.length)return false;
+  let changed=false;
+  alumnos.forEach(a=>{
+    if(a.foto)return;
+    const fam=loadedFamilias.find(f=>samePersonName((f.alumno||"").trim(),a.nombre));
+    if(fam&&fam.foto){ a.foto=fam.foto; changed=true; }
+  });
+  return changed;
+}
+
 // Deriva la lista de familias desde la lista de alumnos (fuente de verdad). Agrupa por apellidos y padres.
 function deriveFamilias(alumnos){
   const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
@@ -2663,6 +2675,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
   };
 
   const setTeacherTo5=(nombre)=>{
+    if(!window.confirm("¿Poner la calificación de "+displayMaestroNombre(nombre)+" en 5 estrellas? Se guardará la evaluación con la nota máxima."))return;
     const ev=findEvalForMaestro(nombre);
     if(ev){
       onUpdate((evaluaciones||[]).map(e=>e.nombre===nombre?{...e,...EVAL_DEFAULT_5,nombre:e.nombre,observaciones:e.observaciones||""}:e));
@@ -5418,6 +5431,11 @@ function App(){
   const[user,setUser]=useState(null);
   const[loading,setLoading]=useState(true);
   const[teacherPasswords,setTeacherPasswords]=useState({});
+  const[installPrompt,setInstallPrompt]=useState(null);
+  const[showInstallBanner,setShowInstallBanner]=useState(false);
+  const[installDone,setInstallDone]=useState(false);
+  const[showIosInstallBanner,setShowIosInstallBanner]=useState(false);
+  const isIosStandalone=typeof window!=="undefined"&&!!window.navigator.standalone;
   const[data,setData]=useState({
     maestros:INITIAL_MAESTROS,
     clases:INITIAL_CLASES,
@@ -5471,10 +5489,10 @@ function App(){
           });
           await saveData("alumnos",alumnos);
         }
-        // Restaurar fotos de niños desde el objeto clases guardado (por si alumnos perdió las fotos)
-        if(restoreFotosFromClases(alumnos,loaded.clases)){
-          await saveData("alumnos",alumnos);
-        }
+        // Restaurar fotos de niños desde clases o familias guardados (por si alumnos perdió las fotos)
+        let fotosRestauradas=restoreFotosFromClases(alumnos,loaded.clases);
+        if(restoreFotosFromFamilias(alumnos,loaded.familias))fotosRestauradas=true;
+        if(fotosRestauradas)await saveData("alumnos",alumnos);
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
@@ -5488,7 +5506,18 @@ function App(){
     if(!getDbNow())return;
     const unsub=subscribeData((key,val)=>{
       if(key==="teacherPasswords")setTeacherPasswords(val||{});
-      else setData(d=>({...d,[key]:val}));
+      else if(key==="alumnos"&&Array.isArray(val)){
+        // No perder fotos: si el servidor devuelve alumnos sin foto, conservar la que teníamos en estado
+        setData(d=>{
+          const prev=d.alumnos||[];
+          const merged=val.map(a=>{
+            if(a.foto)return a;
+            const p=prev.find(x=>x.id===a.id||(samePersonName(x.nombre,a.nombre)&&normalizarClase(x.clase)===normalizarClase(a.clase)));
+            return p&&p.foto?{...a,foto:p.foto}:a;
+          });
+          return{...d,alumnos:merged};
+        });
+      }else setData(d=>({...d,[key]:val}));
     });
     return unsub;
   },[]);
@@ -5518,6 +5547,23 @@ function App(){
     return await saveData(key,val);
   },[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
+
+  // Opción de instalar web app: Android (beforeinstallprompt) e iOS (instrucciones Añadir a pantalla de inicio)
+  useEffect(()=>{
+    const onBeforeInstall=(e)=>{ e.preventDefault(); setInstallPrompt(e); setShowInstallBanner(true); };
+    const onInstalled=()=>{ setInstallDone(true); setShowInstallBanner(false); setInstallPrompt(null); };
+    window.addEventListener("beforeinstallprompt",onBeforeInstall);
+    window.addEventListener("appinstalled",onInstalled);
+    const isIosDevice=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    if(isIosDevice&&!navigator.standalone)setShowIosInstallBanner(true);
+    return ()=>{ window.removeEventListener("beforeinstallprompt",onBeforeInstall); window.removeEventListener("appinstalled",onInstalled); };
+  },[]);
+  const runInstallPrompt=async()=>{
+    if(!installPrompt)return;
+    installPrompt.prompt();
+    const {outcome}=await installPrompt.userChoice;
+    if(outcome==="accepted")setShowInstallBanner(false);
+  };
 
   // Todo se desprende de alumnos: si hay lista de alumnos, clases y familias se derivan de ella (fuente de verdad). Se fusionan encargosFamilia/fotoFamilia guardados.
   const dataWithDerived=useMemo(()=>{
@@ -5561,6 +5607,24 @@ function App(){
     <ErrorBoundary>
       <div style={{width:"100%",maxWidth:"100vw",overflowX:"hidden",minHeight:"100dvh",touchAction:"pan-y pinch-zoom",position:"relative"}}>
         {screen}
+        {showInstallBanner&&installPrompt&&!installDone&&(
+          <div style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",color:"#FFFFFF",padding:"12px 16px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 -4px 20px rgba(0,0,0,0.2)",zIndex:9999}}>
+            <div style={{flex:1,fontSize:14,fontWeight:700}}>📲 Instalar Escuela Dominical en tu dispositivo</div>
+            <button onClick={runInstallPrompt} style={{background:"#F5C842",color:"#3D1B6B",border:"none",borderRadius:12,padding:"10px 18px",fontWeight:800,fontSize:14,cursor:"pointer",whiteSpace:"nowrap"}}>Instalar</button>
+            <button onClick={()=>setShowInstallBanner(false)} style={{background:"transparent",color:"rgba(255,255,255,0.9)",border:"none",padding:8,fontSize:18,cursor:"pointer",lineHeight:1}} aria-label="Cerrar">×</button>
+          </div>
+        )}
+        {showIosInstallBanner&&!isIosStandalone&&(
+          <div style={{position:"fixed",bottom:0,left:0,right:0,background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",color:"#FFFFFF",padding:"14px 16px",boxShadow:"0 -4px 20px rgba(0,0,0,0.2)",zIndex:9999}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:800,marginBottom:6}}>📲 Instalar en iPhone/iPad</div>
+                <div style={{fontSize:13,opacity:0.95,lineHeight:1.4}}>Pulsa el botón <strong>Compartir</strong> (□↑) abajo en Safari y luego <strong>«Añadir a pantalla de inicio»</strong>. La app quedará como un icono en tu pantalla.</div>
+              </div>
+              <button onClick={()=>setShowIosInstallBanner(false)} style={{background:"transparent",color:"rgba(255,255,255,0.9)",border:"none",padding:6,fontSize:20,cursor:"pointer",lineHeight:1,flexShrink:0}} aria-label="Cerrar">×</button>
+            </div>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );
