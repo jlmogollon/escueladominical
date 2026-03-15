@@ -777,9 +777,9 @@ const S={
   title:{fontSize:"1.25rem",fontWeight:900,color:"#5B2D8E",margin:"0 0 1rem",letterSpacing:-0.5},
 };
 
-// ── Logo with elegant gradient border & edge fade ──
-function LogoImg({height=44}){
-  return(
+// ── Logo with elegant gradient border & edge fade. Si onClick, al tocar hace recarga en limpio. ──
+function LogoImg({height=44,onClick}){
+  const inner=(
     <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
       <div style={{position:"absolute",inset:-3,borderRadius:18,background:"linear-gradient(135deg,#4BBCE0,#5B2D8E,#E84F9B)",opacity:0.4,filter:"blur(5px)"}}/>
       <div style={{position:"relative",background:"#FFFFFF",borderRadius:16,padding:"5px 12px",overflow:"hidden",boxShadow:"0 4px 18px rgba(91,45,142,0.18)",WebkitMaskImage:"radial-gradient(ellipse 94% 90% at 50% 50%,black 70%,transparent 100%)",maskImage:"radial-gradient(ellipse 94% 90% at 50% 50%,black 70%,transparent 100%)"}}>
@@ -787,6 +787,8 @@ function LogoImg({height=44}){
       </div>
     </div>
   );
+  if(onClick) return <div role="button" tabIndex={0} style={{cursor:"pointer",display:"inline-flex",outline:"none"}} onClick={onClick} onKeyDown={e=>e.key==="Enter"&&onClick()}>{inner}</div>;
+  return inner;
 }
 function LogoLogin(){
   return(
@@ -3534,7 +3536,7 @@ function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
 }
 
 // ══════════ TEACHER APP ══════════
-function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePasswords}){
+function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePasswords,onRefreshData}){
   const[activeTab,setActiveTab]=useState("inicio");
   const[masTab,setMasTab]=useState("evaluacion");
   const[pwForm,setPwForm]=useState({old:"",new1:"",new2:""});
@@ -3659,7 +3661,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
       <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
-        <LogoImg height={38}/>
+        <LogoImg height={38} onClick={()=>onRefreshData?.()} title="Actualizar datos"/>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{textAlign:"right"}}>
             <div style={{color:"#F5C842",fontWeight:800,fontSize:12,lineHeight:1.2}}>{displayMaestroNombre(user.name)}</div>
@@ -5302,7 +5304,7 @@ function FinanzasPanel({finanzas,maestros,onUpdate}){
 }
 
 // ══════════ ADMIN APP ══════════
-function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords}){
+function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords,onRefreshData}){
   const[activeTab,setActiveTab]=useState("inicio");
   const[masTab,setMasTab]=useState("familias");
   const[alumnoSubTabInitial,setAlumnoSubTabInitial]=useState(null); // "bautizados" | "sellados" cuando se viene del dashboard
@@ -5360,7 +5362,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
       <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
-        <LogoImg height={38}/>
+        <LogoImg height={38} onClick={()=>onRefreshData?.()} title="Actualizar datos"/>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{background:"#F5C84233",color:"#F5C842",borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:800}}>👑 ADMIN</span>
           <button style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:10,padding:"8px 12px",color:"#FFFFFF",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={onLogout}>🚪 Salir</button>
@@ -5492,6 +5494,20 @@ function App(){
   const[installDone,setInstallDone]=useState(false);
   const[showIosInstallBanner,setShowIosInstallBanner]=useState(false);
   const isIosStandalone=typeof window!=="undefined"&&!!window.navigator.standalone;
+  const hiddenAtRef=useRef(null);
+  const MIN_BACKGROUND_HOURS=5;
+  useEffect(()=>{
+    const onVis=()=>{
+      if(document.visibilityState==="hidden")hiddenAtRef.current=Date.now();
+      if(document.visibilityState==="visible"&&hiddenAtRef.current!==null){
+        const hours=(Date.now()-hiddenAtRef.current)/3600000;
+        hiddenAtRef.current=null;
+        if(hours>=MIN_BACKGROUND_HOURS)window.location.reload();
+      }
+    };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>document.removeEventListener("visibilitychange",onVis);
+  },[]);
   const[data,setData]=useState({
     maestros:INITIAL_MAESTROS,
     clases:INITIAL_CLASES,
@@ -5509,57 +5525,54 @@ function App(){
     finanzas:DEFAULT_FINANZAS,
     adminProfile:null,
   });
-  useEffect(()=>{
-    (async()=>{
-      try{
-        const loaded={};
-        for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas","adminProfile"]){
-          const v=await loadData(k);if(v!==null)loaded[k]=v;
-        }
-        const familias=loaded.familias??INITIAL_FAMILIAS;
-        let alumnos=loaded.alumnos;
-        if(alumnos==null||!Array.isArray(alumnos)||alumnos.length===0){
-          if(familias&&Array.isArray(familias)&&familias.length>0){
-            alumnos=familias.map(f=>({ id:f.id, nombre:(f.alumno||"").trim(), clase:(f.clase||"").trim().toUpperCase().replace(/\s+/g,"_")||"CORDERITOS", nacimiento:f.nacimiento||null, padre:f.padre||"", madre:f.madre||"", telPadre:f.telPadre||"", telMadre:f.telMadre||"", familia:f.familia||"", bautizado:!!f.bautizado, sellado:!!f.sellado, foto:f.foto||null }));
-            saveData("alumnos",alumnos);
-          }else alumnos=INITIAL_ALUMNOS;
-        }
-        // Reparación: si en alumnos faltan nombres que sí aparecen en calificaciones o en clases guardadas, se añaden a alumnos (la lista alumnos es la fuente de verdad; no al revés).
-        const calificaciones=loaded.calificaciones??[];
-        const missingCalifs=getMissingAlumnosFromCalificaciones(calificaciones,alumnos);
-        const missingClases=getMissingAlumnosFromClases(loaded.clases,alumnos);
-        const seenKey=new Set();
-        const missing=[];
-        [...missingCalifs,...missingClases].forEach(m=>{
-          const key=(m.nombre||"").trim()+"|"+m.clase;
-          if(seenKey.has(key))return;
-          seenKey.add(key);
-          missing.push(m);
-        });
-        if(missing.length>0){
-          const usedIds=new Set((alumnos||[]).map(a=>a.id));
-          missing.forEach((m,i)=>{
-            let id=Date.now()+i;
-            while(usedIds.has(id))id++; usedIds.add(id);
-            alumnos=[...alumnos,{ id, nombre:m.nombre.trim(), clase:m.clase, nacimiento:null, padre:"", madre:"", telPadre:"", telMadre:"", familia:"", bautizado:false, sellado:false, foto:m.foto||null }];
-          });
-          await saveData("alumnos",alumnos);
-        }
-        // Restaurar fotos de niños desde clases o familias guardados (por si alumnos perdió las fotos)
-        let datosRestaurados=restoreFotosFromClases(alumnos,loaded.clases);
-        if(restoreFotosFromFamilias(alumnos,loaded.familias))datosRestaurados=true;
-        // Restaurar bautizado, sellado, padre, madre, teléfonos, nacimiento desde clases o familias guardados
-        if(restoreAlumnoDataFromStored(alumnos,loaded.clases,loaded.familias))datosRestaurados=true;
-        if(datosRestaurados)await saveData("alumnos",alumnos);
-        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
-        setData(dataToSet);
-        const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
-      }catch(e){
-        console.error("Error al cargar datos iniciales desde Firestore:",e&&e.message?e.message:e);
+  const loadInitialData=useCallback(async(silent)=>{
+    if(!silent)setLoading(true);
+    try{
+      const loaded={};
+      for(const k of["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas","adminProfile"]){
+        const v=await loadData(k);if(v!==null)loaded[k]=v;
       }
-      setLoading(false);
-    })();
+      const familias=loaded.familias??INITIAL_FAMILIAS;
+      let alumnos=loaded.alumnos;
+      if(alumnos==null||!Array.isArray(alumnos)||alumnos.length===0){
+        if(familias&&Array.isArray(familias)&&familias.length>0){
+          alumnos=familias.map(f=>({ id:f.id, nombre:(f.alumno||"").trim(), clase:(f.clase||"").trim().toUpperCase().replace(/\s+/g,"_")||"CORDERITOS", nacimiento:f.nacimiento||null, padre:f.padre||"", madre:f.madre||"", telPadre:f.telPadre||"", telMadre:f.telMadre||"", familia:f.familia||"", bautizado:!!f.bautizado, sellado:!!f.sellado, foto:f.foto||null }));
+          saveData("alumnos",alumnos);
+        }else alumnos=INITIAL_ALUMNOS;
+      }
+      const calificaciones=loaded.calificaciones??[];
+      const missingCalifs=getMissingAlumnosFromCalificaciones(calificaciones,alumnos);
+      const missingClases=getMissingAlumnosFromClases(loaded.clases,alumnos);
+      const seenKey=new Set();
+      const missing=[];
+      [...missingCalifs,...missingClases].forEach(m=>{
+        const key=(m.nombre||"").trim()+"|"+m.clase;
+        if(seenKey.has(key))return;
+        seenKey.add(key);
+        missing.push(m);
+      });
+      if(missing.length>0){
+        const usedIds=new Set((alumnos||[]).map(a=>a.id));
+        missing.forEach((m,i)=>{
+          let id=Date.now()+i;
+          while(usedIds.has(id))id++; usedIds.add(id);
+          alumnos=[...alumnos,{ id, nombre:m.nombre.trim(), clase:m.clase, nacimiento:null, padre:"", madre:"", telPadre:"", telMadre:"", familia:"", bautizado:false, sellado:false, foto:m.foto||null }];
+        });
+        await saveData("alumnos",alumnos);
+      }
+      let datosRestaurados=restoreFotosFromClases(alumnos,loaded.clases);
+      if(restoreFotosFromFamilias(alumnos,loaded.familias))datosRestaurados=true;
+      if(restoreAlumnoDataFromStored(alumnos,loaded.clases,loaded.familias))datosRestaurados=true;
+      if(datosRestaurados)await saveData("alumnos",alumnos);
+      const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
+      setData(dataToSet);
+      const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
+    }catch(e){
+      console.error("Error al cargar datos desde Firestore:",e&&e.message?e.message:e);
+    }
+    setLoading(false);
   },[]);
+  useEffect(()=>{ loadInitialData(false); },[loadInitialData]);
   useEffect(()=>{
     if(!getDbNow())return;
     const unsub=subscribeData((key,val)=>{
@@ -5647,11 +5660,12 @@ function App(){
     }catch(err){ console.error("dataWithDerived",err); var d=data||{}; return { ...d, clases: (d.clases&&typeof d.clases==="object")?d.clases:INITIAL_CLASES, familias: Array.isArray(d.familias)?d.familias:INITIAL_FAMILIAS }; }
   },[data]);
 
+  const refreshData=useCallback(()=>{ loadInitialData(true); },[loadInitialData]);
   const screen = !user
     ? <LoginScreen onLogin={setUser}/>
     : user==="admin"
-      ? <AdminApp data={dataWithDerived} onUpdateData={updateData} onLogout={()=>setUser(null)} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>
-      : <TeacherApp user={user} data={dataWithDerived} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw}/>;
+      ? <AdminApp data={dataWithDerived} onUpdateData={updateData} onLogout={()=>setUser(null)} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw} onRefreshData={refreshData}/>
+      : <TeacherApp user={user} data={dataWithDerived} onLogout={()=>setUser(null)} onUpdateData={updateData} teacherPasswords={teacherPasswords} onUpdatePasswords={updatePw} onRefreshData={refreshData}/>;
 
   if(loading){
     return(
