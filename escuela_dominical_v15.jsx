@@ -401,6 +401,33 @@ function restoreFotosFromFamilias(alumnos,loadedFamilias){
   return changed;
 }
 
+// Restaura datos de alumnos (bautizado, sellado, familia, nacimiento) desde clases o familias guardados cuando el alumno los tiene vacíos.
+function restoreAlumnoDataFromStored(alumnos,loadedClases,loadedFamilias){
+  if(!alumnos||!alumnos.length)return false;
+  let changed=false;
+  alumnos.forEach(a=>{
+    const claseA=normalizarClase(a.clase);
+    let found=null;
+    if(loadedClases&&typeof loadedClases==="object"){
+      const arr=loadedClases[claseA]||loadedClases[claseA.replace(/-/g,"_")];
+      if(Array.isArray(arr))found=arr.find(n=>samePersonName((n.nombre||"").trim(),a.nombre));
+    }
+    if(!found&&loadedFamilias&&Array.isArray(loadedFamilias)){
+      const fam=loadedFamilias.find(f=>samePersonName((f.alumno||"").trim(),a.nombre)&&normalizarClase(f.clase)===claseA);
+      if(fam)found={ bautizado:fam.bautizado,sellado:fam.sellado,nacimiento:fam.nacimiento,padre:fam.padre,madre:fam.madre,telPadre:fam.telPadre,telMadre:fam.telMadre };
+    }
+    if(!found)return;
+    if(found.bautizado&&!a.bautizado){ a.bautizado=true; changed=true; }
+    if(found.sellado&&!a.sellado){ a.sellado=true; changed=true; }
+    if(found.nacimiento&&!a.nacimiento){ a.nacimiento=found.nacimiento; changed=true; }
+    if(found.padre&&String(found.padre).trim()&&!String(a.padre||"").trim()){ a.padre=String(found.padre).trim(); changed=true; }
+    if(found.madre&&String(found.madre).trim()&&!String(a.madre||"").trim()){ a.madre=String(found.madre).trim(); changed=true; }
+    if(found.telPadre&&String(found.telPadre).trim()&&!String(a.telPadre||"").trim()){ a.telPadre=String(found.telPadre).trim(); changed=true; }
+    if(found.telMadre&&String(found.telMadre).trim()&&!String(a.telMadre||"").trim()){ a.telMadre=String(found.telMadre).trim(); changed=true; }
+  });
+  return changed;
+}
+
 // Deriva la lista de familias desde la lista de alumnos (fuente de verdad). Agrupa por apellidos y padres.
 function deriveFamilias(alumnos){
   const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
@@ -5490,9 +5517,11 @@ function App(){
           await saveData("alumnos",alumnos);
         }
         // Restaurar fotos de niños desde clases o familias guardados (por si alumnos perdió las fotos)
-        let fotosRestauradas=restoreFotosFromClases(alumnos,loaded.clases);
-        if(restoreFotosFromFamilias(alumnos,loaded.familias))fotosRestauradas=true;
-        if(fotosRestauradas)await saveData("alumnos",alumnos);
+        let datosRestaurados=restoreFotosFromClases(alumnos,loaded.clases);
+        if(restoreFotosFromFamilias(alumnos,loaded.familias))datosRestaurados=true;
+        // Restaurar bautizado, sellado, padre, madre, teléfonos, nacimiento desde clases o familias guardados
+        if(restoreAlumnoDataFromStored(alumnos,loaded.clases,loaded.familias))datosRestaurados=true;
+        if(datosRestaurados)await saveData("alumnos",alumnos);
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
