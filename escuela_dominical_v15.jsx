@@ -401,29 +401,47 @@ function restoreFotosFromFamilias(alumnos,loadedFamilias){
   return changed;
 }
 
-// Restaura datos de alumnos (bautizado, sellado, familia, nacimiento) desde clases o familias guardados cuando el alumno los tiene vacíos.
+// Restaura todos los datos de alumnos (bautizado, sellado, padres, teléfonos, nacimiento, familia, nombre desglosado) desde clases o familias guardados.
+// Busca en todas las claves del objeto clases por si el formato de clave difiere; prioriza datos no vacíos del almacenamiento.
 function restoreAlumnoDataFromStored(alumnos,loadedClases,loadedFamilias){
   if(!alumnos||!alumnos.length)return false;
+  const storedByNombreClase=[]; // { nombre, clase, ...datos }
+  if(loadedClases&&typeof loadedClases==="object"){
+    Object.entries(loadedClases).forEach(([claseKey,arr])=>{
+      if(!Array.isArray(arr))return;
+      const clase=normalizarClase(claseKey);
+      arr.forEach(n=>{
+        const nombre=(n.nombre||"").trim();
+        if(!nombre)return;
+        storedByNombreClase.push({ nombre, clase, bautizado:n.bautizado, sellado:n.sellado, nacimiento:n.nacimiento, padre:n.padre, madre:n.madre, telPadre:n.telPadre, telMadre:n.telMadre, familia:n.familia, primerNombre:n.primerNombre, segundoNombre:n.segundoNombre, primerApellido:n.primerApellido, segundoApellido:n.segundoApellido, foto:n.foto });
+      });
+    });
+  }
+  if(loadedFamilias&&Array.isArray(loadedFamilias)){
+    loadedFamilias.forEach(f=>{
+      const nombre=(f.alumno||"").trim();
+      if(!nombre)return;
+      const clase=normalizarClase(f.clase);
+      storedByNombreClase.push({ nombre, clase, bautizado:f.bautizado, sellado:f.sellado, nacimiento:f.nacimiento, padre:f.padre, madre:f.madre, telPadre:f.telPadre, telMadre:f.telMadre, familia:f.familia, primerNombre:f.primerNombre, segundoNombre:f.segundoNombre, primerApellido:f.primerApellido, segundoApellido:f.segundoApellido, foto:f.foto });
+    });
+  }
   let changed=false;
   alumnos.forEach(a=>{
     const claseA=normalizarClase(a.clase);
-    let found=null;
-    if(loadedClases&&typeof loadedClases==="object"){
-      const arr=loadedClases[claseA]||loadedClases[claseA.replace(/-/g,"_")];
-      if(Array.isArray(arr))found=arr.find(n=>samePersonName((n.nombre||"").trim(),a.nombre));
-    }
-    if(!found&&loadedFamilias&&Array.isArray(loadedFamilias)){
-      const fam=loadedFamilias.find(f=>samePersonName((f.alumno||"").trim(),a.nombre)&&normalizarClase(f.clase)===claseA);
-      if(fam)found={ bautizado:fam.bautizado,sellado:fam.sellado,nacimiento:fam.nacimiento,padre:fam.padre,madre:fam.madre,telPadre:fam.telPadre,telMadre:fam.telMadre };
-    }
+    const found=storedByNombreClase.find(s=>samePersonName(s.nombre,a.nombre)&&normalizarClase(s.clase)===claseA);
     if(!found)return;
     if(found.bautizado&&!a.bautizado){ a.bautizado=true; changed=true; }
     if(found.sellado&&!a.sellado){ a.sellado=true; changed=true; }
-    if(found.nacimiento&&!a.nacimiento){ a.nacimiento=found.nacimiento; changed=true; }
-    if(found.padre&&String(found.padre).trim()&&!String(a.padre||"").trim()){ a.padre=String(found.padre).trim(); changed=true; }
-    if(found.madre&&String(found.madre).trim()&&!String(a.madre||"").trim()){ a.madre=String(found.madre).trim(); changed=true; }
-    if(found.telPadre&&String(found.telPadre).trim()&&!String(a.telPadre||"").trim()){ a.telPadre=String(found.telPadre).trim(); changed=true; }
-    if(found.telMadre&&String(found.telMadre).trim()&&!String(a.telMadre||"").trim()){ a.telMadre=String(found.telMadre).trim(); changed=true; }
+    if(found.nacimiento&&!String(a.nacimiento||"").trim()){ a.nacimiento=found.nacimiento; changed=true; }
+    if(found.padre!=null&&String(found.padre).trim()&&!String(a.padre||"").trim()){ a.padre=String(found.padre).trim(); changed=true; }
+    if(found.madre!=null&&String(found.madre).trim()&&!String(a.madre||"").trim()){ a.madre=String(found.madre).trim(); changed=true; }
+    if(found.telPadre!=null&&String(found.telPadre).trim()&&!String(a.telPadre||"").trim()){ a.telPadre=String(found.telPadre).trim(); changed=true; }
+    if(found.telMadre!=null&&String(found.telMadre).trim()&&!String(a.telMadre||"").trim()){ a.telMadre=String(found.telMadre).trim(); changed=true; }
+    if(found.familia!=null&&String(found.familia).trim()&&!String(a.familia||"").trim()){ a.familia=String(found.familia).trim(); changed=true; }
+    if(found.primerNombre!=null&&String(found.primerNombre).trim()&&!String(a.primerNombre||"").trim()){ a.primerNombre=String(found.primerNombre).trim(); changed=true; }
+    if(found.segundoNombre!=null&&String(found.segundoNombre).trim()&&(a.segundoNombre==null||!String(a.segundoNombre).trim())){ a.segundoNombre=String(found.segundoNombre).trim(); changed=true; }
+    if(found.primerApellido!=null&&String(found.primerApellido).trim()&&!String(a.primerApellido||"").trim()){ a.primerApellido=String(found.primerApellido).trim(); changed=true; }
+    if(found.segundoApellido!=null&&String(found.segundoApellido).trim()&&(a.segundoApellido==null||!String(a.segundoApellido).trim())){ a.segundoApellido=String(found.segundoApellido).trim(); changed=true; }
   });
   return changed;
 }
