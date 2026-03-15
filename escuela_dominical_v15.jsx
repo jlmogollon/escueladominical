@@ -180,7 +180,16 @@ const INITIAL_FAMILIAS = [
   {id:26,num:22,familia:"Giraldo Ceballos",padre:null,madre:"Yuliet Ceballos",telPadre:"",telMadre:"",alumno:"Valeria Giraldo",edad:null,cumpleanos:null,nacimiento:null,clase:"ADOLESCENTES"},
 ];
 
-// Una sola base de datos de alumnos; clases y familias se derivan de aquí.
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODELO DE DATOS: La lista de ALUMNOS es la única fuente de verdad.
+// De ella se derivan:
+//   - CLASES: agrupación por clase (CORDERITOS, VENCEDORES, CONQUISTADORES, ADOLESCENTES).
+//   - FAMILIAS: agrupación por familia (padres, teléfonos, etc.).
+// Las pantallas Clases y Familias muestran datos derivados; la edición de niños
+// se hace solo en la pestaña Alumnos. No se debe usar clases ni familias para
+// sobrescribir la lista de alumnos; solo al cargar se puede "recuperar" nombres
+// desde calificaciones/clases guardados si faltaban en alumnos.
+// ═══════════════════════════════════════════════════════════════════════════════
 const INITIAL_ALUMNOS = INITIAL_FAMILIAS.map(f=>({
   id: f.id,
   nombre: (f.alumno||"").trim(),
@@ -297,6 +306,7 @@ const DEFAULT_CLASES_CONFIG = CLASES_LIST.map(k=>({key:k,nombre:k,color:CLASE_CO
 function getCfgList(clasesConfig){return clasesConfig&&clasesConfig.length?clasesConfig:DEFAULT_CLASES_CONFIG;}
 function getCfgColor(key,clasesConfig){return getCfgList(clasesConfig).find(c=>c.key===key)?.color||CLASE_COLORS[key]||"#5B2D8E";}
 function getCfgKeys(clasesConfig){return getCfgList(clasesConfig).map(c=>c.key);}
+// Deriva el objeto clases { CORDERITOS: [...], VENCEDORES: [...], ... } desde la lista de alumnos (fuente de verdad).
 function deriveClases(alumnos,clasesConfig){
   const keys=getCfgKeys(clasesConfig);
   const out={};
@@ -335,7 +345,7 @@ function getMissingAlumnosFromCalificaciones(calificaciones,alumnos){
   return out;
 }
 
-// Devuelve {nombre, clase} de quienes aparecen en el objeto clases guardado (por clase) pero no en alumnos.
+// Devuelve {nombre, clase, foto} de quienes aparecen en el objeto clases guardado pero no en alumnos (foto por si el niño en clases la tiene).
 function getMissingAlumnosFromClases(loadedClases,alumnos){
   if(!loadedClases||typeof loadedClases!=="object")return [];
   const out=[];
@@ -350,13 +360,36 @@ function getMissingAlumnosFromClases(loadedClases,alumnos){
       if(seen.has(key))return;
       seen.add(key);
       const yaEsta=(alumnos||[]).some(a=>samePersonName(a.nombre,nombre)&&normalizarClase(a.clase)===clase);
-      if(!yaEsta)out.push({nombre,clase});
+      if(!yaEsta)out.push({nombre,clase,foto:n.foto||null});
     });
   });
   return out;
 }
 
-// Une en una sola familia a los alumnos que tengan los mismos apellidos y los mismos padres (padre y madre).
+// Restaura foto en alumnos desde el objeto clases guardado (mismo nombre y clase). Modifica alumnos in-place y devuelve true si hubo cambios.
+function restoreFotosFromClases(alumnos,loadedClases){
+  if(!loadedClases||typeof loadedClases!=="object"||!alumnos||!alumnos.length)return false;
+  const niñosConFoto=[]; // { nombre, clase, foto }
+  Object.entries(loadedClases).forEach(([claseKey,arr])=>{
+    if(!Array.isArray(arr))return;
+    const clase=normalizarClase(claseKey);
+    arr.forEach(n=>{
+      const nombre=(n.nombre||"").trim();
+      if(!nombre||!n.foto)return;
+      niñosConFoto.push({nombre,clase,foto:n.foto});
+    });
+  });
+  let changed=false;
+  alumnos.forEach(a=>{
+    if(a.foto)return;
+    const claseA=normalizarClase(a.clase);
+    const match=niñosConFoto.find(n=>samePersonName(n.nombre,a.nombre)&&normalizarClase(n.clase)===claseA);
+    if(match){ a.foto=match.foto; changed=true; }
+  });
+  return changed;
+}
+
+// Deriva la lista de familias desde la lista de alumnos (fuente de verdad). Agrupa por apellidos y padres.
 function deriveFamilias(alumnos){
   const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
   const getApellidos=(a)=>{
@@ -2182,7 +2215,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
   );
 }
 
-// ══════════ ALUMNOS PANEL (única fuente de verdad; aquí se editan todos los alumnos) ══════════
+// ══════════ ALUMNOS PANEL — Fuente de verdad: aquí se edita la lista de alumnos; de ella se forman las clases y las familias ══════════
 function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onSubTabConsumed,calificaciones=[]}){
   const cfg=getCfgList(clasesConfig);
   const[modal,setModal]=useState(false);
@@ -2261,7 +2294,7 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
           <h2 style={S.title}>Alumnos</h2>
           <button style={{...S.btn("#5B2D8E","#FFFFFF",true),padding:"10px 16px"}} onClick={openAdd}>+ Agregar alumno</button>
         </div>
-        <div style={{fontSize:12,color:"#7B6B9A",marginTop:4}}>Lista única; las clases y familias se derivan de aquí. Solo aquí se editan alumnos.</div>
+        <div style={{fontSize:12,color:"#7B6B9A",marginTop:4}}>Todo se desprende de esta lista: de aquí se forman las clases y las familias. Solo aquí se editan los alumnos.</div>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         <button style={{...S.btn(alumnoSubTab==="todos"?"#5B2D8E":"#F5F0FF",alumnoSubTab==="todos"?"#FFFFFF":"#2D1B4E"),padding:"10px 16px",borderRadius:12,fontSize:13,fontWeight:700}} onClick={()=>setAlumnoSubTab("todos")}>👦 Todos ({sorted.length})</button>
@@ -5417,7 +5450,7 @@ function App(){
             saveData("alumnos",alumnos);
           }else alumnos=INITIAL_ALUMNOS;
         }
-        // Recuperar alumnos que faltan: desde calificaciones y desde el objeto clases guardado (aunque no tengan calificaciones)
+        // Reparación: si en alumnos faltan nombres que sí aparecen en calificaciones o en clases guardadas, se añaden a alumnos (la lista alumnos es la fuente de verdad; no al revés).
         const calificaciones=loaded.calificaciones??[];
         const missingCalifs=getMissingAlumnosFromCalificaciones(calificaciones,alumnos);
         const missingClases=getMissingAlumnosFromClases(loaded.clases,alumnos);
@@ -5434,8 +5467,12 @@ function App(){
           missing.forEach((m,i)=>{
             let id=Date.now()+i;
             while(usedIds.has(id))id++; usedIds.add(id);
-            alumnos=[...alumnos,{ id, nombre:m.nombre.trim(), clase:m.clase, nacimiento:null, padre:"", madre:"", telPadre:"", telMadre:"", familia:"", bautizado:false, sellado:false, foto:null }];
+            alumnos=[...alumnos,{ id, nombre:m.nombre.trim(), clase:m.clase, nacimiento:null, padre:"", madre:"", telPadre:"", telMadre:"", familia:"", bautizado:false, sellado:false, foto:m.foto||null }];
           });
+          await saveData("alumnos",alumnos);
+        }
+        // Restaurar fotos de niños desde el objeto clases guardado (por si alumnos perdió las fotos)
+        if(restoreFotosFromClases(alumnos,loaded.clases)){
           await saveData("alumnos",alumnos);
         }
         const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
@@ -5482,7 +5519,7 @@ function App(){
   },[]);
   const updatePw=useCallback(async(pws)=>{setTeacherPasswords(pws);const ok=await saveData("teacherPasswords",pws);return ok;},[]);
 
-  // Siempre ejecutar useMemo (mismo orden de hooks en cada render). Si hay alumnos, familias se deriva pero se fusionan encargosFamilia y fotoFamilia guardados para que no se pierdan.
+  // Todo se desprende de alumnos: si hay lista de alumnos, clases y familias se derivan de ella (fuente de verdad). Se fusionan encargosFamilia/fotoFamilia guardados.
   const dataWithDerived=useMemo(()=>{
     try {
       const d=data||{};
