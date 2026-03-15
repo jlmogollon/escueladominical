@@ -317,6 +317,45 @@ function deriveClases(alumnos,clasesConfig){
   });
   return out;
 }
+// Devuelve {nombre, clase} de quienes aparecen en calificaciones pero no en alumnos (evita pérdida de lista).
+function getMissingAlumnosFromCalificaciones(calificaciones,alumnos){
+  if(!calificaciones||!Array.isArray(calificaciones)||calificaciones.length===0)return [];
+  const seen=new Set();
+  const out=[];
+  calificaciones.forEach(c=>{
+    const nombre=(c.alumno||"").trim();
+    const clase=normalizarClase(c.clase);
+    if(!nombre)return;
+    const key=nombre+"|"+clase;
+    if(seen.has(key))return;
+    seen.add(key);
+    const yaEsta=(alumnos||[]).some(a=>samePersonName(a.nombre,nombre)&&normalizarClase(a.clase)===clase);
+    if(!yaEsta)out.push({nombre,clase});
+  });
+  return out;
+}
+
+// Devuelve {nombre, clase} de quienes aparecen en el objeto clases guardado (por clase) pero no en alumnos.
+function getMissingAlumnosFromClases(loadedClases,alumnos){
+  if(!loadedClases||typeof loadedClases!=="object")return [];
+  const out=[];
+  const seen=new Set();
+  Object.entries(loadedClases).forEach(([claseKey,arr])=>{
+    if(!Array.isArray(arr))return;
+    const clase=normalizarClase(claseKey);
+    arr.forEach(n=>{
+      const nombre=(n.nombre||"").trim();
+      if(!nombre)return;
+      const key=nombre+"|"+clase;
+      if(seen.has(key))return;
+      seen.add(key);
+      const yaEsta=(alumnos||[]).some(a=>samePersonName(a.nombre,nombre)&&normalizarClase(a.clase)===clase);
+      if(!yaEsta)out.push({nombre,clase});
+    });
+  });
+  return out;
+}
+
 // Une en una sola familia a los alumnos que tengan los mismos apellidos y los mismos padres (padre y madre).
 function deriveFamilias(alumnos){
   const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
@@ -561,6 +600,14 @@ function evalAvg(ev,videoAvg=null){
     return ((base*0.8)+(videoAvg*0.2)).toFixed(1);
   }
   return base.toFixed(1);
+}
+// Si la calificación total es la máxima (5), mostrar "5" sin decimales.
+function formatEvalScore(avg){
+  if(avg==null||avg==="—")return avg;
+  const n=parseFloat(avg);
+  if(Number.isNaN(n))return avg;
+  if(n>=5)return "5";
+  return String(avg);
 }
 // Calcula score de video 0-5 por sesión
 function videoScore(v){
@@ -2136,7 +2183,7 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
 }
 
 // ══════════ ALUMNOS PANEL (única fuente de verdad; aquí se editan todos los alumnos) ══════════
-function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onSubTabConsumed}){
+function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onSubTabConsumed,calificaciones=[]}){
   const cfg=getCfgList(clasesConfig);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
@@ -2147,6 +2194,20 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
   const sellados=sorted.filter(a=>a.sellado);
   const listado=alumnoSubTab==="bautizados"?bautizados:alumnoSubTab==="sellados"?sellados:sorted;
   useEffect(()=>{ if(initialSubTab==="bautizados"||initialSubTab==="sellados"){ setAlumnoSubTab(initialSubTab); onSubTabConsumed&&onSubTabConsumed(); } },[initialSubTab]);
+
+  // Alumnos que aparecen en calificaciones pero no en la lista (misma lógica que la recuperación al cargar)
+  const missingFromCalifs=React.useMemo(()=>getMissingAlumnosFromCalificaciones(calificaciones,alumnos),[calificaciones,alumnos]);
+  const restoreMissing=async()=>{
+    if(!missingFromCalifs.length)return;
+    const base=(alumnos||[]).slice();
+    const usedIds=new Set(base.map(a=>a.id));
+    missingFromCalifs.forEach((m,i)=>{
+      let id=Date.now()+i;
+      while(usedIds.has(id))id++; usedIds.add(id);
+      base.push({ id, nombre: m.nombre.trim(), clase: m.clase, nacimiento: null, padre: "", madre: "", telPadre: "", telMadre: "", familia: "", bautizado: false, sellado: false, foto: null });
+    });
+    await onUpdateAlumnos(base);
+  };
 
   const openAdd=()=>{ setForm({primerNombre:"",segundoNombre:"",primerApellido:"",segundoApellido:"",nombrePadre:"",nombreMadre:"",clase:cfg[0]?.key||"CORDERITOS",nacimiento:"",telPadre:"",telMadre:"",bautizado:false,sellado:false,foto:null}); setEditId(null); setModal(true); };
   const openEdit=(a)=>{
@@ -2186,6 +2247,15 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
 
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
+      {missingFromCalifs.length>0&&(
+        <div style={{background:"linear-gradient(135deg,#F5C84218,#F5C84228)",border:"1.5px solid #F5C84266",borderRadius:14,padding:"14px 18px",marginBottom:16}}>
+          <div style={{fontWeight:800,fontSize:14,color:"#7B5A00",marginBottom:6}}>🔍 Alumnos que aparecen en calificaciones pero no en la lista</div>
+          <div style={{fontSize:13,color:"#5A4000",marginBottom:10}}>
+            Se encontraron {missingFromCalifs.length} alumno{missingFromCalifs.length!==1?"s":""} con calificaciones en clases anteriores que no están en la lista actual (ej. {missingFromCalifs.slice(0,4).map(m=>shortDisplayName(m.nombre)).join(", ")}{missingFromCalifs.length>4?"…":""}). Puedes restaurarlos para que vuelvan a verse en Clases y en la lista.
+          </div>
+          <button style={{...S.btn("#F5C842","#3D1B6B",true),padding:"10px 16px",fontSize:14}} onClick={restoreMissing}>✅ Restaurar {missingFromCalifs.length} alumno{missingFromCalifs.length!==1?"s":""} faltantes</button>
+        </div>
+      )}
       <div style={{marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
           <h2 style={S.title}>Alumnos</h2>
@@ -2452,6 +2522,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
       {evaluaciones.map((ev,i)=>{
         const vAvg=videoAvgForMaestro(ev.nombre,videos,maestros);
         const avg=evalAvg(ev,vAvg);const avgN=parseFloat(avg);const color=avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
+        const avgFormatted=formatEvalScore(avg);
         const mFoto=maestros.find(m=>m.nombre===ev.nombre);
         return(
           <div key={i} style={{...S.card,borderLeft:`5px solid ${color}`}}>
@@ -2461,7 +2532,7 @@ function EvaluacionesPanel({evaluaciones,onUpdate,videos=[],maestros=[]}){
                 {vAvg!=null&&<div style={{fontSize:11,color:"#4BBCE0",fontWeight:700}}>🎬 Video: {vAvg.toFixed(1)}/5 · incl. en promedio</div>}
               </div>
               <div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}>
-                <div style={{fontSize:22,fontWeight:900,color}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5.0</div>
+                <div style={{fontSize:22,fontWeight:900,color}}>{avgFormatted}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5</div>
               </div>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px",fontSize:13}} onClick={()=>openEdit(ev,i)}>✏️</button>
             </div>
@@ -2558,12 +2629,18 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
     setEditVideo(null);
   };
 
-  const resetAllTo3=()=>{if(!confirm("¿Poner todas las evaluaciones en 3 estrellas (y cumplimiento 3)? Se conservan nombres y observaciones."))return;onUpdate((evaluaciones||[]).map(ev=>({...ev,...EVAL_DEFAULT_3,nombre:ev.nombre,observaciones:ev.observaciones||""})));};
+  const setTeacherTo5=(nombre)=>{
+    const ev=findEvalForMaestro(nombre);
+    if(ev){
+      onUpdate((evaluaciones||[]).map(e=>e.nombre===nombre?{...e,...EVAL_DEFAULT_5,nombre:e.nombre,observaciones:e.observaciones||""}:e));
+    }else{
+      onUpdate([...(evaluaciones||[]),{nombre,...EVAL_DEFAULT_5,observaciones:""}]);
+    }
+  };
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10,marginBottom:14}}>
         <h2 style={S.title}>Evaluaciones Maestros</h2>
-        <button style={{...S.btn("#F5F0FF","#5B2D8E"),padding:"8px 14px",fontSize:13}} onClick={resetAllTo3}>🔄 Todas a 3 estrellas</button>
       </div>
       <div style={{background:"linear-gradient(135deg,#4BBCE015,#5B2D8E15)",border:"1.5px solid #4BBCE055",borderRadius:14,padding:"12px 14px",marginBottom:16,fontSize:13,color:"#2D1B4E"}}>
         <div style={{fontWeight:800,marginBottom:4}}>📋 Pendientes por fecha de clase · Luego alfabético · 🎬 Videos por calificar</div>
@@ -2577,6 +2654,7 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
         const vAvg=videoAvgForMaestro(nombre,videos,maestros);
         const avg=evDisplay?evalAvg(evDisplay,vAvg):(vAvg!=null?String(vAvg.toFixed(1)):null);
         const avgN=parseFloat(avg);const color=Number.isNaN(avgN)? "#DDD0F0" : avgN>=4.5?"#4CAF50":avgN>=3.5?"#F5A623":"#EF5350";
+        const avgFormatted=formatEvalScore(avg);
         const mFoto=maestros.find(m=>m.nombre===nombre);
         const pendientes=pendientesVideos(nombre);
         const tienePendientes=pendientes.length>0;
@@ -2594,8 +2672,9 @@ function EvaluacionesPanelUnificado({evaluaciones,onUpdate,videos,onUpdateVideos
                   🎬 {pendientes.length>0&&<span style={{position:"absolute",top:-4,right:-4,minWidth:18,height:18,borderRadius:9,background:"#FFFFFF",color:"#E84F9B",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",border:"2px solid #E84F9B"}}>{pendientes.length}</span>}
                 </button>
               )}
+              <button style={{...S.btn("#F5C842","#3D1B6B"),padding:"8px 12px",fontSize:13}} onClick={()=>setTeacherTo5(nombre)} title="Poner calificación total en 5 estrellas">⭐ 5</button>
               {evIdx>=0?<button style={{...S.btn("#4BBCE0"),padding:"8px 12px",fontSize:13}} onClick={()=>openEdit(ev,evIdx,nombre)}>✏️</button>:<button style={{...S.btn("#4CAF50"),padding:"8px 12px",fontSize:13}} onClick={()=>openAdd(nombre)}>+ Evaluar</button>}
-              {ev&&<div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}><div style={{fontSize:22,fontWeight:900,color}}>{avg}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5.0 <span style={{fontSize:9}}>incl. video</span></div></div>}
+              {ev&&<div style={{textAlign:"center",background:color+"20",borderRadius:12,padding:"8px 14px"}}><div style={{fontSize:22,fontWeight:900,color}}>{avgFormatted}</div><div style={{fontSize:10,color:"#7B6B9A"}}>/5 <span style={{fontSize:9}}>incl. video</span></div></div>}
             </div>
             {ev&&(
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -3747,7 +3826,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
                       <div><div style={{fontWeight:800,fontSize:16}}>{displayMaestroNombre(user.name)}</div><div style={{color:"#7B6B9A",fontSize:13}}>{teacherInfo.cargo} · {miClase}</div></div>
                       <div style={{background:"#5B2D8E15",borderRadius:14,padding:"12px 18px",textAlign:"center"}}>
-                        <div style={{fontSize:32,fontWeight:900,color:"#5B2D8E"}}>{evalAvg(miEval,videoAvgForMaestro(user.name,data.videos||[],data.maestros||[]))}</div><div style={{fontSize:11,color:"#7B6B9A"}}>/5.0</div>
+                        <div style={{fontSize:32,fontWeight:900,color:"#5B2D8E"}}>{formatEvalScore(evalAvg(miEval,videoAvgForMaestro(user.name,data.videos||[],data.maestros||[])))}</div><div style={{fontSize:11,color:"#7B6B9A"}}>/5</div>
                       </div>
                     </div>
                     {EVAL_KEYS.map((k,j)=>(
@@ -5191,7 +5270,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
         {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} onUpdateCronograma={v=>onUpdateData("cronograma",v)} maestros={data.maestros||[]}/>}
         {activeTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
-        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig} initialSubTab={alumnoSubTabInitial} onSubTabConsumed={()=>setAlumnoSubTabInitial(null)}/>}
+        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig} initialSubTab={alumnoSubTabInitial} onSubTabConsumed={()=>setAlumnoSubTabInitial(null)} calificaciones={data.calificaciones||[]}/>}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
         {activeTab==="mas"&&(
           <div style={{padding:"1rem 1rem 0"}}>
@@ -5338,7 +5417,28 @@ function App(){
             saveData("alumnos",alumnos);
           }else alumnos=INITIAL_ALUMNOS;
         }
-        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones:loaded.calificaciones??[], criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
+        // Recuperar alumnos que faltan: desde calificaciones y desde el objeto clases guardado (aunque no tengan calificaciones)
+        const calificaciones=loaded.calificaciones??[];
+        const missingCalifs=getMissingAlumnosFromCalificaciones(calificaciones,alumnos);
+        const missingClases=getMissingAlumnosFromClases(loaded.clases,alumnos);
+        const seenKey=new Set();
+        const missing=[];
+        [...missingCalifs,...missingClases].forEach(m=>{
+          const key=(m.nombre||"").trim()+"|"+m.clase;
+          if(seenKey.has(key))return;
+          seenKey.add(key);
+          missing.push(m);
+        });
+        if(missing.length>0){
+          const usedIds=new Set((alumnos||[]).map(a=>a.id));
+          missing.forEach((m,i)=>{
+            let id=Date.now()+i;
+            while(usedIds.has(id))id++; usedIds.add(id);
+            alumnos=[...alumnos,{ id, nombre:m.nombre.trim(), clase:m.clase, nacimiento:null, padre:"", madre:"", telPadre:"", telMadre:"", familia:"", bautizado:false, sellado:false, foto:null }];
+          });
+          await saveData("alumnos",alumnos);
+        }
+        const dataToSet={ maestros:loaded.maestros??INITIAL_MAESTROS, clases:loaded.clases??INITIAL_CLASES, cronograma:loaded.cronograma??INITIAL_CRONOGRAMA, familias, alumnos, eventos:loaded.eventos??INITIAL_EVENTOS, evaluaciones:loaded.evaluaciones??INITIAL_EVALUACIONES, calificaciones, criterios:CRITERIOS, peticiones:loaded.peticiones??[], meriendas:loaded.meriendas??[], clasesConfig:loaded.clasesConfig??DEFAULT_CLASES_CONFIG, videos:loaded.videos??[], finanzas:loaded.finanzas??DEFAULT_FINANZAS, adminProfile:loaded.adminProfile??null };
         setData(dataToSet);
         const pw=await loadData("teacherPasswords");if(pw)setTeacherPasswords(pw);
       }catch(e){
