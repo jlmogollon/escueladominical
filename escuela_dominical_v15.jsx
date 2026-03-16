@@ -2282,7 +2282,18 @@ function FamiliasPanel({familias,onUpdate,clases={},onUpdateClases=()=>{},teache
 }
 
 // ══════════ ALUMNOS PANEL — Fuente de verdad: aquí se edita la lista de alumnos; de ella se forman las clases y las familias ══════════
-function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onSubTabConsumed,calificaciones=[]}){
+function AlumnosPanel({
+  alumnos=[],
+  onUpdateAlumnos,
+  clasesConfig,
+  initialSubTab,
+  onSubTabConsumed,
+  calificaciones=[],
+  // Opcional: manejar fusiones de alumnos + deshacer (lo gestiona AdminApp con acceso a calificaciones)
+  onMergeAlumnos,
+  canUndoMerge=false,
+  onUndoMerge,
+}){
   const cfg=getCfgList(clasesConfig);
   const[modal,setModal]=useState(false);
   const[editId,setEditId]=useState(null);
@@ -2296,6 +2307,16 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
 
   // Alumnos que aparecen en calificaciones pero no en la lista (misma lógica que la recuperación al cargar)
   const missingFromCalifs=React.useMemo(()=>getMissingAlumnosFromCalificaciones(calificaciones,alumnos),[calificaciones,alumnos]);
+  // Alumnos potencialmente duplicados (mismo nombre, misma clase normalizada)
+  const duplicatesById=React.useMemo(()=>{
+    const list=alumnos||[];
+    const map={};
+    list.forEach(a=>{
+      const others=list.filter(b=>b.id!==a.id&&samePersonName(a.nombre,b.nombre)&&normalizarClase(a.clase)===normalizarClase(b.clase));
+      if(others.length)map[a.id]=others;
+    });
+    return map;
+  },[alumnos]);
   const restoreMissing=async()=>{
     if(!missingFromCalifs.length)return;
     const base=(alumnos||[]).slice();
@@ -2346,6 +2367,28 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
 
   return(
     <div style={{padding:"1rem 1rem 6.25rem"}}>
+      {onMergeAlumnos&&(
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+          <div style={{fontSize:12,color:"#7B6B9A"}}>
+            Si encuentras dos alumnos duplicados (mismo niño repetido), puedes fusionarlos para unir datos y calificaciones.
+          </div>
+          <button
+            disabled={!canUndoMerge}
+            onClick={()=>{ if(onUndoMerge) onUndoMerge(); }}
+            style={{
+              ...S.btn("#F5F0FF",canUndoMerge?"#2D1B4E":"#B0A5CC"),
+              padding:"8px 12px",
+              fontSize:12,
+              borderRadius:10,
+              opacity:canUndoMerge?1:0.7,
+              cursor:canUndoMerge?"pointer":"default",
+            }}
+            title={canUndoMerge?"Deshacer la última fusión de alumnos":"No hay fusiones recientes para deshacer"}
+          >
+            ↩ Deshacer última fusión
+          </button>
+        </div>
+      )}
       {missingFromCalifs.length>0&&(
         <div style={{background:"linear-gradient(135deg,#F5C84218,#F5C84228)",border:"1.5px solid #F5C84266",borderRadius:14,padding:"14px 18px",marginBottom:16}}>
           <div style={{fontWeight:800,fontSize:14,color:"#7B5A00",marginBottom:6}}>🔍 Alumnos que aparecen en calificaciones pero no en la lista</div>
@@ -2385,6 +2428,26 @@ function AlumnosPanel({alumnos=[],onUpdateAlumnos,clasesConfig,initialSubTab,onS
                   {a.sellado&&<span style={{background:"#a78bfa22",color:"#a78bfa",padding:"2px 6px",borderRadius:6,fontSize:10,fontWeight:700}}>✨ Sellado</span>}
                   {!(a.padre||a.madre)&&!a.bautizado&&!a.sellado&&"—"}
                 </div>
+                {onMergeAlumnos&&duplicatesById[a.id]&&duplicatesById[a.id].length>0&&(
+                  <div style={{marginTop:6,fontSize:11,color:"#7B6B9A",display:"flex",flexDirection:"column",gap:4}}>
+                    <div>Posibles duplicados de este alumno:</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                      {duplicatesById[a.id].map(d=>(
+                        <button
+                          key={d.id}
+                          style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:10,borderRadius:10}}
+                          onClick={()=>{
+                            if(!window.confirm("¿Fusionar a "+displayNameAlumno(d)+" dentro de "+displayNameAlumno(a)+"?\n\nSe unirán datos y calificaciones; luego podrás deshacer la última fusión desde el botón superior."))return;
+                            onMergeAlumnos(a.id,d.id);
+                          }}
+                          title={"Fusionar '"+displayNameAlumno(d)+"' en '"+displayNameAlumno(a)+"'"}
+                        >
+                          Fusionar con {shortDisplayName(d.nombre)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
@@ -5310,6 +5373,8 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
   const[alumnoSubTabInitial,setAlumnoSubTabInitial]=useState(null); // "bautizados" | "sellados" cuando se viene del dashboard
   const[adminPwForm,setAdminPwForm]=useState({current:"",master:"",new1:"",new2:"",error:"",ok:false});
   const[resetForm,setResetForm]=useState({maestro:"",newPw:"",master:"",error:"",ok:false});
+  // Historial local de fusiones de alumnos para poder deshacer (no se persiste en Firestore)
+  const[mergeHistory,setMergeHistory]=useState([]);
   const tabs=[
     {id:"inicio",label:"Inicio",icon:"🏠"},
     {id:"horario",label:"Horario",icon:"📅"},
@@ -5321,6 +5386,72 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
     {id:"mas",label:"Más",icon:"☰"},
   ];
   const useAlumnosSource=!(data.alumnos&&Array.isArray(data.alumnos)&&data.alumnos.length>0)?false:true;
+
+  const handleMergeAlumnos=useCallback(async(idPrincipal,idDuplicado)=>{
+    const alumnos=data.alumnos||[];
+    const calificaciones=data.calificaciones||[];
+    const aPrincipal=alumnos.find(a=>a.id===idPrincipal);
+    const aDup=alumnos.find(a=>a.id===idDuplicado);
+    if(!aPrincipal||!aDup)return;
+    // Guardar snapshot para deshacer
+    const snapshot={
+      idPrincipal,
+      idDuplicado,
+      alumnoPrincipalAntes:{...aPrincipal},
+      alumnoDuplicadoAntes:{...aDup},
+      calificacionesAntes:calificaciones.filter(c=>samePersonName(c.alumno,aPrincipal.nombre)||samePersonName(c.alumno,aDup.nombre)),
+    };
+    setMergeHistory(prev=>[...prev,snapshot]);
+    // Fusionar datos personales: se prioriza el alumno principal y se rellenan huecos con datos del duplicado
+    const alumnoFusionado={
+      ...aPrincipal,
+      familia:aPrincipal.familia||aDup.familia,
+      padre:aPrincipal.padre||aDup.padre,
+      madre:aPrincipal.madre||aDup.madre,
+      telPadre:aPrincipal.telPadre||aDup.telPadre,
+      telMadre:aPrincipal.telMadre||aDup.telMadre,
+      nacimiento:aPrincipal.nacimiento||aDup.nacimiento,
+      bautizado:aPrincipal.bautizado||aDup.bautizado,
+      sellado:aPrincipal.sellado||aDup.sellado,
+      foto:aPrincipal.foto||aDup.foto||null,
+      primerNombre:(aPrincipal.primerNombre||aDup.primerNombre)||"",
+      segundoNombre:(aPrincipal.segundoNombre||aDup.segundoNombre)||"",
+      primerApellido:(aPrincipal.primerApellido||aDup.primerApellido)||"",
+      segundoApellido:(aPrincipal.segundoApellido||aDup.segundoApellido)||"",
+    };
+    const nuevosAlumnos=alumnos
+      .filter(a=>a.id!==idDuplicado)
+      .map(a=>a.id===idPrincipal?alumnoFusionado:a);
+    const nuevasCalifs=calificaciones.map(c=>{
+      if(samePersonName(c.alumno,aDup.nombre)){
+        return {...c,alumno:aPrincipal.nombre};
+      }
+      return c;
+    });
+    await onUpdateData("alumnos",nuevosAlumnos);
+    await onUpdateData("calificaciones",nuevasCalifs);
+  },[data.alumnos,data.calificaciones,onUpdateData]);
+
+  const handleUndoMerge=useCallback(async()=>{
+    if(!mergeHistory.length)return;
+    const last=mergeHistory[mergeHistory.length-1];
+    const newHistory=mergeHistory.slice(0,-1);
+    const alumnos=data.alumnos||[];
+    const calificaciones=data.calificaciones||[];
+    let sinPrincipal=alumnos.filter(a=>a.id!==last.idPrincipal);
+    const restoredAlumnos=[
+      ...sinPrincipal,
+      last.alumnoPrincipalAntes,
+      last.alumnoDuplicadoAntes,
+    ];
+    const sinAmbos=calificaciones.filter(
+      c=>!samePersonName(c.alumno,last.alumnoPrincipalAntes.nombre)&&!samePersonName(c.alumno,last.alumnoDuplicadoAntes.nombre)
+    );
+    const restoredCalifs=[...sinAmbos,...last.calificacionesAntes];
+    await onUpdateData("alumnos",restoredAlumnos);
+    await onUpdateData("calificaciones",restoredCalifs);
+    setMergeHistory(newHistory);
+  },[mergeHistory,data.alumnos,data.calificaciones,onUpdateData]);
 
   const saveAdminPassword=async()=>{
     const currentStored=data.adminProfile?.adminPassword||ADMIN_PASSWORD;
@@ -5374,7 +5505,19 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
         {activeTab==="calificaciones"&&<CalifAdminPanel calificaciones={data.calificaciones} clases={data.clases} criterios={data.criterios||CRITERIOS} onUpdate={v=>onUpdateData("calificaciones",v)} cronograma={data.cronograma} meriendas={data.meriendas||[]}/>}
         {activeTab==="evaluaciones"&&<EvaluacionesPanelUnificado evaluaciones={data.evaluaciones} onUpdate={v=>onUpdateData("evaluaciones",v)} videos={data.videos||[]} onUpdateVideos={v=>onUpdateData("videos",v)} cronograma={data.cronograma} onUpdateCronograma={v=>onUpdateData("cronograma",v)} maestros={data.maestros||[]}/>}
         {activeTab==="clases"&&<ClasesPanel readOnlyStudents={useAlumnosSource} clases={data.clases} onUpdate={useAlumnosSource?()=>{}:v=>onUpdateData("clases",v)} clasesConfig={data.clasesConfig} onUpdateClasesConfig={v=>onUpdateData("clasesConfig",v)} calificaciones={data.calificaciones} familias={data.familias} onUpdateFamilias={useAlumnosSource?()=>{}:v=>onUpdateData("familias",v)}/>}
-        {activeTab==="alumnos"&&<AlumnosPanel alumnos={data.alumnos||[]} onUpdateAlumnos={v=>onUpdateData("alumnos",v)} clasesConfig={data.clasesConfig} initialSubTab={alumnoSubTabInitial} onSubTabConsumed={()=>setAlumnoSubTabInitial(null)} calificaciones={data.calificaciones||[]}/>}
+        {activeTab==="alumnos"&&(
+          <AlumnosPanel
+            alumnos={data.alumnos||[]}
+            onUpdateAlumnos={v=>onUpdateData("alumnos",v)}
+            clasesConfig={data.clasesConfig}
+            initialSubTab={alumnoSubTabInitial}
+            onSubTabConsumed={()=>setAlumnoSubTabInitial(null)}
+            calificaciones={data.calificaciones||[]}
+            onMergeAlumnos={handleMergeAlumnos}
+            canUndoMerge={mergeHistory.length>0}
+            onUndoMerge={handleUndoMerge}
+          />
+        )}
         {activeTab==="maestros"&&<MaestrosPanel maestros={data.maestros} onUpdate={v=>onUpdateData("maestros",v)}/>}
         {activeTab==="mas"&&(
           <div style={{padding:"1rem 1rem 0"}}>
