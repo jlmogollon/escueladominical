@@ -446,6 +446,28 @@ function restoreAlumnoDataFromStored(alumnos,loadedClases,loadedFamilias){
   return changed;
 }
 
+// Reasigna calificaciones cuyos nombres de alumno ya no coinciden exactamente con la lista actual, usando samePersonName+mismo grupo/clase.
+// No crea alumnos nuevos: solo apunta las calificaciones al alumno único que ya existe (y normaliza la clase).
+function repairCalifsToExistingAlumnos(calificaciones,alumnos){
+  if(!Array.isArray(calificaciones)||!Array.isArray(alumnos)||!alumnos.length)return{changed:false,calificaciones:calificaciones||[]};
+  let changed=false;
+  const nuevos=calificaciones.map(c=>{
+    const nombre=(c.alumno||"").trim();
+    const claseNorm=normalizarClase(c.clase);
+    if(!nombre)return c;
+    const candidates=alumnos.filter(a=>samePersonName(a.nombre,nombre)&&normalizarClase(a.clase)===claseNorm);
+    if(candidates.length===1){
+      const target=candidates[0];
+      if(target.nombre!==c.alumno||normalizarClase(target.clase)!==claseNorm){
+        changed=true;
+        return {...c,alumno:target.nombre,clase:normalizarClase(target.clase)};
+      }
+    }
+    return c;
+  });
+  return{changed,calificaciones:nuevos};
+}
+
 // Deriva la lista de familias desde la lista de alumnos (fuente de verdad). Agrupa por apellidos y padres.
 function deriveFamilias(alumnos){
   const norm=(s)=>String(s||"").trim().replace(/\s+/g," ");
@@ -5421,6 +5443,24 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
     await onUpdateData("calificaciones",nuevasCalifs);
   },[data.alumnos,data.calificaciones,onUpdateData]);
 
+  const repairAlumnosYCalifs=useCallback(async()=>{
+    const alumnosCopy=(data.alumnos||[]).map(a=>({...a}));
+    const califsCopy=(data.calificaciones||[]).map(c=>({...c}));
+    let changed=false;
+    if(restoreFotosFromClases(alumnosCopy,data.clases))changed=true;
+    if(restoreFotosFromFamilias(alumnosCopy,data.familias))changed=true;
+    if(restoreAlumnoDataFromStored(alumnosCopy,data.clases,data.familias))changed=true;
+    const {changed:califsChanged,calificaciones:nuevasCalifs}=repairCalifsToExistingAlumnos(califsCopy,alumnosCopy);
+    if(califsChanged)changed=true;
+    if(!changed){
+      alert("No se encontraron datos adicionales para restaurar. Ya está todo sincronizado.");
+      return;
+    }
+    await onUpdateData("alumnos",alumnosCopy);
+    await onUpdateData("calificaciones",nuevasCalifs);
+    alert("Datos de alumnos y calificaciones reparados. Si no ves los cambios, recarga la página.");
+  },[data.alumnos,data.calificaciones,data.clases,data.familias,onUpdateData]);
+
   const saveAdminPassword=async()=>{
     const currentStored=data.adminProfile?.adminPassword||ADMIN_PASSWORD;
     if(!adminPwForm.current||adminPwForm.current!==currentStored){
@@ -5517,6 +5557,19 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
                       <p style={{fontSize:11,color:"#7B6B9A",margin:0}}>Aquí puedes configurar cómo se verá el administrador en los informes.</p>
                     </div>
                   </div>
+                <div style={{...S.card,marginBottom:14}}>
+                  <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,margin:"0 0 8px"}}>🩺 Reparar datos de alumnos y calificaciones</h3>
+                  <p style={{fontSize:12,color:"#7B6B9A",margin:"0 0 10px"}}>
+                    Si después de fusionar alumnos notas que alguna foto u observaciones de clases desaparecieron, puedes intentar restaurarlas desde los datos guardados en Clases, Familias y Calificaciones.
+                    No se crearán alumnos nuevos; solo se completarán datos faltantes y se reasignarán calificaciones a los alumnos actuales.
+                  </p>
+                  <button
+                    style={{...S.btn("#4BBCE0","#FFFFFF",true),padding:"8px 14px",fontSize:13,borderRadius:10}}
+                    onClick={repairAlumnosYCalifs}
+                  >
+                    🔧 Reparar alumnos y calificaciones
+                  </button>
+                </div>
                   <label style={S.label}>Nombre del administrador</label>
                   <input
                     style={{...S.input,marginBottom:10}}
