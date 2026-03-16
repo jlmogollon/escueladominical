@@ -2432,26 +2432,6 @@ function AlumnosPanel({
                   {a.sellado&&<span style={{background:"#a78bfa22",color:"#a78bfa",padding:"2px 6px",borderRadius:6,fontSize:10,fontWeight:700}}>✨ Sellado</span>}
                   {!(a.padre||a.madre)&&!a.bautizado&&!a.sellado&&"—"}
                 </div>
-                {onMergeAlumnos&&duplicatesById[a.id]&&duplicatesById[a.id].length>0&&(
-                  <div style={{marginTop:6,fontSize:11,color:"#7B6B9A",display:"flex",flexDirection:"column",gap:4}}>
-                    <div>Posibles duplicados de este alumno:</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                      {duplicatesById[a.id].map(d=>(
-                        <button
-                          key={d.id}
-                          style={{...S.btn("#FFF0F0","#EF5350"),padding:"4px 8px",fontSize:10,borderRadius:10}}
-                          onClick={()=>{
-                            if(!window.confirm("¿Fusionar a "+displayNameAlumno(d)+" dentro de "+displayNameAlumno(a)+"?\n\nSe unirán datos y calificaciones; luego podrás deshacer la última fusión desde el botón superior."))return;
-                            onMergeAlumnos(a.id,d.id);
-                          }}
-                          title={"Fusionar '"+displayNameAlumno(d)+"' en '"+displayNameAlumno(a)+"'"}
-                        >
-                          Fusionar con {shortDisplayName(d.nombre)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
               <span style={S.badge(color)}>{normalizarClase(a.clase)}</span>
               <button style={{...S.btn("#4BBCE0"),padding:"8px 12px"}} onClick={()=>openEdit(a)} title="Editar">✏️</button>
