@@ -73,112 +73,18 @@ function compressImage(file, maxDim=128, quality=0.5) {
   });
 }
 
-const INITIAL_MAESTROS = [
-  { id:1, nombre:"Arboleda Diana", cargo:"MAESTRO", clase:"CONQUISTADORES", cumpleanos:"26/05", certificado:"SI" },
-  { id:2, nombre:"Bohórquez Luz Mery", cargo:"MAESTRO", clase:"CORDERITOS", cumpleanos:"13/03", certificado:"NO" },
-  { id:3, nombre:"Cano Ana", cargo:"MAESTRO", clase:"VENCEDORES", cumpleanos:"24/04", certificado:"SI" },
-  { id:4, nombre:"Caro Martha", cargo:"MAESTRO", clase:"ADOLESCENTES", cumpleanos:null, certificado:null },
-  { id:5, nombre:"Castrillón Deisy", cargo:"AUXILIAR", clase:"CORDERITOS", cumpleanos:"28/08", certificado:"SI" },
-  { id:6, nombre:"Ceballos Yuliet", cargo:"MAESTRO", clase:"ADOLESCENTES", cumpleanos:"01/07", certificado:"SI" },
-  { id:7, nombre:"Cedeño Mabel", cargo:"MAESTRO", clase:"CORDERITOS", cumpleanos:"12/06", certificado:"SI" },
-  { id:8, nombre:"Cruz Rosy", cargo:"MAESTRO", clase:"CORDERITOS", cumpleanos:"09/07", certificado:"SI" },
-  { id:9, nombre:"Del Castillo Astrid", cargo:"MAESTRO", clase:"CONQUISTADORES", cumpleanos:"22/02", certificado:"SI" },
-  { id:10, nombre:"Díaz José Hernán", cargo:"MAESTRO", clase:"ADOLESCENTES", cumpleanos:"10/03", certificado:"SI" },
-  { id:11, nombre:"Giraldo Samuel", cargo:"AUXILIAR", clase:"VENCEDORES", cumpleanos:"16/05", certificado:"NO" },
-  { id:12, nombre:"Giraldo Valeria", cargo:"AUXILIAR", clase:"VENCEDORES", cumpleanos:"08/09", certificado:"NO" },
-  { id:13, nombre:"Hernández Ana María", cargo:"MAESTRO", clase:"ADOLESCENTES", cumpleanos:"27/05", certificado:"SI" },
-  { id:14, nombre:"Hernández Blanca", cargo:"AUXILIAR", clase:"CORDERITOS", cumpleanos:"15/12", certificado:"SI" },
-  { id:15, nombre:"Lavaire Marcela", cargo:"MAESTRO", clase:"CORDERITOS", cumpleanos:"10/06", certificado:"NO" },
-  { id:16, nombre:"Márquez Verónica", cargo:"AUXILIAR", clase:"VENCEDORES", cumpleanos:null, certificado:"NO" },
-  { id:17, nombre:"Martínez María José", cargo:"MAESTRO", clase:"VENCEDORES", cumpleanos:"20/09", certificado:"NO" },
-  { id:18, nombre:"Mogollón José Luis", cargo:"MAESTRO", clase:"ADOLESCENTES", cumpleanos:"17/05", certificado:"SI" },
-  { id:19, nombre:"Mora Ana", cargo:"AUXILIAR", clase:"CONQUISTADORES", cumpleanos:"12/05", certificado:"SI" },
-  { id:20, nombre:"Mora Lucy", cargo:"MAESTRO", clase:"CORDERITOS", cumpleanos:"21/05", certificado:"SI" },
-  { id:21, nombre:"Muñoz Cindy", cargo:"MAESTRO", clase:"CONQUISTADORES", cumpleanos:"30/01", certificado:"SI" },
-  { id:22, nombre:"Ocampo Alejandro", cargo:"MAESTRO", clase:"VENCEDORES", cumpleanos:"21/03", certificado:"SI" },
-  { id:23, nombre:"Peralta Astrid", cargo:"AUXILIAR", clase:"CONQUISTADORES", cumpleanos:"20/10", certificado:"SI" },
-  { id:24, nombre:"Rodríguez Carlos", cargo:"MAESTRO", clase:"CONQUISTADORES", cumpleanos:"06/06", certificado:"SI" },
-  { id:25, nombre:"Rodríguez Michael", cargo:"MAESTRO", clase:"VENCEDORES", cumpleanos:"25/02", certificado:"SI" },
-  { id:26, nombre:"Sepúlveda Andrés", cargo:"MAESTRO", clase:"CONQUISTADORES", cumpleanos:"02/10", certificado:"SI" },
-];
+const INITIAL_MAESTROS = [];
 
 const INITIAL_CLASES = {
-  CONQUISTADORES:[
-    {id:"c1",nombre:"Bautista Marcos",edad:11},{id:"c2",nombre:"Cruz Salomé",edad:10},
-    {id:"c3",nombre:"Dubon Wilson",edad:10},{id:"c4",nombre:"Lauren Tello",edad:null},
-    {id:"c5",nombre:"Loaiza Martina",edad:9},{id:"c6",nombre:"Mogollon David Luis",edad:11},
-    {id:"c7",nombre:"Ramos Salomé",edad:null},{id:"c8",nombre:"Sanz José David",edad:null},
-  ],
-  VENCEDORES:[
-    {id:"v1",nombre:"Ávila Gabriel",edad:5},{id:"v2",nombre:"Díaz Alicia",edad:6},
-    {id:"v3",nombre:"Daghouj Karim",edad:5},{id:"v4",nombre:"Escalante Matías",edad:7},
-    {id:"v5",nombre:"Loaiza Julia",edad:5},{id:"v6",nombre:"Morales Eva",edad:5},
-    {id:"v7",nombre:"Morales Sara",edad:7},{id:"v8",nombre:"Palacios Amy",edad:7},
-    {id:"v9",nombre:"Redón Javier",edad:null},
-  ],
-  CORDERITOS:[
-    {id:"co1",nombre:"Contreras Avril",edad:4},{id:"co2",nombre:"Morales Abraham",edad:4},
-    {id:"co3",nombre:"Muñoz Mariano",edad:2},{id:"co4",nombre:"Luna",edad:null},{id:"co5",nombre:"Sofia",edad:null},
-  ],
-  ADOLESCENTES:[
-    {id:"a1",nombre:"Ávila Ángelo Gael",edad:13},{id:"a2",nombre:"Mogollón José Luis",edad:12},
-    {id:"a3",nombre:"Lozano Daniel",edad:11},{id:"a4",nombre:"Daghouj Karima",edad:12},
-    {id:"a5",nombre:"Maya Alejandro",edad:13},{id:"a6",nombre:"Hernández Jhonatahn",edad:13},
-    {id:"a7",nombre:"Giraldo Valeria",edad:null},{id:"a8",nombre:"Liam",edad:null},
-  ],
+  CONQUISTADORES:[],
+  VENCEDORES:[],
+  CORDERITOS:[],
+  ADOLESCENTES:[],
 };
 
-const INITIAL_CRONOGRAMA = [
-  {id:1,fecha:"2026-03-01",grupo:"CORDERITOS",leccion:"#5",tema:"DIOS ES MI PADRE",maestro:"Mora Lucy",auxiliar:"Hernández Blanca"},
-  {id:2,fecha:"2026-03-01",grupo:"VENCEDORES",leccion:"#5",tema:"DIOS ES NUESTRO AMIGO",maestro:"Sepúlveda Andrés",auxiliar:"Giraldo Samuel"},
-  {id:3,fecha:"2026-03-01",grupo:"CONQUISTADORES",leccion:"#5",tema:"LA OBRA CUMBRE DEL CREADOR",maestro:"Del Castillo Astrid",auxiliar:"Mora Ana"},
-  {id:4,fecha:"2026-03-01",grupo:"ADOLESCENTES",leccion:"NO HAY CLASE",tema:"",maestro:null,auxiliar:null},
-  {id:5,fecha:"2026-03-08",grupo:"CORDERITOS",leccion:"#6",tema:"DIOS ES AMOR",maestro:"Bohórquez Luz Mery",auxiliar:"Castrillón Deisy"},
-  {id:6,fecha:"2026-03-08",grupo:"VENCEDORES",leccion:"#6",tema:"DIOS ES OMNISCIENTE",maestro:"Rodríguez Michael",auxiliar:"Giraldo Valeria"},
-  {id:7,fecha:"2026-03-08",grupo:"CONQUISTADORES",leccion:"#6",tema:"LA PERFECCIÓN DE LAS SAGRADAS ESCRITURAS",maestro:"Muñoz Cindy",auxiliar:"Martínez María José"},
-  {id:8,fecha:"2026-03-08",grupo:"ADOLESCENTES",leccion:"#7",tema:"JÓVENES HAGAN LAS COSAS CON AMOR",maestro:"Hernández Ana María",auxiliar:null},
-  {id:9,fecha:"2026-03-15",grupo:"CORDERITOS",leccion:"#7",tema:"DIOS ES NUESTRO AYUDADOR",maestro:"Lavaire Marcela",auxiliar:"Hernández Blanca"},
-  {id:10,fecha:"2026-03-15",grupo:"VENCEDORES",leccion:"#7",tema:"DIOS NOS PUEDE LIBRAR",maestro:"Cedeño Mabel",auxiliar:"Márquez Verónica"},
-  {id:11,fecha:"2026-03-15",grupo:"CONQUISTADORES",leccion:"#7",tema:"LA CONVERSIÓN DEL PECADOR",maestro:"Rodríguez Carlos",auxiliar:"Peralta Astrid"},
-  {id:12,fecha:"2026-03-15",grupo:"ADOLESCENTES",leccion:"NO HAY CLASE",tema:"",maestro:null,auxiliar:null},
-  {id:13,fecha:"2026-03-22",grupo:"CORDERITOS",leccion:"DIA DEL PADRE",tema:"",maestro:null,auxiliar:null},
-  {id:14,fecha:"2026-03-22",grupo:"VENCEDORES",leccion:"DIA DEL PADRE",tema:"",maestro:null,auxiliar:null},
-  {id:15,fecha:"2026-03-22",grupo:"CONQUISTADORES",leccion:"DIA DEL PADRE",tema:"",maestro:null,auxiliar:null},
-  {id:16,fecha:"2026-03-22",grupo:"ADOLESCENTES",leccion:"#8",tema:"JÓVENES QUE SE GOZAN EN EL SEÑOR",maestro:"Mogollón José Luis",auxiliar:null},
-  {id:17,fecha:"2026-03-29",grupo:"CORDERITOS",leccion:"#8",tema:"DIOS ES NUESTRO GUARDADOR",maestro:"Cruz Rosy",auxiliar:"Castrillón Deisy"},
-  {id:18,fecha:"2026-03-29",grupo:"VENCEDORES",leccion:"#8",tema:"DIOS ES TODOPODEROSO",maestro:"Ocampo Alejandro",auxiliar:"Martínez María José"},
-  {id:19,fecha:"2026-03-29",grupo:"CONQUISTADORES",leccion:"#8",tema:"LA VIDA NUEVA DEL CRISTIANO",maestro:"Arboleda Diana",auxiliar:"Márquez Verónica"},
-  {id:20,fecha:"2026-03-29",grupo:"ADOLESCENTES",leccion:"NO HAY CLASE",tema:"",maestro:null,auxiliar:null},
-];
+const INITIAL_CRONOGRAMA = [];
 
-const INITIAL_FAMILIAS = [
-  {id:1,num:1,familia:"Ávila Cruz",padre:"Gabriel Ávila",madre:"Rosibel Cruz",telPadre:"",telMadre:"",alumno:"Ángelo Gael Ávila Cruz",edad:"13 años",cumpleanos:"19/06",nacimiento:"19/06/2011",clase:"ADOLESCENTES"},
-  {id:2,num:1,familia:"Ávila Cruz",padre:"Gabriel Ávila",madre:"Rosibel Cruz",telPadre:"",telMadre:"",alumno:"Gabriel Ávila Cruz",edad:"5 años",cumpleanos:"14/03",nacimiento:"14/03/2019",clase:"VENCEDORES"},
-  {id:3,num:2,familia:"Contreras Cano",padre:"Jesús Contreras",madre:"Ana Cano",telPadre:"",telMadre:"",alumno:"Avril Nicole Contreras",edad:"4 años",cumpleanos:"25/08",nacimiento:"25/08/2020",clase:"CORDERITOS"},
-  {id:4,num:3,familia:"Mogollón Muñoz",padre:"José Mogollón",madre:"Cindy Muñoz",telPadre:"",telMadre:"",alumno:"José Luis Mogollón Muñoz",edad:"12 años",cumpleanos:"15/12",nacimiento:"15/12/2012",clase:"ADOLESCENTES"},
-  {id:5,num:3,familia:"Mogollón Muñoz",padre:"José Mogollón",madre:"Cindy Muñoz",telPadre:"",telMadre:"",alumno:"David Luis Mogollón Muñoz",edad:"10 años",cumpleanos:"07/11",nacimiento:"07/11/2014",clase:"CONQUISTADORES"},
-  {id:6,num:4,familia:"Díaz Hernández",padre:"José Hernán Díaz",madre:"Ana María Hernández",telPadre:"",telMadre:"",alumno:"Alicia Díaz Hernández",edad:"6 años",cumpleanos:"05/08",nacimiento:"05/08/2018",clase:"VENCEDORES"},
-  {id:7,num:4,familia:"Díaz Hernández",padre:"José Hernán Díaz",madre:"Ana María Hernández",telPadre:"",telMadre:"",alumno:"Emily Díaz Hernández",edad:"7 meses",cumpleanos:"27/05",nacimiento:"27/05/2024",clase:"CORDERITOS"},
-  {id:8,num:5,familia:"Morales Cedeño",padre:"Pierre Morales",madre:"Mabel Cedeño",telPadre:"",telMadre:"",alumno:"Sara Morales Cedeño",edad:"7 años",cumpleanos:"02/09",nacimiento:"02/09/2017",clase:"VENCEDORES"},
-  {id:9,num:5,familia:"Morales Cedeño",padre:"Pierre Morales",madre:"Mabel Cedeño",telPadre:"",telMadre:"",alumno:"Eva Morales Cedeño",edad:"5 años",cumpleanos:"23/07",nacimiento:"23/07/2019",clase:"VENCEDORES"},
-  {id:10,num:5,familia:"Morales Cedeño",padre:"Pierre Morales",madre:"Mabel Cedeño",telPadre:"",telMadre:"",alumno:"Abraham Morales Cedeño",edad:"4 años",cumpleanos:"26/11",nacimiento:"26/11/2023",clase:"CORDERITOS"},
-  {id:11,num:6,familia:"Loaiza Arboleda",padre:"Carlos Andrés Loaiza",madre:"Diana Arboleda",telPadre:"",telMadre:"",alumno:"Martina Loaiza Arboleda",edad:"9 años",cumpleanos:"02/10",nacimiento:"02/10/2015",clase:"CONQUISTADORES"},
-  {id:12,num:6,familia:"Loaiza Arboleda",padre:"Carlos Andrés Loaiza",madre:"Diana Arboleda",telPadre:"",telMadre:"",alumno:"Julia Loaiza Arboleda",edad:"5 años",cumpleanos:"20/04",nacimiento:"20/04/2019",clase:"VENCEDORES"},
-  {id:13,num:7,familia:"Palacio Obando",padre:"(No registra)",madre:"Gloria Palacios",telPadre:"",telMadre:"",alumno:"Amy Palacio Obando",edad:"7 años",cumpleanos:"26/10",nacimiento:"26/10/2017",clase:"VENCEDORES"},
-  {id:14,num:8,familia:"Lozano López",padre:"Mauricio Lozano",madre:"Gloria Yolanda López",telPadre:"",telMadre:"",alumno:"Daniel Lozano López",edad:"11 años",cumpleanos:"04/07",nacimiento:"04/07/2013",clase:"ADOLESCENTES"},
-  {id:15,num:9,familia:"Daghouj Hernández",padre:"Souliman Daghouj",madre:"Blanca Hernández",telPadre:"",telMadre:"",alumno:"Karima Daghouj Hernández",edad:"12 años",cumpleanos:"16/10",nacimiento:"16/10/2012",clase:"ADOLESCENTES"},
-  {id:16,num:9,familia:"Daghouj Hernández",padre:"Souliman Daghouj",madre:"Blanca Hernández",telPadre:"",telMadre:"",alumno:"Karim Daghouj Hernández",edad:"5 años",cumpleanos:"23/07",nacimiento:"23/07/2019",clase:"VENCEDORES"},
-  {id:17,num:10,familia:"Muñoz García",padre:"Juan Ramón Muñoz",madre:"Luz Dary García",telPadre:"",telMadre:"",alumno:"Mariano Andrés Muñoz García",edad:"2 años",cumpleanos:"19/07",nacimiento:"19/07/2022",clase:"CORDERITOS"},
-  {id:18,num:11,familia:"(Bautista)",padre:"(No registra)",madre:"(No registra)",telPadre:"",telMadre:"",alumno:"Marcos David Bautista",edad:"11 años",cumpleanos:"05/01",nacimiento:"05/01/2015",clase:"CONQUISTADORES"},
-  {id:19,num:12,familia:"Cruz Enciso",padre:"Freddy Alexander Cruz",madre:"Francy Johana Enciso",telPadre:"",telMadre:"",alumno:"Salomé Cruz Enciso",edad:"10 años",cumpleanos:"30/11",nacimiento:"30/11/2014",clase:"CONQUISTADORES"},
-  {id:20,num:13,familia:"Miranda Pérez",padre:"Javier Miranda",madre:"Lesbia Pérez",telPadre:"",telMadre:"",alumno:"Wilson Miranda Pérez",edad:"10 años",cumpleanos:"28/03",nacimiento:"28/03/2014",clase:"CONQUISTADORES"},
-  {id:21,num:17,familia:"Sanz Márquez",padre:null,madre:"Verónica Márquez",telPadre:"",telMadre:"",alumno:"José David Sanz",edad:null,cumpleanos:null,nacimiento:null,clase:"CONQUISTADORES"},
-  {id:22,num:18,familia:"Ramos",padre:null,madre:null,telPadre:"",telMadre:"",alumno:"Salomé Ramos",edad:null,cumpleanos:null,nacimiento:null,clase:"CONQUISTADORES"},
-  {id:23,num:19,familia:"Rendón",padre:null,madre:null,telPadre:"",telMadre:"",alumno:"Javier Rendón",edad:null,cumpleanos:null,nacimiento:null,clase:"VENCEDORES"},
-  {id:24,num:20,familia:null,padre:null,madre:null,telPadre:"",telMadre:"",alumno:"Lauren",edad:null,cumpleanos:null,nacimiento:null,clase:"CONQUISTADORES"},
-  {id:25,num:21,familia:null,padre:null,madre:"Jennifer",telPadre:"",telMadre:"",alumno:"Liam",edad:null,cumpleanos:null,nacimiento:null,clase:"ADOLESCENTES"},
-  {id:26,num:22,familia:"Giraldo Ceballos",padre:null,madre:"Yuliet Ceballos",telPadre:"",telMadre:"",alumno:"Valeria Giraldo",edad:null,cumpleanos:null,nacimiento:null,clase:"ADOLESCENTES"},
-];
+const INITIAL_FAMILIAS = [];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODELO DE DATOS: La lista de ALUMNOS es la única fuente de verdad.
@@ -245,38 +151,11 @@ function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApelli
 // Familia del alumno = primer y segundo apellido del alumno
 function buildFamiliaAlumno(primerApellido,segundoApellido){return [primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 
-const INITIAL_EVENTOS = [
-  {id:1,fecha:"07/02/2026",tipo:"NACIONAL",nombre:"Ayuno Nacional de Maestros"},
-  {id:2,fecha:"25/04/2026",tipo:"NACIONAL",nombre:"Congreso Nacional de Maestros"},
-  {id:3,fecha:"15/05/2026",tipo:"NACIONAL",nombre:"Seminario Virtual: Innovación en la enseñanza bíblica"},
-  {id:4,fecha:"20/06/2026",tipo:"NACIONAL",nombre:"Día Nacional de Apologética Infantil"},
-  {id:5,fecha:"18/07/2026",tipo:"NACIONAL",nombre:"Evangelismo Infantil Nacional"},
-  {id:6,fecha:"1ra Sem Sep",tipo:"NACIONAL",nombre:"Semana Vuelta al Colegio - Programa de oración"},
-  {id:7,fecha:"13/09/2026",tipo:"NACIONAL",nombre:"Domingo Nacional del Niño Misionero"},
-  {id:8,fecha:"07/11/2026",tipo:"NACIONAL",nombre:"Vigilia Nacional para Niños Online"},
-  {id:9,fecha:"15/02/2026",tipo:"LOCAL",nombre:"Taller de Maestros: Evaluación y Capacidad"},
-  {id:10,fecha:"15/03/2026",tipo:"LOCAL",nombre:"Taller de Padres: Caja de dudas y sugerencias"},
-  {id:11,fecha:"19/04/2026",tipo:"LOCAL",nombre:"Día del Niño (Celebración local)"},
-  {id:12,fecha:"21/06/2026",tipo:"LOCAL",nombre:"Taller de Niños: Contra la ideología de género"},
-  {id:13,fecha:"18/07/2026",tipo:"LOCAL",nombre:"Integración Evangelística"},
-  {id:14,fecha:"11-16 Ago",tipo:"LOCAL",nombre:"Escuela Bíblica Vacacional"},
-  {id:15,fecha:"20/09/2026",tipo:"LOCAL",nombre:"Niño Misionero"},
-  {id:16,fecha:"31/10/2026",tipo:"LOCAL",nombre:"Somos niños de luz, celebramos la vida"},
-  {id:17,fecha:"15/11/2026",tipo:"LOCAL",nombre:"Taller de Maestros (Día del maestro)"},
-  {id:18,fecha:"20/12/2026",tipo:"LOCAL",nombre:"Taller de Padres"},
-  {id:19,fecha:"17/01/2027",tipo:"LOCAL",nombre:"Clausura y Grado de Escuela Dominical"},
-];
+const INITIAL_EVENTOS = [];
 
 const EVAL_DEFAULT_5={dominioBiblico:5,habilidadEnsenar:5,claridadComunicarse:5,recursosVisuales:5,manejoGrupo:5,empatia:5,creatividad:5,preparacion:5,compromiso:5,aplicacionPractica:5,cumplimientoClases:5};
 const EVAL_DEFAULT_3={dominioBiblico:3,habilidadEnsenar:3,claridadComunicarse:3,recursosVisuales:3,manejoGrupo:3,empatia:3,creatividad:3,preparacion:3,compromiso:3,aplicacionPractica:3,cumplimientoClases:3};
-const INITIAL_EVALUACIONES = [
-  {nombre:"Arboleda Diana",...EVAL_DEFAULT_5},{nombre:"Bohórquez Luz Mery",...EVAL_DEFAULT_5},{nombre:"Cano Ana",...EVAL_DEFAULT_5},
-  {nombre:"Castrillón Deisy",...EVAL_DEFAULT_5},{nombre:"Ceballos Yuliet",...EVAL_DEFAULT_5},{nombre:"Cedeño Mabel",...EVAL_DEFAULT_5},
-  {nombre:"Cruz Rosy",...EVAL_DEFAULT_5},{nombre:"Del Castillo Astrid",...EVAL_DEFAULT_5},{nombre:"Hernández Blanca",...EVAL_DEFAULT_5},
-  {nombre:"Hernández Ana María",...EVAL_DEFAULT_5},{nombre:"Mogollón José Luis",...EVAL_DEFAULT_5},{nombre:"Mora Lucy",...EVAL_DEFAULT_5},
-  {nombre:"Mora Ana",...EVAL_DEFAULT_5},{nombre:"Peralta Astrid",...EVAL_DEFAULT_5},{nombre:"Ocampo Alejandro",...EVAL_DEFAULT_5},
-  {nombre:"Rodríguez Michael",...EVAL_DEFAULT_5},{nombre:"Rodríguez Carlos",...EVAL_DEFAULT_5},{nombre:"Sepúlveda Andrés",...EVAL_DEFAULT_5},
-];
+const INITIAL_EVALUACIONES = [];
 
 const CRITERIOS = [
   {logro:"VALORES",key:"valores",item:"Amor, respeto y obediencia"},
@@ -526,6 +405,8 @@ const FIREBASE_CONFIG={
   appId:"1:336792465529:web:694cd9a6ce7453cd6a64a8"
 };
 const FIRESTORE_COLLECTION="ed_data";
+const FIRESTORE_DATA_KEYS=["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas","adminProfile","teacherPasswords"];
+const PENDING_WRITES_KEY="ed_pending_writes_v1";
 
 // Instancia singleton de Firestore
 let _dbInstance=null;
@@ -565,6 +446,36 @@ function waitForDb(ms=15000){
 
 function getDbNow(){return getDb();}
 
+function getPendingWrites(){
+  try{return JSON.parse(localStorage.getItem(PENDING_WRITES_KEY)||"[]")||[];}catch(_e){return[];}
+}
+function setPendingWrites(items){
+  try{localStorage.setItem(PENDING_WRITES_KEY,JSON.stringify(items||[]));}catch(_e){}
+}
+function queuePendingWrite(key,val){
+  const q=getPendingWrites().filter(x=>x.key!==key);
+  q.push({key,val,ts:Date.now()});
+  setPendingWrites(q);
+}
+async function flushPendingWrites(){
+  try{
+    const database=await waitForDb();
+    if(!database)return;
+    const q=getPendingWrites();
+    if(!q.length)return;
+    const remaining=[];
+    for(const item of q){
+      try{
+        const str=JSON.stringify(item.val);
+        await database.collection(FIRESTORE_COLLECTION).doc(item.key).set({value:str},{merge:true});
+      }catch(_err){
+        remaining.push(item);
+      }
+    }
+    setPendingWrites(remaining);
+  }catch(_e){}
+}
+
 // Diagnóstico
 function firebaseDiagnostico(){
   waitForDb(5000).then(d=>{
@@ -595,35 +506,43 @@ let _saveDataWarned=false;
 async function saveData(key,val){
   try{
     const database=await waitForDb();
-    if(!database){ if(!_saveDataWarned){ _saveDataWarned=true; console.warn("saveData: Firebase no conectado."); } return false; }
+    if(!database){
+      queuePendingWrite(key,val);
+      if(!_saveDataWarned){ _saveDataWarned=true; console.warn("saveData: Firebase no conectado. Cambio en cola local pendiente de sincronizar."); }
+      return false;
+    }
     const str=JSON.stringify(val);
     if(str.length>900000){ console.warn("saveData: payload muy grande ("+key+", "+Math.round(str.length/1024)+" KB). Firestore limita 1 MB por documento. Las fotos en base64 pueden causar fallos."); }
     await database.collection(FIRESTORE_COLLECTION).doc(key).set({value:str},{merge:true});
+    const q=getPendingWrites().filter(x=>x.key!==key);
+    setPendingWrites(q);
     return true;
   }catch(e){
     console.error("saveData falló ["+key+"]:",e&&e.message?e.message:e);
+    queuePendingWrite(key,val);
     return false;
   }
 }
 
 function subscribeData(onChange){
-  let unsub=()=>{};
+  const unsubs=[];
   waitForDb().then(database=>{
     if(!database){console.warn("subscribeData: Firebase no disponible.");return;}
-    unsub=database.collection(FIRESTORE_COLLECTION).onSnapshot(
-      snap=>{
-        snap.docChanges().forEach(change=>{
-          const key=change.doc.id;
+    FIRESTORE_DATA_KEYS.forEach(key=>{
+      const unsubDoc=database.collection(FIRESTORE_COLLECTION).doc(key).onSnapshot(
+        docSnap=>{
           try{
-            const v=change.doc.data().value;
-            onChange(key,v!=null?JSON.parse(v):null);
+            const data=docSnap.exists?docSnap.data():null;
+            const v=data&&data.value!=null?JSON.parse(data.value):null;
+            onChange(key,v);
           }catch(e){ console.error("subscribeData parse ["+key+"]:",e); }
-        });
-      },
-      err=>{ console.error("subscribeData error:",err); }
-    );
+        },
+        err=>{ console.error("subscribeData error ["+key+"]:",err); }
+      );
+      unsubs.push(unsubDoc);
+    });
   });
-  return ()=>unsub();
+  return ()=>{unsubs.forEach(fn=>{try{fn();}catch(_e){}});};
 }
 
 // Muestra solo primer nombre + primer apellido. Si el registro tiene las 4 partes guardadas, las usa (así no se "ruedan" al editar).
@@ -5510,8 +5429,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
           respaldoGeneradoEn:now.toISOString(),
           tipo:"full-backup"
         },
-        data,
-        teacherPasswords
+        data
       };
       const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
       const url=URL.createObjectURL(blob);
@@ -5607,7 +5525,7 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
                   <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,margin:"0 0 8px"}}>🗂️ Copia de seguridad</h3>
                   <p style={{fontSize:12,color:"#7B6B9A",margin:"0 0 10px"}}>
                     Descarga un archivo JSON con todos los datos actuales de la app, incluyendo clases, alumnos, cronograma,
-                    evaluaciones, finanzas y contraseñas de acceso.
+                    evaluaciones y finanzas.
                   </p>
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                     <button
@@ -5763,6 +5681,12 @@ function App(){
     };
     document.addEventListener("visibilitychange",onVis);
     return ()=>document.removeEventListener("visibilitychange",onVis);
+  },[]);
+  useEffect(()=>{
+    flushPendingWrites();
+    const onOnline=()=>{flushPendingWrites();};
+    window.addEventListener("online",onOnline);
+    return ()=>window.removeEventListener("online",onOnline);
   },[]);
   const[data,setData]=useState({
     maestros:INITIAL_MAESTROS,

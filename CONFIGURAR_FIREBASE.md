@@ -21,7 +21,7 @@ La app ya está preparada para guardar y **sincronizar datos en tiempo real** us
 
 **Importante:** No hace falta configurar Firebase Hosting. La app solo usa **Firestore** (la base de datos). Puedes publicar en **GitHub Pages** o Netlify (ver más abajo).
 
-### Reglas de Firestore (para que funcione siempre, no solo 30 días)
+### Reglas de Firestore (seguras para evitar extracción masiva)
 
 En **Build → Firestore Database** → pestaña **Reglas**, sustituye el contenido por:
 
@@ -29,15 +29,17 @@ En **Build → Firestore Database** → pestaña **Reglas**, sustituye el conten
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /ed_data/{document=**} {
-      allow read, write: if true;
+    match /ed_data/{document} {
+      allow get, create, update, delete: if true;
+      allow list: if false;
     }
   }
 }
 ```
 
-Pulsa **Publicar**. Así la app podrá leer y escribir en Firestore sin límite de tiempo.  
-(Solo quien tenga la URL de tu app podrá acceder a los datos; si más adelante quieres más seguridad, se puede añadir Firebase Auth o App Check.)
+Pulsa **Publicar**. Con esto la app mantiene lectura/escritura por documento, pero se bloquea el listado de toda la colección, que es la vía más común de robo masivo.  
+
+Para seguridad fuerte en producción: añade **Firebase Auth** + **App Check** y restringe por usuario/rol en reglas.
 
 ## 2. Pegar la config en la app
 
