@@ -5379,6 +5379,8 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
   const[alumnoSubTabInitial,setAlumnoSubTabInitial]=useState(null); // "bautizados" | "sellados" cuando se viene del dashboard
   const[adminPwForm,setAdminPwForm]=useState({current:"",master:"",new1:"",new2:"",error:"",ok:false});
   const[resetForm,setResetForm]=useState({maestro:"",newPw:"",master:"",error:"",ok:false});
+  const[restoreBusy,setRestoreBusy]=useState(false);
+  const backupFileInputRef=useRef(null);
   const tabs=[
     {id:"inicio",label:"Inicio",icon:"🏠"},
     {id:"horario",label:"Horario",icon:"📅"},
@@ -5498,6 +5500,77 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
     setResetForm(f=>ok?{maestro:"",newPw:"",master:"",error:"",ok:true}:{...f,error:"No se pudo guardar en la nube",ok:false});
   };
 
+  const downloadFullBackup=()=>{
+    try{
+      const now=new Date();
+      const stamp=now.toISOString().replace(/[:.]/g,"-");
+      const payload={
+        metadata:{
+          app:"Escuela Dominical",
+          respaldoGeneradoEn:now.toISOString(),
+          tipo:"full-backup"
+        },
+        data,
+        teacherPasswords
+      };
+      const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      a.download=`escuela_dominical_backup_${stamp}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      alert("Copia de seguridad descargada correctamente.");
+    }catch(e){
+      console.error("Error generando copia de seguridad:",e);
+      alert("No se pudo generar la copia de seguridad.");
+    }
+  };
+
+  const handleRestoreBackupFile=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    try{
+      const text=await file.text();
+      let parsed;
+      try{
+        parsed=JSON.parse(text);
+      }catch(_err){
+        alert("El archivo no es un JSON válido.");
+        return;
+      }
+      const backupData=parsed?.data;
+      if(!backupData||typeof backupData!=="object"){
+        alert("La copia no tiene el formato esperado (falta el bloque data).");
+        return;
+      }
+      if(!window.confirm("Se reemplazarán los datos actuales por los de la copia. Esta acción no se puede deshacer. ¿Continuar?")){
+        return;
+      }
+      setRestoreBusy(true);
+      const keysToRestore=["maestros","clases","cronograma","familias","alumnos","eventos","evaluaciones","calificaciones","peticiones","meriendas","clasesConfig","videos","finanzas","adminProfile"];
+      for(const key of keysToRestore){
+        if(Object.prototype.hasOwnProperty.call(backupData,key)){
+          const ok=await onUpdateData(key,backupData[key]);
+          if(ok===false)throw new Error(`No se pudo restaurar ${key}`);
+        }
+      }
+      if(parsed&&Object.prototype.hasOwnProperty.call(parsed,"teacherPasswords")){
+        const okPw=await onUpdatePasswords(parsed.teacherPasswords||{});
+        if(okPw===false)throw new Error("No se pudo restaurar teacherPasswords");
+      }
+      alert("Copia restaurada correctamente. Se recomienda recargar la página para ver todos los cambios.");
+    }catch(err){
+      console.error("Error restaurando copia:",err);
+      alert("No se pudo restaurar la copia de seguridad. Verifica el archivo e inténtalo de nuevo.");
+    }finally{
+      setRestoreBusy(false);
+      if(backupFileInputRef.current)backupFileInputRef.current.value="";
+    }
+  };
+
   return(
     <div style={{background:"#F5F0FF",minHeight:"100dvh",paddingBottom:70}}>
       <div style={{background:"linear-gradient(135deg,#3D1B6B,#5B2D8E)",padding:"0.75rem 1rem",display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:"0 2px 12px rgba(0,0,0,0.15)",position:"sticky",top:0,zIndex:100}}>
@@ -5530,6 +5603,37 @@ function AdminApp({data,onUpdateData,onLogout,teacherPasswords,onUpdatePasswords
             {masTab==="perfilAdmin"&&(
               <div style={{paddingBottom:20}}>
                 <h2 style={S.title}>👑 Admin</h2>
+                <div style={{...S.card,marginBottom:14}}>
+                  <h3 style={{color:"#5B2D8E",fontWeight:800,fontSize:15,margin:"0 0 8px"}}>🗂️ Copia de seguridad</h3>
+                  <p style={{fontSize:12,color:"#7B6B9A",margin:"0 0 10px"}}>
+                    Descarga un archivo JSON con todos los datos actuales de la app, incluyendo clases, alumnos, cronograma,
+                    evaluaciones, finanzas y contraseñas de acceso.
+                  </p>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button
+                      style={{...S.btn("#2A96BC","#FFFFFF",true),padding:"8px 14px",fontSize:13,borderRadius:10}}
+                      onClick={downloadFullBackup}
+                      disabled={restoreBusy}
+                    >
+                      💾 Descargar copia completa
+                    </button>
+                    <button
+                      style={{...S.btn("#4CAF50","#FFFFFF",true),padding:"8px 14px",fontSize:13,borderRadius:10,opacity:restoreBusy?0.7:1}}
+                      onClick={()=>backupFileInputRef.current?.click()}
+                      disabled={restoreBusy}
+                    >
+                      ♻️ Restaurar copia
+                    </button>
+                    <input
+                      ref={backupFileInputRef}
+                      type="file"
+                      accept="application/json,.json"
+                      style={{display:"none"}}
+                      onChange={handleRestoreBackupFile}
+                    />
+                  </div>
+                  {restoreBusy&&<p style={{fontSize:12,color:"#2A96BC",margin:"10px 0 0"}}>Restaurando copia, por favor espera...</p>}
+                </div>
                 <div style={{...S.card,marginBottom:14}}>
                   <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
                     <div style={{position:"relative",width:70,height:70}}>
