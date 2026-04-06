@@ -74,8 +74,12 @@
     <!-- PASO 4: Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
 
-    <!-- PASO 5: App JSX — Firebase ya está listo cuando Babel lo ejecute -->
-    <script type="text/babel" data-presets="env,react" src="escuela_dominical_v15.jsx?v=4"></script>
+    <!-- PASO 5: App JSX por secciones (carga en orden estricto) -->
+    <script type="text/babel" data-presets="env,react" src="src/sections/02_helpers.jsx?v=1"></script>
+    <script type="text/babel" data-presets="env,react" src="src/sections/03_firebase.jsx?v=1"></script>
+    <script type="text/babel" data-presets="env,react" src="src/sections/04_components.jsx?v=1"></script>
+    <script type="text/babel" data-presets="env,react" src="src/sections/05_apps.jsx?v=1"></script>
+    <script type="text/babel" data-presets="env,react" src="src/sections/06_main.jsx?v=1"></script>
     <!-- Service worker para PWA instalable en Android -->
     <script>
       if ('serviceWorker' in navigator) {
