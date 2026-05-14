@@ -2353,13 +2353,13 @@ function MeriendaBadges({ses, meriendas, openSesModal}) {
   );
 }
 
-function TeacherFinanzasPanel({user,data}){
+function TeacherFinanzasPanel({user,data,activeClase=null}){
   const meriendas=data.meriendas||[];
   const cronograma=data.cronograma||[];
   const maestros=data.maestros||[];
   const miMaestro=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
-  const miClase=miMaestro.clase;
-  const registros=meriendas.filter(m=>m.clase===miClase&&sameTeacherName(m.maestro,user.name));
+  const miClase=(activeClase!=null&&String(activeClase)!=="")?normalizarClase(activeClase):(miMaestro.clase||"");
+  const registros=meriendas.filter(m=>normalizarClase(m.clase)===normalizarClase(miClase)&&sameTeacherName(m.maestro,user.name));
   const totalClase=registros.reduce((s,m)=>
     s+(parseFloat(m.meriendaCosto)||0)+(parseFloat(m.trabajoManualCosto)||0)
   ,0);
@@ -2449,13 +2449,15 @@ function PrevObsSection({selNino, calificaciones, miClase, selSes}) {
 }
 
 // ══════════ TEACHER CALIFICACIONES ══════════
-function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda}){
+function TeacherCalif({user,data,onUpdateCalif,onUpdateMerienda,superMaestro=false,activeClase=null}){
   const{calificaciones,cronograma,clases,maestros,meriendas=[]}=data;
   const criterios=data.criterios||CRITERIOS;
   const teacherInfo=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
-  const miClase=teacherInfo.clase;
+  const miClase=(activeClase!=null&&String(activeClase)!=="")?normalizarClase(activeClase):(teacherInfo.clase||"");
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
-  const misSesiones=cronograma.filter(c=>(sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name))&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
+  const misSesiones=superMaestro
+    ? cronograma.filter(c=>normalizarClase(c.grupo)===normalizarClase(miClase)&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE")
+    : cronograma.filter(c=>(sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name))&&c.leccion&&c.leccion!=="NO HAY CLASE"&&c.leccion!=="DIA DEL PADRE");
   const[modal,setModal]=useState(false);
   const[form,setForm]=useState({});
   const[selNino,setSelNino]=useState(null);

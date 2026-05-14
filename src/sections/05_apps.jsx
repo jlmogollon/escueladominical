@@ -14,6 +14,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const[editNinoModal,setEditNinoModal]=useState(false);
   const[editNinoForm,setEditNinoForm]=useState({});
   const[editNinoTarget,setEditNinoTarget]=useState(null);
+  const[superClaseSel,setSuperClaseSel]=useState(null);
   const openEditNino=(n)=>{setEditNinoForm({nombre:n.nombre,edad:n.edad||"",cumpleanos:n.cumpleanos||"",nacimiento:n.nacimiento||""});setEditNinoTarget(n);setEditNinoModal(true);};
   const saveEditNino=()=>{
     if(alumnosSource)return;
@@ -41,9 +42,12 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
   const{maestros,cronograma,clases,calificaciones,eventos,familias,evaluaciones,alumnos}=data;
   const alumnosSource=alumnos&&Array.isArray(alumnos)&&alumnos.length>0;
   const teacherInfo=maestros.find(m=>sameTeacherName(m.nombre,user.name))||{};
-  const miClase=teacherInfo.clase;
+  const isSuper=isSuperMaestro(user.name);
+  const cfgList=getCfgList(data.clasesConfig);
+  const defaultSuperClase=normalizarClase(teacherInfo.clase||cfgList[0]?.key||CLASES_LIST[0]);
+  const miClase=isSuper?(superClaseSel!=null?normalizarClase(superClaseSel):defaultSuperClase):(teacherInfo.clase||"");
   const misNinos=(clases[miClase]||[]).slice().sort((a,b)=>sortKeyFirstName(a.nombre).localeCompare(sortKeyFirstName(b.nombre),"es"));
-  const misClases=cronograma.filter(c=>sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name)).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const misClases=(isSuper?[...cronograma]:cronograma.filter(c=>sameTeacherName(c.maestro,user.name)||sameTeacherName(c.auxiliar,user.name))).sort((a,b)=>a.fecha.localeCompare(b.fecha));
   const todayTeacher=new Date();
   const upcomingEventsTeacher=(Array.isArray(eventos)?eventos:[]).filter(e=>{try{const[d,m,y]=(e.fecha||"").split("/");const dt=new Date(parseInt(y),parseInt(m)-1,parseInt(d));const diff=Math.floor((dt-todayTeacher)/86400000);return diff>=0&&diff<=60;}catch(err){return false;}}).sort((a,b)=>{try{const[da,ma,ya]=(a.fecha||"").split("/");const[db,mb,yb]=(b.fecha||"").split("/");return new Date(parseInt(ya),parseInt(ma)-1,parseInt(da))-new Date(parseInt(yb),parseInt(mb)-1,parseInt(db));}catch(e){return 0;}}).slice(0,5);
   const miEval=evaluaciones.find(e=>{const n1=(e.nombre||"").toLowerCase();const n2=user.name.toLowerCase();return n1.includes(n2.split(" ")[0])||n2.includes(n1.split(" ")[0]);});
@@ -117,7 +121,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
     {id:"inicio",label:"Inicio",icon:"🏠"},
     {id:"cronograma",label:"Horario",icon:"📅"},
     {id:"calificaciones",label:"Calific.",icon:"📊"},
-    {id:"clase",label:"Mi clase",icon:"👧"},
+    {id:"clase",label:isSuper?"Clase activa":"Mi clase",icon:"👧"},
     {id:"clases",label:"Clases",icon:"🧒"},
     {id:"mas",label:"Más",icon:"☰"},
   ];
@@ -129,11 +133,19 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{textAlign:"right"}}>
             <div style={{color:"#F5C842",fontWeight:800,fontSize:12,lineHeight:1.2}}>{displayMaestroNombre(user.name)}</div>
-            <div style={{color:"rgba(255,255,255,0.65)",fontSize:10}}>{teacherInfo.cargo} · {miClase}</div>
+            <div style={{color:"rgba(255,255,255,0.65)",fontSize:10}}>{isSuper?"⭐ Super maestro · ":""}{teacherInfo.cargo||"—"} · {miClase}</div>
           </div>
           <button style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:10,padding:"8px 12px",color:"#FFFFFF",fontWeight:700,fontSize:13,cursor:"pointer"}} onClick={onLogout}>🚪 Salir</button>
         </div>
       </div>
+      {isSuper&&(
+        <div style={{padding:"10px 14px",background:"linear-gradient(90deg,#F5C84222,#FFF8E7)",borderBottom:"2px solid #F5C84266",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,fontWeight:800,color:"#6B4E00",flexShrink:0}}>Clase para ver alumnos y calificar</span>
+          <select value={miClase} onChange={e=>setSuperClaseSel(e.target.value)} style={{flex:1,minWidth:200,maxWidth:420,padding:"10px 12px",borderRadius:12,border:"2px solid #5B2D8E44",fontWeight:700,fontSize:14,color:"#2D1B4E"}}>
+            {cfgList.map(c=>(<option key={c.key} value={c.key}>{c.nombre||c.key}</option>))}
+          </select>
+        </div>
+      )}
 
       <div style={{paddingBottom:10}}>
         {activeTab==="inicio"&&(
@@ -229,10 +241,10 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
             ))}
           </div>
         )}
-        {activeTab==="calificaciones"&&<TeacherCalif user={user} data={data} onUpdateCalif={v=>onUpdateData("calificaciones",v)} onUpdateMerienda={v=>onUpdateData("meriendas",v)}/>}
+        {activeTab==="calificaciones"&&<TeacherCalif user={user} data={data} onUpdateCalif={v=>onUpdateData("calificaciones",v)} onUpdateMerienda={v=>onUpdateData("meriendas",v)} superMaestro={isSuper} activeClase={isSuper?miClase:null}/>}
         {activeTab==="clase"&&(
           <div style={{padding:"1rem 1rem 0"}}>
-            <h2 style={S.title}>Mi Clase: {miClase}</h2>
+            <h2 style={S.title}>{isSuper?"Clase activa":"Mi clase"}: {miClase}</h2>
             {misNinos.map((n,i)=>{
               const avg=getNinoGlobalAvg(n.nombre);
               // Padres/teléfonos solo desde la tarjeta del alumno (n), nunca desde familias u otra fuente
@@ -465,7 +477,7 @@ function TeacherApp({user,data,onLogout,onUpdateData,teacherPasswords,onUpdatePa
             )}
             {masTab==="eventos"&&<EventosPanel eventos={data.eventos} onUpdate={()=>{}} readOnly/>}
             {masTab==="finanzas"&&(
-              <TeacherFinanzasPanel user={user} data={data}/>
+              <TeacherFinanzasPanel user={user} data={data} activeClase={isSuper?miClase:null}/>
             )}
             {masTab==="finanzasED"&&(user.name||"").toLowerCase().includes("marcela")&&(user.name||"").toLowerCase().includes("lavaire")&&(
               <FinanzasPanel finanzas={data.finanzas||DEFAULT_FINANZAS} maestros={data.maestros} onUpdate={v=>onUpdateData("finanzas",v)}/>

@@ -146,6 +146,12 @@ function sameTeacherName(a,b){
   // Caso extremo: nombres muy cortos, al menos 1 palabra igual
   return matches===1 && (wa.length===1 || wb.length===1);
 }
+// Cindy Muñoz (directora / admin): mismo maestro con acceso a todas las clases al entrar como maestro.
+const SUPER_MAESTRO_NAME_REFS=["Cindy Vanessa Muñoz","Cindy Muñoz"];
+function isSuperMaestro(teacherName){
+  if(!teacherName)return false;
+  return SUPER_MAESTRO_NAME_REFS.some(ref=>sameTeacherName(teacherName,ref));
+}
 // Construye nombre completo para guardar: "PrimerNombre SegundoNombre PrimerApellido SegundoApellido"
 function buildNombreFull(primerNombre,segundoNombre,primerApellido,segundoApellido){return [primerNombre,segundoNombre,primerApellido,segundoApellido].filter(Boolean).join(" ").trim();}
 // Familia del alumno = primer y segundo apellido del alumno
