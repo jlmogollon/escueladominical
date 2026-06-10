@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Colección ed_data: acceso directo por documento conocido.
+    // Bloquear listados reduce la extracción masiva por consultas a toda la colección.
+    match /ed_data/{document} {
+      allow get, create, update, delete: if true;
+      allow list: if false;
+    }
+  }
+}
